@@ -1,16 +1,12 @@
 mod db;
 use axum::{
     extract::{Path, Query},
+    http::{HeaderMap, HeaderValue, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
-    Extension, Router,
+    Router,
 };
-use db::connect;
-use lazy_static::lazy_static;
-use rusqlite::Connection;
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
-
-use crate::db::insert_blob;
 /*
 https://specs.opencontainers.org/distribution-spec/#endpoints
 ID      Method      API Endpoint                                                Success  Failure
@@ -29,24 +25,19 @@ end-10  DELETE      /v2/<name>/blobs/<digest>                                   
 end-11  POST        /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  201      404
 */
 
-lazy_static! {
-    static ref CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(connect().unwrap()));
-}
-
-struct State {
-    conn: Arc<Mutex<Connection>>,
-}
+const HOST: &str = "0.0.0.0:8602";
+const PROTOCOL: &str = "http";
 
 #[tokio::main]
 async fn main() {
+    db::init().unwrap();
     let router = Router::new()
         .route("/v2", get(()))
         .route("/v2/:name/blobs/:digest", get(get_blob))
         .route("/v2/:name/manifests/:reference", get(get_manifest))
-        .route("/v2/:name/blobs/uploads/", post(post_blob))
-        .layer(Extension(&CONN));
+        .route("/v2/:name/blobs/uploads/", post(post_blob));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8602").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
     axum::serve(listener, router).await.unwrap();
 }
 
@@ -62,24 +53,57 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) {
     println!("name: {}, reference: {}", name, reference);
 }
 
-// ID     Method  API Endpoint                               Success  Failure
-// end-4b POST    /v2/<name>/blobs/uploads/?digest=<digest>  201/202  404/400
-// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
+/*
+https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
+
+ID     Method  API Endpoint                                     Success  Failure
+end-4b POST    /v2/<name>/blobs/uploads/?digest=<digest>        201/202  404/400
+
+REQUEST
+    Content-Length: <length>
+    Content-Type: application/octet-stream
+    <upload byte stream>
+
+RESPONSE
+    Location: <blob-location>    <- a pullable blob URL.
+*/
 #[derive(Deserialize)]
 struct PostBlobParameters {
     digest: String,
 }
 async fn post_blob(
-    Extension(conn): Extension<Arc<Mutex<Connection>>>,
     Path(name): Path<String>,
     Query(query): Query<PostBlobParameters>,
-    body: axum::body::Bytes,
-) {
+    data: axum::body::Bytes,
+) -> impl IntoResponse {
+    let conn = db::connect().unwrap();
     let digest = query.digest;
-    println!("name: {}, digest: {}", name, digest);
-    let conn = conn.lock().unwrap();
+    let data: Vec<u8> = data.to_vec();
 
-    println!("body: {:?}", body);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Location",
+        HeaderValue::from_str(format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest).as_str())
+            .unwrap(),
+    );
 
-    // insert_blob(&conn, &digest, &body);
+    // TODO: Verify digest towards data
+    println!("body: {:?}", data);
+
+    let res = match db::insert_blob(&conn, &digest, &data) {
+        Ok(res) => res,
+        Err(e) => {
+            if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
+                // The blob already exists
+                println!("Duplicate digest: {:?}", e);
+                return (StatusCode::OK, headers, ());
+            }
+            println!("Error inserting blob: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, headers, ());
+        }
+    };
+
+    println!("inserted row {}", res);
+
+    (StatusCode::OK, headers, ())
 }
