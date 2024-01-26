@@ -11,28 +11,20 @@ pub struct BlobRow {
 
 pub fn init() -> Result<()> {
     let conn = Connection::open(PATH)?;
-
-    // First check if the table exists
     let mut stmt =
         conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='blobs'")?;
-    let mut rows = stmt.query([])?;
-    if let Some(row) = rows.next()? {
-        // Table exists, so we're done
-        println!("Table exists");
-        println!("Rows: {:?}", row);
-        return Ok(());
+    let is_initialized = stmt.query([])?.next()?.is_some();
+    if !is_initialized {
+        conn.execute(
+            "CREATE TABLE blobs (
+                id       INTEGER PRIMARY KEY,
+                digest   TEXT NOT NULL,
+                data     BLOB
+            )",
+            (),
+        )?;
+        conn.execute("CREATE UNIQUE INDEX idx_blobs_digest ON blobs (digest)", ())?;
     }
-
-    conn.execute(
-        "CREATE TABLE blobs (
-            id       INTEGER PRIMARY KEY,
-            digest   TEXT NOT NULL,
-            data     BLOB
-        )",
-        (),
-    )?;
-    conn.execute("CREATE UNIQUE INDEX idx_blobs_digest ON blobs (digest)", ())?;
-
     Ok(())
 }
 
