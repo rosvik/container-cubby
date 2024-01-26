@@ -1,3 +1,4 @@
+use axum::{extract::Path, routing::get, Router};
 /*
 https://specs.opencontainers.org/distribution-spec/#endpoints
 ID      Method      API Endpoint                                                Success  Failure
@@ -16,15 +17,25 @@ end-10  DELETE      /v2/<name>/blobs/<digest>                                   
 end-11  POST        /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  201      404
 */
 
-use axum::{routing::get, Router};
-
 #[tokio::main]
 async fn main() {
-    let router = Router::new().route("/v2", get(root));
+    let router = Router::new()
+        .route("/v2", get(()))
+        .route("/v2/:name/blobs/:digest", get(get_blob))
+        .route("/v2/:name/manifests/:reference", get(get_manifest));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8602").await.unwrap();
     axum::serve(listener, router).await.unwrap();
 }
 
-// end-1 GET /v2/ -> 200
-async fn root() {}
+// ID     Method  API Endpoint               Success
+// end-2  GET     /v2/<name>/blobs/<digest>  200
+async fn get_blob(Path((name, digest)): Path<(String, String)>) {
+    println!("name: {}, digest: {}", name, digest);
+}
+
+// ID     Method  API Endpoint                      Success Failure
+// end-3  GET     /v2/<name>/manifests/<reference>  200     404
+async fn get_manifest(Path((name, reference)): Path<(String, String)>) {
+    println!("name: {}, reference: {}", name, reference);
+}
