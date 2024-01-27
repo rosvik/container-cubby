@@ -50,9 +50,9 @@ pub fn bytes_to_hex_string(data: &Vec<u8>) -> String {
 mod tests {
   use super::*;
 
-  fn hex_string_to_bytes(s: &str) -> Vec<u8> {
-    let mut data = Vec::new();
-    let mut chars = s.chars();
+  fn hex_string_to_bytes(hex_string: &str) -> Vec<u8> {
+    let mut data: Vec<u8> = Vec::new();
+    let mut chars = hex_string.chars();
     while let Some(a) = chars.next() {
       let b = chars.next().unwrap();
       let byte = u8::from_str_radix(&format!("{}{}", a, b), 16).unwrap();
