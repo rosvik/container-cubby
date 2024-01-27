@@ -15,23 +15,6 @@ const PROTOCOL: &str = "http";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/*
-https://specs.opencontainers.org/distribution-spec/#endpoints
-ID      Method      API Endpoint                                                Success  Failure
-end-1   GET         /v2/                                                        200      404/401
-end-2   GET / HEAD  /v2/<name>/blobs/<digest>                                   200      404
-end-3   GET / HEAD  /v2/<name>/manifests/<reference>                            200      404
-end-4a  POST        /v2/<name>/blobs/uploads/                                   202      404
-end-4b  POST        /v2/<name>/blobs/uploads/?digest=<digest>                   201/202  404/400
-end-5   PATCH       /v2/<name>/blobs/uploads/<reference>                        202      404/416
-end-6   PUT         /v2/<name>/blobs/uploads/<reference>?digest=<digest>        201      404/400
-end-7   PUT         /v2/<name>/manifests/<reference>                            201      404
-end-8a  GET         /v2/<name>/tags/list                                        200      404
-end-8b  GET         /v2/<name>/tags/list?n=<integer>&last=<integer>             200      404
-end-9   DELETE      /v2/<name>/manifests/<reference>                            202      404/400/405
-end-10  DELETE      /v2/<name>/blobs/<digest>                                   202      404/405
-end-11  POST        /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  201      404
-*/
 #[tokio::main]
 async fn main() {
   db::init().unwrap();
@@ -49,15 +32,12 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/", post(post_blob))
 }
 
-/*
-https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
-
-ID     Method  API Endpoint                                     Success  Failure
-end-2  GET     /v2/<name>/blobs/<digest>                        200      404
-
-RESPONSE:
-  Docker-Content-Digest: <digest>   <- the blob's digest
-*/
+/// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
+///
+/// RESPONSE:
+/// - Docker-Content-Digest: {the blob's digest}
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
 async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let blob = match db::get_blob(&conn, &name, &digest) {
@@ -83,38 +63,32 @@ async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResp
   (StatusCode::OK, success_headers, Bytes::from(blob.data.unwrap()))
 }
 
-/*
-https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
-
-ID     Method  API Endpoint                                      Success Failure
-end-3  GET     /v2/<name>/manifests/<reference>                  200     404
-
-REQUEST:
-  Accept: <content type>            <- see spec / content-negotiation.md
-
-RESPONSE:
-  Content-Type: <content type>      <- see spec / content-negotiation.md
-  Docker-Content-Digest: <digest>   <- the canonical digest of the uploaded blob
-  <manifest>
-*/
+/// end-3: `GET /v2/<name>/manifests/<reference>` => 200 / 404
+///
+/// REQUEST:
+/// - Accept: {content type}            (see spec / content-negotiation.md)
+///
+/// RESPONSE:
+/// - Content-Type: {content type}      (see spec / content-negotiation.md)
+/// - Docker-Content-Digest: {digest}   (the canonical digest of the uploaded blob)
+/// - Body: {manifest}
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
   println!("TODO: get_manifest not implemented");
 }
 
-/*
-https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
-
-ID     Method  API Endpoint                                     Success  Failure
-end-4b POST    /v2/<name>/blobs/uploads/?digest=<digest>        201/202  404/400
-
-REQUEST
-  Content-Length: <length>        <- must match the blob's actual content length
-  Content-Type: application/octet-stream
-  <upload byte stream>
-
-RESPONSE
-  Location: <blob-location>       <- a pullable blob URL
-*/
+/// end-4b: `POST /v2/<name>/blobs/uploads/?digest=<digest>` => 201/202 / 404/400
+///
+/// REQUEST
+/// - Content-Length: {length}          (must match the blob's actual content length)
+/// - Content-Type: "application/octet-stream"
+/// - Body: {blob byte stream}
+///
+/// RESPONSE
+/// - Location: {blob-location}         (a pullable blob URL)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
 #[derive(Deserialize)]
 struct PostBlobParameters {
   digest: String,
