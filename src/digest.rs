@@ -45,3 +45,64 @@ pub fn bytes_to_hex_string(data: &Vec<u8>) -> String {
   }
   s
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn hex_string_to_bytes(s: &str) -> Vec<u8> {
+    let mut data = Vec::new();
+    let mut chars = s.chars();
+    while let Some(a) = chars.next() {
+      let b = chars.next().unwrap();
+      let byte = u8::from_str_radix(&format!("{}{}", a, b), 16).unwrap();
+      data.push(byte);
+    }
+    data
+  }
+
+  #[test]
+  fn test_bytes_to_hex_string() {
+    // Empty string
+    let empty_string = "";
+    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
+    let empty_hex_string = "";
+    assert_eq!(empty_hex_string, bytes_to_hex_string(&empty_bytes));
+
+    // Example string
+    let example_string = "hello world";
+    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
+    let example_hex_string = "68656c6c6f20776f726c64";
+    assert_eq!(example_hex_string, bytes_to_hex_string(&example_bytes));
+  }
+
+  #[test]
+  pub fn test_hex_string_to_bytes() {
+    // Empty string
+    let empty_string = "";
+    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
+    let empty_hex_string = "";
+    assert_eq!(empty_bytes, hex_string_to_bytes(empty_hex_string));
+
+    // Example string
+    let example_string: &str = "hello world";
+    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
+    let example_hex_string = "68656c6c6f20776f726c64";
+    assert_eq!(example_bytes, hex_string_to_bytes(example_hex_string));
+  }
+
+  #[test]
+  pub fn test_hash_data() {
+    // Empty string
+    let empty_string = "";
+    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
+    let empty_hash: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    assert_eq!(hex_string_to_bytes(empty_hash), hash_data(&empty_bytes));
+
+    // Example string
+    let example_string: &str = "hello world";
+    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
+    let example_hash: &str = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+    assert_eq!(hex_string_to_bytes(example_hash), hash_data(&example_bytes));
+  }
+}
