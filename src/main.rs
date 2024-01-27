@@ -1,11 +1,11 @@
 mod db;
 mod digest;
 use axum::{
-    extract::{Path, Query},
-    http::{HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
-    routing::{get, post},
-    Router,
+  extract::{Path, Query},
+  http::{HeaderMap, HeaderValue, StatusCode},
+  response::IntoResponse,
+  routing::{get, post},
+  Router,
 };
 use serde::Deserialize;
 /*
@@ -31,27 +31,27 @@ const PROTOCOL: &str = "http";
 
 #[tokio::main]
 async fn main() {
-    db::init().unwrap();
-    let router = Router::new()
-        .route("/v2", get(()))
-        .route("/v2/:name/blobs/:digest", get(get_blob))
-        .route("/v2/:name/manifests/:reference", get(get_manifest))
-        .route("/v2/:name/blobs/uploads/", post(post_blob));
+  db::init().unwrap();
+  let router = Router::new()
+    .route("/v2", get(()))
+    .route("/v2/:name/blobs/:digest", get(get_blob))
+    .route("/v2/:name/manifests/:reference", get(get_manifest))
+    .route("/v2/:name/blobs/uploads/", post(post_blob));
 
-    let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+  let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
+  axum::serve(listener, router).await.unwrap();
 }
 
 // ID     Method  API Endpoint               Success
 // end-2  GET     /v2/<name>/blobs/<digest>  200
 async fn get_blob(Path((name, digest)): Path<(String, String)>) {
-    println!("name: {}, digest: {}", name, digest);
+  println!("name: {}, digest: {}", name, digest);
 }
 
 // ID     Method  API Endpoint                      Success Failure
 // end-3  GET     /v2/<name>/manifests/<reference>  200     404
 async fn get_manifest(Path((name, reference)): Path<(String, String)>) {
-    println!("name: {}, reference: {}", name, reference);
+  println!("name: {}, reference: {}", name, reference);
 }
 
 /*
@@ -70,40 +70,40 @@ RESPONSE
 */
 #[derive(Deserialize)]
 struct PostBlobParameters {
-    digest: String,
+  digest: String,
 }
 async fn post_blob(
-    Path(name): Path<String>,
-    Query(query): Query<PostBlobParameters>,
-    data: axum::body::Bytes,
+  Path(name): Path<String>,
+  Query(query): Query<PostBlobParameters>,
+  data: axum::body::Bytes,
 ) -> impl IntoResponse {
-    let conn = db::connect().unwrap();
-    let digest = query.digest;
-    let data: Vec<u8> = data.to_vec();
+  let conn = db::connect().unwrap();
+  let digest = query.digest;
+  let data: Vec<u8> = data.to_vec();
 
-    let mut success_headers = HeaderMap::new();
-    let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
-    success_headers.insert(
-        "Location",
-        HeaderValue::from_str(blob_location.as_str()).unwrap(),
-    );
+  let mut success_headers = HeaderMap::new();
+  let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
+  success_headers.insert(
+    "Location",
+    HeaderValue::from_str(blob_location.as_str()).unwrap(),
+  );
 
-    // TODO: Verify digest against data
-    let dig = digest::hash_data(&data);
-    println!("digest: {}", digest::to_hex_string(dig));
+  // TODO: Verify digest against data
+  let dig = digest::hash_data(&data);
+  println!("digest: {}", digest::to_hex_string(dig));
 
-    match db::insert_blob(&conn, &digest, &data) {
-        Ok(res) => res,
-        Err(e) => {
-            if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
-                // The blob already exists
-                println!("Duplicate digest");
-                return (StatusCode::CREATED, success_headers, ());
-            }
-            println!("Error inserting blob: {:?}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
-        }
-    };
+  match db::insert_blob(&conn, &digest, &data) {
+    Ok(res) => res,
+    Err(e) => {
+      if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
+        // The blob already exists
+        println!("Duplicate digest");
+        return (StatusCode::CREATED, success_headers, ());
+      }
+      println!("Error inserting blob: {:?}", e);
+      return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+    }
+  };
 
-    (StatusCode::CREATED, success_headers, ())
+  (StatusCode::CREATED, success_headers, ())
 }
