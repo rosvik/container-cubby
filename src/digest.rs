@@ -32,13 +32,19 @@ After verification, the following is true:
 D == ID(C) == '<alg>:' + Encode(H(C))
 */
 
-pub fn hash_data(data: &Vec<u8>) -> Vec<u8> {
+pub fn get_sha256_digest(data: &Vec<u8>) -> String {
+  let hash_bytes = hash_data(data);
+  let hash_string = bytes_to_hex_string(&hash_bytes);
+  format!("sha256:{}", hash_string)
+}
+
+fn hash_data(data: &Vec<u8>) -> Vec<u8> {
   let mut hasher: sha2::Sha256 = Sha256::new();
   sha2::Digest::update(&mut hasher, data);
   hasher.finalize().to_vec()
 }
 
-pub fn bytes_to_hex_string(data: &Vec<u8>) -> String {
+fn bytes_to_hex_string(data: &Vec<u8>) -> String {
   let mut s = String::new();
   for byte in data {
     s.push_str(&format!("{:02x}", byte));

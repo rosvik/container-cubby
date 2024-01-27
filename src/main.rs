@@ -86,16 +86,12 @@ async fn post_blob(
   success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 
   // Verify digest against data
-  // TODO: Include hash algorithm in digest (sha256:*)
-  let digest_hash_bytes = digest::hash_data(&data);
-  let digest_hash_string = digest::bytes_to_hex_string(&digest_hash_bytes);
-  if digest_hash_string != digest {
+  let data_digest = digest::get_sha256_digest(&data);
+  if data_digest != digest {
     println!("Digest mismatch");
-    println!("digest_hash_string: {}, digest: {}", digest_hash_string, digest);
+    println!("digest_hash_string: {}, digest: {}", data_digest, digest);
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
   }
-
-  println!("digest: {}", digest::bytes_to_hex_string(&digest_hash_bytes));
 
   match db::insert_blob(&conn, &digest, &data) {
     Ok(res) => res,
