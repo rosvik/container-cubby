@@ -158,3 +158,51 @@ async fn post_blob(
   // Successful completion of the request MUST return a 201 Created status code.
   (StatusCode::CREATED, success_headers, ())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::digest::get_sha256_digest;
+
+  const NAMESPACE: &str = "test:1.0.0";
+  const TEST_BLOB_STRING: &str = "testblob";
+
+  #[tokio::test]
+  async fn test_post_blob() {
+    let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
+
+    let digest = get_sha256_digest(&test_blob_bytes.to_vec());
+
+    let result =
+      post_blob(Path(NAMESPACE.to_string()), Query(PostBlobParameters { digest }), test_blob_bytes)
+        .await
+        .into_response();
+
+    let (_, location) = result.headers().iter().find(|(k, _)| k.as_str() == "location").unwrap();
+
+    assert_eq!(result.status(), StatusCode::CREATED);
+    assert!(location.to_str().unwrap().contains(NAMESPACE));
+  }
+
+  #[tokio::test]
+  async fn test_get_blob() {
+    let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
+    let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
+
+    let result =
+      get_blob(Path((NAMESPACE.to_string(), client_digest.clone()))).await.into_response();
+
+    println!("headers: {:?}", result.headers());
+
+    let (_, digest) =
+      result.headers().iter().find(|(k, _)| k.as_str() == "docker-content-digest").unwrap();
+
+    assert_eq!(result.status(), StatusCode::OK);
+
+    // NOTE: The spec says "The Docker-Content-Digest header returns the
+    //       canonical digest of the uploaded blob which MAY differ from the
+    //       provided digest", but since we only support sha256 we can assume
+    //       something is wrong if the digest doesn't match.
+    assert_eq!(digest.to_str().unwrap(), client_digest);
+  }
+}
