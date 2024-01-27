@@ -3,7 +3,7 @@ mod digest;
 use axum::{
   body::Bytes,
   extract::{Path, Query},
-  http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
+  http::{HeaderMap, HeaderValue, StatusCode},
   response::IntoResponse,
   routing::{get, post},
   Router,
@@ -59,8 +59,6 @@ RESPONSE:
   Docker-Content-Digest: <digest>   <- the blob's digest
 */
 async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
-  println!("name: {}, digest: {}", name, digest);
-
   let conn = db::connect().unwrap();
   let blob = match db::get_blob(&conn, &name, &digest) {
     Ok(blob) => blob,
@@ -76,14 +74,13 @@ async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResp
   // header Docker-Content-Digest. If present, the value of this header MUST be
   // a digest matching that of the response body.
   let mut success_headers = HeaderMap::new();
-  success_headers.insert(
-    HeaderName::from_static("Docker-Content-Digest"),
-    HeaderValue::from_str(blob.digest.as_str()).unwrap(),
-  );
+
+  success_headers
+    .insert("Docker-Content-Digest", HeaderValue::from_str(blob.digest.as_str()).unwrap());
 
   // A GET request to an existing blob URL MUST provide the expected blob, with
   // a response code that MUST be 200 OK.
-  (StatusCode::OK, HeaderMap::new(), Bytes::from(blob.data.unwrap()))
+  (StatusCode::OK, success_headers, Bytes::from(blob.data.unwrap()))
 }
 
 /*
@@ -125,11 +122,10 @@ struct PostBlobParameters {
 async fn post_blob(
   Path(name): Path<String>,
   Query(query): Query<PostBlobParameters>,
-  data: axum::body::Bytes,
+  data: Bytes,
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let digest = query.digest;
-  let data: Vec<u8> = data.to_vec();
   let mut success_headers = HeaderMap::new();
 
   // Successful completion MUST include the following header. Location is a
@@ -140,7 +136,7 @@ async fn post_blob(
   success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 
   // Query digest MUST match the blob's digest.
-  let blob_digest = digest::get_sha256_digest(&data);
+  let blob_digest = digest::get_sha256_digest(&data.to_vec());
   if blob_digest != digest {
     println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
