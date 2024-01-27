@@ -94,7 +94,7 @@ async fn post_blob(
         Err(e) => {
             if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
                 // The blob already exists
-                println!("Duplicate digest: {:?}", e);
+                println!("Duplicate digest");
                 return (StatusCode::CREATED, success_headers, ());
             }
             println!("Error inserting blob: {:?}", e);

@@ -30,10 +30,8 @@ pub fn insert_blob(conn: &Connection, digest: &str, data: &[u8]) -> Result<usize
         Ok(res) => res,
         Err(e) => {
             if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
-                println!("Duplicate digest: {:?}", e);
                 return Err(e);
             }
-            println!("Error inserting blob: {:?}", e);
             return Err(e);
         }
     };
