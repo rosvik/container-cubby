@@ -164,6 +164,18 @@ mod tests {
     let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
     let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
+    {
+      // First, POST the blob
+      post_blob(
+        Path(NAMESPACE.to_string()),
+        Query(PostBlobParameters {
+          digest: client_digest.clone(),
+        }),
+        test_blob_bytes,
+      )
+      .await;
+    }
+
     let result =
       get_blob(Path((NAMESPACE.to_string(), client_digest.clone()))).await.into_response();
 
