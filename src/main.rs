@@ -43,8 +43,15 @@ async fn main() {
   axum::serve(listener, router).await.unwrap();
 }
 
-// ID     Method  API Endpoint               Success
-// end-2  GET     /v2/<name>/blobs/<digest>  200
+/*
+https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
+
+ID     Method  API Endpoint                                     Success  Failure
+end-2  GET     /v2/<name>/blobs/<digest>                        200      404
+
+RESPONSE:
+  Docker-Content-Digest: <digest>   <- the blob's digest
+*/
 async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
   println!("name: {}, digest: {}", name, digest);
 
@@ -73,10 +80,22 @@ async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResp
   (StatusCode::OK, HeaderMap::new(), Bytes::from(blob.data.unwrap()))
 }
 
-// ID     Method  API Endpoint                      Success Failure
-// end-3  GET     /v2/<name>/manifests/<reference>  200     404
-async fn get_manifest(Path((name, reference)): Path<(String, String)>) {
-  println!("name: {}, reference: {}", name, reference);
+/*
+https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
+
+ID     Method  API Endpoint                                      Success Failure
+end-3  GET     /v2/<name>/manifests/<reference>                  200     404
+
+REQUEST:
+  Accept: <content type>            <- see spec / content-negotiation.md
+
+RESPONSE:
+  Content-Type: <content type>      <- see spec / content-negotiation.md
+  Docker-Content-Digest: <digest>   <- the canonical digest of the uploaded blob
+  <manifest>
+*/
+async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
+  println!("TODO: get_manifest not implemented");
 }
 
 /*
@@ -86,12 +105,12 @@ ID     Method  API Endpoint                                     Success  Failure
 end-4b POST    /v2/<name>/blobs/uploads/?digest=<digest>        201/202  404/400
 
 REQUEST
-  Content-Length: <length>
+  Content-Length: <length>        <- must match the blob's actual content length
   Content-Type: application/octet-stream
   <upload byte stream>
 
 RESPONSE
-  Location: <blob-location>    <- a pullable blob URL.
+  Location: <blob-location>       <- a pullable blob URL
 */
 #[derive(Deserialize)]
 struct PostBlobParameters {
@@ -105,15 +124,19 @@ async fn post_blob(
   let conn = db::connect().unwrap();
   let digest = query.digest;
   let data: Vec<u8> = data.to_vec();
-
   let mut success_headers = HeaderMap::new();
+
+  // Successful completion MUST include the following header. Location is a
+  // pullable blob URL. This location does not necessarily have to be served by
+  // your registry, for example, in the case of a signed URL from some cloud
+  // storage provider that your registry generates.
   let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
   success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 
-  // Verify digest against data
-  let data_digest = digest::get_sha256_digest(&data);
-  if data_digest != digest {
-    println!("Digest mismatch: digest_hash_string {}, digest {}", data_digest, digest);
+  // Query digest MUST match the blob's digest.
+  let blob_digest = digest::get_sha256_digest(&data);
+  if blob_digest != digest {
+    println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
   }
 
@@ -130,5 +153,6 @@ async fn post_blob(
     }
   };
 
+  // Successful completion of the request MUST return a 201 Created status code.
   (StatusCode::CREATED, success_headers, ())
 }
