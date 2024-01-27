@@ -8,6 +8,10 @@ use axum::{
   Router,
 };
 use serde::Deserialize;
+
+const HOST: &str = "0.0.0.0:8602";
+const PROTOCOL: &str = "http";
+
 /*
 https://specs.opencontainers.org/distribution-spec/#endpoints
 ID      Method      API Endpoint                                                Success  Failure
@@ -25,10 +29,6 @@ end-9   DELETE      /v2/<name>/manifests/<reference>                            
 end-10  DELETE      /v2/<name>/blobs/<digest>                                   202      404/405
 end-11  POST        /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  201      404
 */
-
-const HOST: &str = "0.0.0.0:8602";
-const PROTOCOL: &str = "http";
-
 #[tokio::main]
 async fn main() {
   db::init().unwrap();
@@ -61,12 +61,12 @@ ID     Method  API Endpoint                                     Success  Failure
 end-4b POST    /v2/<name>/blobs/uploads/?digest=<digest>        201/202  404/400
 
 REQUEST
-    Content-Length: <length>
-    Content-Type: application/octet-stream
-    <upload byte stream>
+  Content-Length: <length>
+  Content-Type: application/octet-stream
+  <upload byte stream>
 
 RESPONSE
-    Location: <blob-location>    <- a pullable blob URL.
+  Location: <blob-location>    <- a pullable blob URL.
 */
 #[derive(Deserialize)]
 struct PostBlobParameters {
@@ -88,12 +88,11 @@ async fn post_blob(
   // Verify digest against data
   let data_digest = digest::get_sha256_digest(&data);
   if data_digest != digest {
-    println!("Digest mismatch");
-    println!("digest_hash_string: {}, digest: {}", data_digest, digest);
+    println!("Digest mismatch: digest_hash_string {}, digest {}", data_digest, digest);
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
   }
 
-  match db::insert_blob(&conn, &digest, &data) {
+  match db::insert_blob(&conn, &digest, &name, &data) {
     Ok(res) => res,
     Err(e) => {
       if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
