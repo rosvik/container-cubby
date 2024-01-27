@@ -4,9 +4,9 @@ const PATH: &str = "./db.db3";
 
 #[derive(Debug)]
 pub struct BlobRow {
-  id: i32,
-  digest: String,
-  data: Option<Vec<u8>>,
+  _id: i32,
+  _digest: String,
+  _data: Option<Vec<u8>>,
 }
 
 pub fn init() -> Result<()> {
@@ -48,7 +48,11 @@ pub fn get_blob(conn: &Connection, digest: &str) -> Result<BlobRow> {
     let digest: String = row.get(1)?;
     let data: Option<Vec<u8>> = row.get(2)?;
 
-    let blob = BlobRow { id, digest, data };
+    let blob = BlobRow {
+      _id: id,
+      _digest: digest,
+      _data: data,
+    };
 
     return Ok(blob);
   }
