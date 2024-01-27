@@ -12,6 +12,8 @@ use serde::Deserialize;
 
 const HOST: &str = "0.0.0.0:8602";
 const PROTOCOL: &str = "http";
+const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
+const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /*
 https://specs.opencontainers.org/distribution-spec/#endpoints
@@ -33,14 +35,18 @@ end-11  POST        /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  
 #[tokio::main]
 async fn main() {
   db::init().unwrap();
-  let router = Router::new()
+  let router = router();
+  let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
+  axum::serve(listener, router).await.unwrap();
+}
+
+fn router() -> Router {
+  Router::new()
+    .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
     .route("/v2", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob));
-
-  let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-  axum::serve(listener, router).await.unwrap();
+    .route("/v2/:name/blobs/uploads/", post(post_blob))
 }
 
 /*
