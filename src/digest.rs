@@ -40,65 +40,44 @@ mod tests {
     data
   }
 
+  const EMPTY_STRING: &str = "";
+  const EMPTY_HEX_STRING: &str = "";
+  const EMPTY_HASH: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  const EXAMPLE_STRING: &str = "hello world";
+  const EXAMPLE_HEX_STRING: &str = "68656c6c6f20776f726c64";
+  const EXAMPLE_HASH: &str = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+
   #[test]
   fn test_bytes_to_hex_string() {
-    // Empty string
-    let empty_string = "";
-    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
-    let empty_hex_string = "";
-    assert_eq!(empty_hex_string, bytes_to_hex_string(&empty_bytes));
-
-    // Example string
-    let example_string = "hello world";
-    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
-    let example_hex_string = "68656c6c6f20776f726c64";
-    assert_eq!(example_hex_string, bytes_to_hex_string(&example_bytes));
+    let empty_bytes: Vec<u8> = EMPTY_STRING.as_bytes().to_vec();
+    assert_eq!(EMPTY_HEX_STRING, bytes_to_hex_string(&empty_bytes));
+    let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
+    assert_eq!(EXAMPLE_HEX_STRING, bytes_to_hex_string(&example_bytes));
   }
 
   #[test]
   fn test_hex_string_to_bytes() {
-    // Empty string
-    let empty_string = "";
-    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
-    let empty_hex_string = "";
-    assert_eq!(empty_bytes, hex_string_to_bytes(empty_hex_string));
-
-    // Example string
-    let example_string: &str = "hello world";
-    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
-    let example_hex_string = "68656c6c6f20776f726c64";
-    assert_eq!(example_bytes, hex_string_to_bytes(example_hex_string));
+    let empty_bytes: Vec<u8> = EMPTY_STRING.as_bytes().to_vec();
+    assert_eq!(empty_bytes, hex_string_to_bytes(EMPTY_HEX_STRING));
+    let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
+    assert_eq!(example_bytes, hex_string_to_bytes(EXAMPLE_HEX_STRING));
   }
 
   #[test]
   fn test_hash_data() {
-    // Empty string
-    let empty_string = "";
-    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
-    let empty_hash: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    assert_eq!(hex_string_to_bytes(empty_hash), hash_data(&empty_bytes));
-
-    // Example string
-    let example_string: &str = "hello world";
-    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
-    let example_hash: &str = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
-    assert_eq!(hex_string_to_bytes(example_hash), hash_data(&example_bytes));
+    let empty_bytes: Vec<u8> = EMPTY_STRING.as_bytes().to_vec();
+    assert_eq!(hex_string_to_bytes(EMPTY_HASH), hash_data(&empty_bytes));
+    let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
+    assert_eq!(hex_string_to_bytes(EXAMPLE_HASH), hash_data(&example_bytes));
   }
 
   #[test]
   fn test_get_sha256_digest() {
-    // Empty string
-    let empty_string = "";
-    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
-    let empty_digest: &str =
-      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    let empty_digest = format!("sha256:{}", EMPTY_HASH);
+    let empty_bytes: Vec<u8> = EMPTY_STRING.as_bytes().to_vec();
     assert_eq!(empty_digest, get_sha256_digest(&empty_bytes));
-
-    // Example string
-    let example_string: &str = "hello world";
-    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
-    let example_digest: &str =
-      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+    let example_digest = format!("sha256:{}", EXAMPLE_HASH);
+    let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
     assert_eq!(example_digest, get_sha256_digest(&example_bytes));
   }
 }
