@@ -20,6 +20,7 @@ async fn main() {
   db::init().unwrap();
   let router = router();
   let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
+  println!("Listening on {PROTOCOL}://{HOST}");
   axum::serve(listener, router).await.unwrap();
 }
 
