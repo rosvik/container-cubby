@@ -80,30 +80,27 @@ async fn post_blob(
     let digest = query.digest;
     let data: Vec<u8> = data.to_vec();
 
-    let mut headers = HeaderMap::new();
-    headers.insert(
+    let mut success_headers = HeaderMap::new();
+    let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
+    success_headers.insert(
         "Location",
-        HeaderValue::from_str(format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest).as_str())
-            .unwrap(),
+        HeaderValue::from_str(blob_location.as_str()).unwrap(),
     );
 
-    // TODO: Verify digest towards data
-    println!("body: {:?}", data);
+    // TODO: Verify digest against data
 
-    let res = match db::insert_blob(&conn, &digest, &data) {
+    match db::insert_blob(&conn, &digest, &data) {
         Ok(res) => res,
         Err(e) => {
             if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
                 // The blob already exists
                 println!("Duplicate digest: {:?}", e);
-                return (StatusCode::OK, headers, ());
+                return (StatusCode::CREATED, success_headers, ());
             }
             println!("Error inserting blob: {:?}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, headers, ());
+            return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
         }
     };
 
-    println!("inserted row {}", res);
-
-    (StatusCode::OK, headers, ())
+    (StatusCode::CREATED, success_headers, ())
 }
