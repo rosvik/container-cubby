@@ -83,7 +83,7 @@ mod tests {
   }
 
   #[test]
-  pub fn test_hex_string_to_bytes() {
+  fn test_hex_string_to_bytes() {
     // Empty string
     let empty_string = "";
     let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
@@ -98,7 +98,7 @@ mod tests {
   }
 
   #[test]
-  pub fn test_hash_data() {
+  fn test_hash_data() {
     // Empty string
     let empty_string = "";
     let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
@@ -110,5 +110,22 @@ mod tests {
     let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
     let example_hash: &str = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
     assert_eq!(hex_string_to_bytes(example_hash), hash_data(&example_bytes));
+  }
+
+  #[test]
+  fn test_get_sha256_digest() {
+    // Empty string
+    let empty_string = "";
+    let empty_bytes: Vec<u8> = empty_string.as_bytes().to_vec();
+    let empty_digest: &str =
+      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    assert_eq!(empty_digest, get_sha256_digest(&empty_bytes));
+
+    // Example string
+    let example_string: &str = "hello world";
+    let example_bytes: Vec<u8> = example_string.as_bytes().to_vec();
+    let example_digest: &str =
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+    assert_eq!(example_digest, get_sha256_digest(&example_bytes));
   }
 }
