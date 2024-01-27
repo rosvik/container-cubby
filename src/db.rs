@@ -4,10 +4,10 @@ const DATABASE_PATH: &str = "./db.sqlite3";
 
 #[derive(Debug)]
 pub struct BlobRow {
-  _id: i32,
-  _digest: String,
-  _name: String,
-  _data: Option<Vec<u8>>,
+  pub id: i32,
+  pub digest: String,
+  pub name: String,
+  pub data: Option<Vec<u8>>,
 }
 
 pub fn init() -> Result<()> {
@@ -45,10 +45,10 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
 
   if let Some(row) = rows.next()? {
     let blob = BlobRow {
-      _id: row.get(0)?,
-      _digest: row.get(1)?,
-      _name: row.get(2)?,
-      _data: row.get(3)?,
+      id: row.get(0)?,
+      digest: row.get(1)?,
+      name: row.get(2)?,
+      data: row.get(3)?,
     };
 
     return Ok(blob);

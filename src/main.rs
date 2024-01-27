@@ -1,8 +1,9 @@
 mod db;
 mod digest;
 use axum::{
+  body::Bytes,
   extract::{Path, Query},
-  http::{HeaderMap, HeaderValue, StatusCode},
+  http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
   response::IntoResponse,
   routing::{get, post},
   Router,
@@ -44,8 +45,32 @@ async fn main() {
 
 // ID     Method  API Endpoint               Success
 // end-2  GET     /v2/<name>/blobs/<digest>  200
-async fn get_blob(Path((name, digest)): Path<(String, String)>) {
+async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
   println!("name: {}, digest: {}", name, digest);
+
+  let conn = db::connect().unwrap();
+  let blob = match db::get_blob(&conn, &name, &digest) {
+    Ok(blob) => blob,
+    Err(e) => {
+      // If the blob is not found in the registry, the response code MUST be
+      // 404 Not Found.
+      println!("Error getting blob: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
+    }
+  };
+
+  // A successful response SHOULD contain the digest of the uploaded blob in the
+  // header Docker-Content-Digest. If present, the value of this header MUST be
+  // a digest matching that of the response body.
+  let mut success_headers = HeaderMap::new();
+  success_headers.insert(
+    HeaderName::from_static("Docker-Content-Digest"),
+    HeaderValue::from_str(blob.digest.as_str()).unwrap(),
+  );
+
+  // A GET request to an existing blob URL MUST provide the expected blob, with
+  // a response code that MUST be 200 OK.
+  (StatusCode::OK, HeaderMap::new(), Bytes::from(blob.data.unwrap()))
 }
 
 // ID     Method  API Endpoint                      Success Failure
