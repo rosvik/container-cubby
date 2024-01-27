@@ -11,19 +11,11 @@ pub struct BlobRow {
 
 pub fn init() -> Result<()> {
     let conn = Connection::open(PATH)?;
-    let mut stmt =
-        conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='blobs'")?;
-    let is_initialized = stmt.query([])?.next()?.is_some();
+    let mut stmt = conn.prepare(include_str!("../sql/find_existing_table.sql"))?;
+    let is_initialized = stmt.query(["blobs"])?.next()?.is_some();
     if !is_initialized {
-        conn.execute(
-            "CREATE TABLE blobs (
-                id       INTEGER PRIMARY KEY,
-                digest   TEXT NOT NULL,
-                data     BLOB
-            )",
-            (),
-        )?;
-        conn.execute("CREATE UNIQUE INDEX idx_blobs_digest ON blobs (digest)", ())?;
+        conn.execute(include_str!("../sql/create_blobs.sql"), ())?;
+        conn.execute(include_str!("../sql/create_blobs_index.sql"), ())?;
     }
     Ok(())
 }
@@ -34,10 +26,7 @@ pub fn connect() -> Result<Connection> {
 }
 
 pub fn insert_blob(conn: &Connection, digest: &str, data: &[u8]) -> Result<usize> {
-    let res = match conn.execute(
-        "INSERT INTO blobs (digest, data) VALUES (?1, ?2)",
-        (&digest, &data),
-    ) {
+    let res = match conn.execute(include_str!("../sql/insert_blob.sql"), (&digest, &data)) {
         Ok(res) => res,
         Err(e) => {
             if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
@@ -53,7 +42,7 @@ pub fn insert_blob(conn: &Connection, digest: &str, data: &[u8]) -> Result<usize
 }
 
 pub fn get_blob(conn: &Connection, digest: &str) -> Result<BlobRow> {
-    let mut stmt = conn.prepare("SELECT id, digest, data FROM blobs WHERE digest = ?1")?;
+    let mut stmt = conn.prepare(include_str!("../sql/get_blob.sql"))?;
     let mut rows = stmt.query([&digest])?;
 
     if let Some(row) = rows.next()? {
