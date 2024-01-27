@@ -38,7 +38,7 @@ pub fn hash_data(data: &Vec<u8>) -> Vec<u8> {
   hasher.finalize().to_vec()
 }
 
-pub fn to_hex_string(data: Vec<u8>) -> String {
+pub fn bytes_to_hex_string(data: &Vec<u8>) -> String {
   let mut s = String::new();
   for byte in data {
     s.push_str(&format!("{:02x}", byte));

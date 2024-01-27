@@ -83,14 +83,11 @@ async fn post_blob(
 
   let mut success_headers = HeaderMap::new();
   let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
-  success_headers.insert(
-    "Location",
-    HeaderValue::from_str(blob_location.as_str()).unwrap(),
-  );
+  success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 
   // TODO: Verify digest against data
   let dig = digest::hash_data(&data);
-  println!("digest: {}", digest::to_hex_string(dig));
+  println!("digest: {}", digest::bytes_to_hex_string(&dig));
 
   match db::insert_blob(&conn, &digest, &data) {
     Ok(res) => res,
