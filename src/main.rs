@@ -1,4 +1,5 @@
 mod db;
+mod digest;
 use axum::{
     extract::{Path, Query},
     http::{HeaderMap, HeaderValue, StatusCode},
@@ -88,6 +89,8 @@ async fn post_blob(
     );
 
     // TODO: Verify digest against data
+    let dig = digest::hash_data(&data);
+    println!("digest: {}", digest::to_hex_string(dig));
 
     match db::insert_blob(&conn, &digest, &data) {
         Ok(res) => res,
