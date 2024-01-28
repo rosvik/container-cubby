@@ -1,5 +1,6 @@
 mod db;
 mod digestor;
+mod utils;
 use axum::{
   body::Bytes,
   extract::{Path, Query},
@@ -11,8 +12,8 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-const HOST: &str = "0.0.0.0:8602";
-const PROTOCOL: &str = "http";
+pub const HOST: &str = "0.0.0.0:8602";
+pub const PROTOCOL: &str = "http";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -131,17 +132,11 @@ async fn post_blob(
     }
   }
 
-  let mut success_headers = HeaderMap::new();
-
-  // Successful completion MUST include the following header. Location is a
-  // pullable blob URL. This location does not necessarily have to be served by
-  // your registry, for example, in the case of a signed URL from some cloud
-  // storage provider that your registry generates.
-  let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
-  success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
+  let mut headers = HeaderMap::new();
+  utils::insert_blob_location_header(&mut headers, name.as_str(), digest.as_str());
 
   // Successful completion of the request MUST return a 201 Created status code.
-  (StatusCode::CREATED, success_headers, ())
+  (StatusCode::CREATED, headers, ())
 }
 
 #[cfg(test)]
