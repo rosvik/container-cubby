@@ -1,4 +1,6 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, Error, Result};
+
+use crate::digestor;
 
 const DATABASE_PATH: &str = "./db.sqlite3";
 
@@ -37,6 +39,32 @@ pub fn insert_blob(conn: &Connection, digest: &str, name: &str, data: &[u8]) -> 
   };
 
   Ok(res)
+}
+
+pub fn insert_and_verify_blob(
+  conn: &Connection,
+  digest: &str,
+  name: &str,
+  data: &[u8],
+) -> Result<(), Error> {
+  // Query digest MUST match the blob's digest.
+  let blob_digest = digestor::get_sha256_digest(&data.to_vec());
+  if blob_digest != digest {
+    println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
+    return Err(Error::InvalidQuery);
+  }
+  match insert_blob(&conn, &digest, &name, &data) {
+    Ok(res) => Ok(()),
+    Err(e) => {
+      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
+        return Err(e);
+      }
+      // We have already stored this blob. Until the spec tells us what to do in
+      // this case, we treat it as a success and continue the normal flow.
+      println!("Warning: Duplicate blob, name='{}' digest='{}'", name, digest);
+      Ok(())
+    }
+  }
 }
 
 pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> {

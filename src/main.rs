@@ -1,5 +1,5 @@
 mod db;
-mod digest;
+mod digestor;
 use axum::{
   body::Bytes,
   extract::{Path, Query},
@@ -123,6 +123,14 @@ async fn post_blob(
     }
   };
 
+  match db::insert_and_verify_blob(&conn, digest.as_str(), name.as_str(), &data.to_vec()) {
+    Ok(_) => (),
+    Err(e) => {
+      println!("Error inserting blob: {:?}", e);
+      return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+    }
+  }
+
   let mut success_headers = HeaderMap::new();
 
   // Successful completion MUST include the following header. Location is a
@@ -132,27 +140,6 @@ async fn post_blob(
   let blob_location = format!("{PROTOCOL}://{HOST}/v2/{}/blobs/{}", name, digest);
   success_headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 
-  // Query digest MUST match the blob's digest.
-  let blob_digest = digest::get_sha256_digest(&data.to_vec());
-  if blob_digest != digest {
-    println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
-    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
-  }
-
-  let _ = match db::insert_blob(&conn, &digest, &name, &data) {
-    Ok(res) => res,
-    Err(e) => {
-      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
-        println!("Error inserting blob: {:?}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
-      }
-      // We already have stored the blob. Until the spec tells us what to do in
-      // this case, we treat it as a success and continue the normal flow.
-      println!("Warning: Duplicate digest {} {}", name, digest);
-      0
-    }
-  };
-
   // Successful completion of the request MUST return a 201 Created status code.
   (StatusCode::CREATED, success_headers, ())
 }
@@ -160,7 +147,7 @@ async fn post_blob(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::digest::get_sha256_digest;
+  use crate::digestor::get_sha256_digest;
 
   const NAMESPACE: &str = "test:1.0.0";
   const TEST_BLOB_STRING: &str = "testblob";
