@@ -1,4 +1,4 @@
-# OCI distributor
+# tiny-registry
 
 Initial goals:
 
