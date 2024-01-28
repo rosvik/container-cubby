@@ -128,6 +128,11 @@ async fn post_blob(
   match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
+      if e == rusqlite::Error::InvalidQuery {
+        // If the request is invalid, such as a <digest> with an invalid syntax,
+        // a 400 Bad Request MUST be returned.
+        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      }
       println!("Error inserting blob: {:?}", e);
       return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
     }
@@ -166,6 +171,11 @@ async fn put_blob(
   match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
+      if e == rusqlite::Error::InvalidQuery {
+        // If the request is invalid, such as a <digest> with an invalid syntax,
+        // a 400 Bad Request MUST be returned.
+        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      }
       println!("Error inserting blob: {:?}", e);
       return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
     }
