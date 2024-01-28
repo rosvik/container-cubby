@@ -150,10 +150,11 @@ mod tests {
 
     let result =
       post_blob(Path(NAMESPACE.to_string()), Query(PostBlobParameters { digest }), test_blob_bytes)
-        .await
-        .into_response();
+    .await
+    .into_response();
 
-    let (_, location) = result.headers().iter().find(|(k, _)| k.as_str() == "location").unwrap();
+    let (_, location) =
+      result.headers().iter().find(|(k, _)| k.as_str().eq_ignore_ascii_case("Location")).unwrap();
 
     assert_eq!(result.status(), StatusCode::CREATED);
     assert!(location.to_str().unwrap().contains(NAMESPACE));
@@ -181,8 +182,11 @@ mod tests {
 
     println!("headers: {:?}", result.headers());
 
-    let (_, digest) =
-      result.headers().iter().find(|(k, _)| k.as_str() == "docker-content-digest").unwrap();
+    let (_, digest) = result
+      .headers()
+      .iter()
+      .find(|(k, _)| k.as_str().eq_ignore_ascii_case("Docker-Content-Digest"))
+      .unwrap();
 
     assert_eq!(result.status(), StatusCode::OK);
 
