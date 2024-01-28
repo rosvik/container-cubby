@@ -6,7 +6,7 @@ use axum::{
   extract::{Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
   response::IntoResponse,
-  routing::{get, post},
+  routing::{get, post, put},
   Router,
 };
 use serde::Deserialize;
@@ -33,6 +33,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob))
+    .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -124,7 +125,7 @@ async fn post_blob(
     }
   };
 
-  match db::insert_and_verify_blob(&conn, digest.as_str(), name.as_str(), &data.to_vec()) {
+  match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
       println!("Error inserting blob: {:?}", e);
@@ -136,6 +137,43 @@ async fn post_blob(
   utils::insert_blob_location_header(&mut headers, name.as_str(), digest.as_str());
 
   // Successful completion of the request MUST return a 201 Created status code.
+  (StatusCode::CREATED, headers, ())
+}
+
+/// end-6: `PUT /v2/<name>/blobs/uploads/<reference>?digest=<digest>` => 201 / 404/400
+///
+/// REQUEST
+/// - Content-Length: {length}     (must match the blob's actual content length)
+/// - Content-Type: "application/octet-stream"
+/// - Body: {blob byte stream}
+///
+/// RESPONSE
+/// - Location: {blob-location}    (a pullable blob URL)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
+#[derive(Deserialize)]
+struct PutBlobParameters {
+  digest: String,
+}
+async fn put_blob(
+  Path((name, _reference)): Path<(String, String)>,
+  Query(query): Query<PutBlobParameters>,
+  data: Bytes,
+) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  let digest = query.digest;
+
+  match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
+    Ok(_) => (),
+    Err(e) => {
+      println!("Error inserting blob: {:?}", e);
+      return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+    }
+  }
+
+  let mut headers = HeaderMap::new();
+  utils::insert_blob_location_header(&mut headers, "name", "digest");
+
   (StatusCode::CREATED, headers, ())
 }
 

@@ -41,7 +41,7 @@ pub fn insert_blob(conn: &Connection, digest: &str, name: &str, data: &[u8]) -> 
   Ok(res)
 }
 
-pub fn insert_and_verify_blob(
+pub fn verify_and_insert_blob(
   conn: &Connection,
   digest: &str,
   name: &str,
@@ -53,8 +53,8 @@ pub fn insert_and_verify_blob(
     println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
     return Err(Error::InvalidQuery);
   }
-  match insert_blob(&conn, &digest, &name, &data) {
-    Ok(res) => Ok(()),
+  match insert_blob(conn, digest, name, data) {
+    Ok(_) => Ok(()),
     Err(e) => {
       if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
         return Err(e);
