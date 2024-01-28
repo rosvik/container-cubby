@@ -15,7 +15,8 @@ Initial goals:
 - [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
 - [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
-
+- Google go-containerregistry have some good docs from the client's perspective
+	- [google/go-containerregistry](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
 
 | ID      | Method         | API Endpoint                                                   | Success     | Failure           | Done? |
 | ------- | -------------- | -------------------------------------------------------------- | ----------- | ----------------- | ----- |

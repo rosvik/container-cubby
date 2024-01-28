@@ -12,18 +12,17 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-pub const HOST: &str = "0.0.0.0:8602";
-pub const PROTOCOL: &str = "http";
+const HOST: &str = "0.0.0.0:8602";
+const PROTOCOL: &str = "http";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
   db::init().unwrap();
-  let router = router();
   let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-  println!("Listening on {PROTOCOL}://{HOST}");
-  axum::serve(listener, router).await.unwrap();
+  println!("Listening on {PROTOCOL}://{HOST}/");
+  axum::serve(listener, router()).await.unwrap();
 }
 
 fn router() -> Router {
