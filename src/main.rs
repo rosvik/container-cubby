@@ -167,6 +167,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_post_blob() {
+    db::init().unwrap();
     let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
@@ -190,6 +191,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_blob() {
+    db::init().unwrap();
     let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
     let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
