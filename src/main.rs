@@ -9,6 +9,7 @@ use axum::{
   Router,
 };
 use serde::Deserialize;
+use uuid::Uuid;
 
 const HOST: &str = "0.0.0.0:8602";
 const PROTOCOL: &str = "http";
@@ -92,7 +93,7 @@ async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
 #[derive(Deserialize)]
 struct PostBlobParameters {
-  digest: String,
+  digest: Option<String>,
 }
 async fn post_blob(
   Path(name): Path<String>,
@@ -100,7 +101,28 @@ async fn post_blob(
   data: Bytes,
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
-  let digest = query.digest;
+  let digest = match query.digest {
+    Some(digest) => digest,
+    None => {
+      // If the digest parameter is not provided, we are in the "POST then PUT"
+      // flow, and we should return the `location` header, pointing to a
+      // endpoint that accepts a PUT <location>?digest=<digest>. In practice, we
+      // use end-6, but the location MAY be absolute (containing the protocol
+      // and/or hostname), or it MAY be relative (containing just the URL path)
+      // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
+
+      // MUST contain a UUID representing a unique session ID
+      let uuid = Uuid::new_v4().to_string();
+
+      let mut headers = HeaderMap::new();
+      let location = format!("/v2/{}/blobs/uploads/{}", name, uuid);
+      headers.insert("Location", HeaderValue::from_str(location.as_str()).unwrap());
+
+      // Upon success, the response MUST have a code of 202 Accepted
+      return (StatusCode::ACCEPTED, headers, ());
+    }
+  };
+
   let mut success_headers = HeaderMap::new();
 
   // Successful completion MUST include the following header. Location is a
@@ -117,16 +139,17 @@ async fn post_blob(
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
   }
 
-  match db::insert_blob(&conn, &digest, &name, &data) {
+  let _ = match db::insert_blob(&conn, &digest, &name, &data) {
     Ok(res) => res,
     Err(e) => {
-      if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
-        // The blob already exists
-        println!("Duplicate digest");
-        return (StatusCode::CREATED, success_headers, ());
+      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
+        println!("Error inserting blob: {:?}", e);
+        return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
       }
-      println!("Error inserting blob: {:?}", e);
-      return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+      // We already have stored the blob. Until the spec tells us what to do in
+      // this case, we treat it as a success and continue the normal flow.
+      println!("Warning: Duplicate digest {} {}", name, digest);
+      0
     }
   };
 
@@ -148,8 +171,13 @@ mod tests {
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
-    let result =
-      post_blob(Path(NAMESPACE.to_string()), Query(PostBlobParameters { digest }), test_blob_bytes)
+    let result = post_blob(
+      Path(NAMESPACE.to_string()),
+      Query(PostBlobParameters {
+        digest: Some(digest),
+      }),
+      test_blob_bytes,
+    )
     .await
     .into_response();
 
@@ -170,7 +198,7 @@ mod tests {
       post_blob(
         Path(NAMESPACE.to_string()),
         Query(PostBlobParameters {
-          digest: client_digest.clone(),
+          digest: Some(client_digest.clone()),
         }),
         test_blob_bytes,
       )
@@ -179,8 +207,6 @@ mod tests {
 
     let result =
       get_blob(Path((NAMESPACE.to_string(), client_digest.clone()))).await.into_response();
-
-    println!("headers: {:?}", result.headers());
 
     let (_, digest) = result
       .headers()
