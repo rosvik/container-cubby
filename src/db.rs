@@ -7,16 +7,16 @@ const DATABASE_PATH: &str = "./db.sqlite3";
 #[derive(Debug)]
 pub struct BlobRow {
   pub id: i32,
-  pub digest: String,
   pub name: String,
+  pub digest: String,
   pub data: Option<Vec<u8>>,
 }
 
 pub fn init() -> Result<()> {
   let conn = Connection::open(DATABASE_PATH)?;
   let mut stmt = conn.prepare(include_str!("../sql/find_existing_table.sql"))?;
-  let is_initialized = stmt.query(["blobs"])?.next()?.is_some();
-  if !is_initialized {
+  let is_blobs_initialized = stmt.query(["blobs"])?.next()?.is_some();
+  if !is_blobs_initialized {
     conn.execute_batch(include_str!("../sql/create_blobs.sql"))?;
   }
   Ok(())
@@ -27,8 +27,8 @@ pub fn connect() -> Result<Connection> {
   Ok(conn)
 }
 
-pub fn insert_blob(conn: &Connection, digest: &str, name: &str, data: &[u8]) -> Result<usize> {
-  let res = match conn.execute(include_str!("../sql/insert_blob.sql"), (&digest, &name, &data)) {
+pub fn insert_blob(conn: &Connection, name: &str, digest: &str, data: &[u8]) -> Result<usize> {
+  let res = match conn.execute(include_str!("../sql/insert_blob.sql"), (&name, &digest, &data)) {
     Ok(res) => res,
     Err(e) => {
       if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
@@ -43,8 +43,8 @@ pub fn insert_blob(conn: &Connection, digest: &str, name: &str, data: &[u8]) -> 
 
 pub fn verify_and_insert_blob(
   conn: &Connection,
-  digest: &str,
   name: &str,
+  digest: &str,
   data: &[u8],
 ) -> Result<(), Error> {
   // Query digest MUST match the blob's digest.
@@ -53,7 +53,7 @@ pub fn verify_and_insert_blob(
     println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
     return Err(Error::InvalidQuery);
   }
-  match insert_blob(conn, digest, name, data) {
+  match insert_blob(conn, name, digest, data) {
     Ok(_) => Ok(()),
     Err(e) => {
       if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
@@ -69,7 +69,7 @@ pub fn verify_and_insert_blob(
 
 pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> {
   let mut stmt = conn.prepare(include_str!("../sql/get_blob.sql"))?;
-  let mut rows = stmt.query([&digest, &name])?;
+  let mut rows = stmt.query([&name, &digest])?;
 
   if let Some(row) = rows.next()? {
     let blob = BlobRow {

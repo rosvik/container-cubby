@@ -124,7 +124,7 @@ async fn post_blob(
     }
   };
 
-  match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
+  match db::verify_and_insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
       if e == rusqlite::Error::InvalidQuery {
@@ -167,7 +167,7 @@ async fn put_blob(
   let conn = db::connect().unwrap();
   let digest = query.digest;
 
-  match db::verify_and_insert_blob(&conn, digest.as_str(), name.as_str(), &data) {
+  match db::verify_and_insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
       if e == rusqlite::Error::InvalidQuery {
@@ -238,12 +238,7 @@ mod tests {
 
     let result =
       get_blob(Path((NAMESPACE.to_string(), client_digest.clone()))).await.into_response();
-
-    let (_, digest) = result
-      .headers()
-      .iter()
-      .find(|(k, _)| k.as_str().eq_ignore_ascii_case("Docker-Content-Digest"))
-      .unwrap();
+    let digest = result.headers().get("Docker-Content-Digest").unwrap();
 
     assert_eq!(result.status(), StatusCode::OK);
 

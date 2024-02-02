@@ -1,1 +1,1 @@
-SELECT id, digest, name, data FROM blobs WHERE digest = ?1 AND name = ?2
+SELECT id, digest, name, data FROM blobs WHERE name = ?1 AND digest = ?2
