@@ -17,7 +17,7 @@ pub struct HunkRow {
   pub name: String,
   pub reference: String,
   // The index of the last byte of the stored hunk. None if no data is stored.
-  pub last_byte: Option<u64>,
+  pub last_byte: Option<usize>,
   pub data: Option<Vec<u8>>,
 }
 

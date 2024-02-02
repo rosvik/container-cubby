@@ -180,11 +180,11 @@ async fn patch_blob(
     None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
   }
   .unwrap()
-  .parse::<u64>()
+  .parse::<usize>()
   .unwrap();
 
   let conn = db::connect().unwrap();
-  let mut end_of_range: u64;
+  let mut end_of_range: usize;
 
   {
     // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
@@ -204,7 +204,7 @@ async fn patch_blob(
       last_byte: None,
       data: None,
     });
-    let req_first_byte = range.first().unwrap().parse::<u64>().unwrap();
+    let req_first_byte = range.first().unwrap().parse::<usize>().unwrap();
 
     if stored_hunk.last_byte.is_none() && req_first_byte != 0 {
       // The first chunk's range MUST begin with 0.
@@ -227,7 +227,7 @@ async fn patch_blob(
     // TODO: The Content-Length header MUST match the actual number of bytes in the chunk.
 
     // TODO: Verify req_last_byte
-    // let req_last_byte = range.last().unwrap().parse::<u64>().unwrap();
+    // let req_last_byte = range.last().unwrap().parse::<usize>().unwrap();
   }
 
   // TODO: Insert the chunk into the database
