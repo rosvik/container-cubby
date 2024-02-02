@@ -1,14 +1,16 @@
 mod db;
 mod digestor;
 mod utils;
+
 use axum::{
   body::Bytes,
   extract::{Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
   response::IntoResponse,
-  routing::{get, post, put},
+  routing::{get, patch, post, put},
   Router,
 };
+use regex_lite::Regex;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -33,6 +35,7 @@ fn router() -> Router {
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob))
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
+    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -142,6 +145,94 @@ async fn post_blob(
 
   // Successful completion of the request MUST return a 201 Created status code.
   (StatusCode::CREATED, headers, ())
+}
+
+/// end-5: `PATCH /v2/<name>/blobs/uploads/<reference>` => 202 / 404/416
+///
+/// NOTE: This should be referred to from a preceeding POST request to end-4a:
+///
+///  > For information on obtaining a session ID, reference the above
+///    section on pushing a blob monolithically via the POST/PUT method.
+///    The process remains unchanged for chunked upload, except that the
+///    post request MUST include the following header:
+///
+/// REQUEST
+/// - Content-Type: "application/octet-stream"
+/// - Content-Range: {range}   (byte range of the chunk, inclusive on both ends)
+/// - Content-Length: {length}    (must match the chunk's actual content length)
+/// - Body: {chunk byte stream}
+///
+/// RESPONSE
+/// - Location: {location}                        (url to the next chunk upload)
+/// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+async fn patch_blob(
+  Path((name, reference)): Path<(String, String)>,
+  headers: HeaderMap,
+) -> impl IntoResponse {
+  let req_range = match headers.get("Content-Range") {
+    Some(range) => range.to_str().unwrap(),
+    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+  };
+  let req_length = match headers.get("Content-Length") {
+    Some(length) => length.to_str(),
+    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+  }
+  .unwrap()
+  .parse::<u64>()
+  .unwrap();
+
+  let conn = db::connect().unwrap();
+  let mut end_of_range: u64;
+
+  {
+    // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
+    let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
+    if !re.is_match(req_range) {
+      println!("Error: Invalid range: {:?}", req_range);
+      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+    }
+
+    let range = req_range.split('-').collect::<Vec<_>>();
+    let stored_hunk = db::get_hunk(&conn, &name, &reference).unwrap_or(db::HunkRow {
+      // TODO: We should initialize this in the preceding POST request (end-4a)
+      //       and instead return a 404 if it's not found here.
+      id: 0,
+      name: name.clone(),
+      reference: reference.clone(),
+      last_byte: None,
+      data: None,
+    });
+    let req_first_byte = range.first().unwrap().parse::<u64>().unwrap();
+
+    if stored_hunk.last_byte.is_none() && req_first_byte != 0 {
+      // The first chunk's range MUST begin with 0.
+      println!("Error: First chunk's range must begin with 0: {:?}", req_range);
+      return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
+    } else if stored_hunk.last_byte.unwrap() + 1 != req_first_byte {
+      // Chunks MUST be uploaded in order, with the first byte of a chunk being
+      // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
+      // order, the registry MUST respond with a 416 Requested Range Not
+      // Satisfiable code.
+      println!(
+        "Error: Uploaded hunk range did not match stored hunk: Stored: {}, req_first_byte: {}",
+        stored_hunk.last_byte.unwrap(),
+        req_first_byte
+      );
+
+      return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
+    }
+
+    // TODO: The Content-Length header MUST match the actual number of bytes in the chunk.
+
+    // TODO: Verify req_last_byte
+    // let req_last_byte = range.last().unwrap().parse::<u64>().unwrap();
+  }
+
+  // TODO: Insert the chunk into the database
+
+  (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
 
 /// end-6: `PUT /v2/<name>/blobs/uploads/<reference>?digest=<digest>` => 201 / 404/400

@@ -12,12 +12,25 @@ pub struct BlobRow {
   pub data: Option<Vec<u8>>,
 }
 
+pub struct HunkRow {
+  pub id: i32,
+  pub name: String,
+  pub reference: String,
+  // The index of the last byte of the stored hunk. None if no data is stored.
+  pub last_byte: Option<u64>,
+  pub data: Option<Vec<u8>>,
+}
+
 pub fn init() -> Result<()> {
   let conn = Connection::open(DATABASE_PATH)?;
   let mut stmt = conn.prepare(include_str!("../sql/find_existing_table.sql"))?;
   let is_blobs_initialized = stmt.query(["blobs"])?.next()?.is_some();
   if !is_blobs_initialized {
     conn.execute_batch(include_str!("../sql/create_blobs.sql"))?;
+  }
+  let is_uploads_initialized = stmt.query(["uploads"])?.next()?.is_some();
+  if !is_uploads_initialized {
+    conn.execute_batch(include_str!("../sql/create_hunks.sql"))?;
   }
   Ok(())
 }
@@ -80,6 +93,24 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
     };
 
     return Ok(blob);
+  }
+  Err(rusqlite::Error::QueryReturnedNoRows)
+}
+
+pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRow> {
+  let mut stmt = conn.prepare(include_str!("../sql/get_hunk.sql"))?;
+  let mut rows = stmt.query([&name, &reference])?;
+
+  if let Some(row) = rows.next()? {
+    let hunk = HunkRow {
+      id: row.get(0)?,
+      name: row.get(1)?,
+      reference: row.get(2)?,
+      last_byte: row.get(3)?,
+      data: row.get(4)?,
+    };
+
+    return Ok(hunk);
   }
   Err(rusqlite::Error::QueryReturnedNoRows)
 }
