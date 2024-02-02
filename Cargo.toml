@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7.4"
+regex-lite = "0.1.5"
 rusqlite = "0.30.0"
 serde = {version = "1.0.195", features = ["derive"]}
 sha2 = "0.9.9"
