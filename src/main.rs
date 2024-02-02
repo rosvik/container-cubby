@@ -170,6 +170,7 @@ async fn post_blob(
 async fn patch_blob(
   Path((name, reference)): Path<(String, String)>,
   headers: HeaderMap,
+  data: Bytes,
 ) -> impl IntoResponse {
   let req_range = match headers.get("Content-Range") {
     Some(range) => range.to_str().unwrap(),
@@ -183,17 +184,21 @@ async fn patch_blob(
   .parse::<usize>()
   .unwrap();
 
+  // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
+  let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
+  if !re.is_match(req_range) {
+    println!("Error: Invalid range format: {:?}", req_range);
+    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+  }
+  // Content-Length header MUST match the actual number of bytes in the chunk.
+  if req_length != data.len() {
+    println!("Error: Invalid content length: Content-Length={}, data={}", req_length, data.len());
+    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+  }
+
   let conn = db::connect().unwrap();
   let mut end_of_range: usize;
-
   {
-    // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
-    let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
-    if !re.is_match(req_range) {
-      println!("Error: Invalid range: {:?}", req_range);
-      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
-    }
-
     let range = req_range.split('-').collect::<Vec<_>>();
     let stored_hunk = db::get_hunk(&conn, &name, &reference).unwrap_or(db::HunkRow {
       // TODO: We should initialize this in the preceding POST request (end-4a)
@@ -220,14 +225,20 @@ async fn patch_blob(
         stored_hunk.last_byte.unwrap(),
         req_first_byte
       );
-
       return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
     }
 
-    // TODO: The Content-Length header MUST match the actual number of bytes in the chunk.
-
-    // TODO: Verify req_last_byte
-    // let req_last_byte = range.last().unwrap().parse::<usize>().unwrap();
+    let req_last_byte = range.last().unwrap().parse::<usize>().unwrap();
+    if req_first_byte + req_length != req_last_byte {
+      // The Content-Range header MUST specify the range of bytes being uploaded
+      // in the format `0-{end-of-range}`.
+      println!(
+        "Error: Invalid range: {} ({req_first_byte}+{req_length}!={req_last_byte})",
+        req_range
+      );
+      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+    }
+    end_of_range = stored_hunk.data.unwrap_or_default().len() as usize + req_length;
   }
 
   // TODO: Insert the chunk into the database
@@ -302,8 +313,7 @@ mod tests {
     .await
     .into_response();
 
-    let (_, location) =
-      result.headers().iter().find(|(k, _)| k.as_str().eq_ignore_ascii_case("Location")).unwrap();
+    let location = result.headers().get("Location").unwrap();
 
     assert_eq!(result.status(), StatusCode::CREATED);
     assert!(location.to_str().unwrap().contains(NAMESPACE));
@@ -336,7 +346,7 @@ mod tests {
     // NOTE: The spec says "The Docker-Content-Digest header returns the
     //       canonical digest of the uploaded blob which MAY differ from the
     //       provided digest", but since we only support sha256 we can assume
-    //       something is wrong if the digest doesn't match.
+    //       something is wrong if the digests don't match.
     assert_eq!(digest.to_str().unwrap(), client_digest);
   }
 }
