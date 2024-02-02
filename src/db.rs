@@ -6,14 +6,14 @@ const DATABASE_PATH: &str = "./db.sqlite3";
 
 #[derive(Debug)]
 pub struct BlobRow {
-  pub id: i32,
+  pub id: u32,
   pub name: String,
   pub digest: String,
   pub data: Option<Vec<u8>>,
 }
 
 pub struct HunkRow {
-  pub id: i32,
+  pub id: u32,
   pub name: String,
   pub reference: String,
   // The index of the last byte of the stored hunk. None if no data is stored.
@@ -104,4 +104,9 @@ pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRo
     return Ok(hunk);
   }
   Err(Error::QueryReturnedNoRows)
+}
+
+pub fn append_hunk(conn: &Connection, id: &u32, data: &[u8]) -> Result<usize> {
+  let stmt = include_str!("../sql/append_hunk.sql");
+  conn.execute(stmt, (&id, &data, &data.len()))
 }

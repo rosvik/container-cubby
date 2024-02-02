@@ -197,7 +197,7 @@ async fn patch_blob(
   }
 
   let conn = db::connect().unwrap();
-  let mut end_of_range: usize;
+  let hunk_id: u32;
   {
     let range = req_range.split('-').collect::<Vec<_>>();
     let stored_hunk = db::get_hunk(&conn, &name, &reference).unwrap_or(db::HunkRow {
@@ -238,10 +238,10 @@ async fn patch_blob(
       );
       return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
     }
-    end_of_range = stored_hunk.data.unwrap_or_default().len() as usize + req_length;
+    hunk_id = stored_hunk.id;
   }
 
-  // TODO: Insert the chunk into the database
+  db::append_hunk(&conn, &hunk_id, &data).unwrap();
 
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
