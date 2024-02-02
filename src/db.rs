@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Error, Result};
+use rusqlite::{Connection, Error, ErrorCode, Result};
 
 use crate::digestor;
 
@@ -41,17 +41,8 @@ pub fn connect() -> Result<Connection> {
 }
 
 pub fn insert_blob(conn: &Connection, name: &str, digest: &str, data: &[u8]) -> Result<usize> {
-  let res = match conn.execute(include_str!("../sql/insert_blob.sql"), (&name, &digest, &data)) {
-    Ok(res) => res,
-    Err(e) => {
-      if e.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
-        return Err(e);
-      }
-      return Err(e);
-    }
-  };
-
-  Ok(res)
+  let stmt = include_str!("../sql/insert_blob.sql");
+  conn.execute(stmt, (&name, &digest, &data))
 }
 
 pub fn verify_and_insert_blob(
@@ -69,7 +60,7 @@ pub fn verify_and_insert_blob(
   match insert_blob(conn, name, digest, data) {
     Ok(_) => Ok(()),
     Err(e) => {
-      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
+      if e.sqlite_error_code() != Some(ErrorCode::ConstraintViolation) {
         return Err(e);
       }
       // We have already stored this blob. Until the spec tells us what to do in
@@ -94,7 +85,7 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
 
     return Ok(blob);
   }
-  Err(rusqlite::Error::QueryReturnedNoRows)
+  Err(Error::QueryReturnedNoRows)
 }
 
 pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRow> {
@@ -112,5 +103,5 @@ pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRo
 
     return Ok(hunk);
   }
-  Err(rusqlite::Error::QueryReturnedNoRows)
+  Err(Error::QueryReturnedNoRows)
 }
