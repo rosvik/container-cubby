@@ -88,6 +88,11 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
   Err(Error::QueryReturnedNoRows)
 }
 
+pub fn insert_hunk(conn: &Connection, name: &str, reference: &str, data: &[u8]) -> Result<usize> {
+  let stmt = include_str!("../sql/insert_hunk.sql");
+  conn.execute(stmt, (&name, &reference, &data.len(), &data))
+}
+
 pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRow> {
   let mut stmt = conn.prepare(include_str!("../sql/get_hunk.sql"))?;
   let mut rows = stmt.query([&name, &reference])?;
@@ -108,5 +113,5 @@ pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRo
 
 pub fn append_hunk(conn: &Connection, id: &u32, data: &[u8]) -> Result<usize> {
   let stmt = include_str!("../sql/append_hunk.sql");
-  conn.execute(stmt, (&id, &data, &data.len()))
+  conn.execute(stmt, (&id, &data.len(), &data))
 }

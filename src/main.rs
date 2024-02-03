@@ -118,10 +118,11 @@ async fn post_blob(
       // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
 
       // MUST contain a UUID representing a unique session ID
-      let uuid = Uuid::new_v4().to_string();
+      let reference = Uuid::new_v4().to_string();
+      db::insert_hunk(&conn, &name, &reference, &Vec::new()).unwrap();
 
       let mut headers = HeaderMap::new();
-      let location = format!("/v2/{}/blobs/uploads/{}", name, uuid);
+      let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
       headers.insert("Location", HeaderValue::from_str(location.as_str()).unwrap());
 
       // Upon success, the response MUST have a code of 202 Accepted
