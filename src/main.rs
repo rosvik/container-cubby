@@ -290,19 +290,25 @@ async fn put_blob(
 mod tests {
   use super::*;
   use crate::digestor::get_sha256_digest;
+  use std::iter::repeat_with;
 
-  const NAMESPACE: &str = "test:1.0.0";
-  const TEST_BLOB_STRING: &str = "testblob";
+  fn get_random_namespace() -> String {
+    let random_string: String = repeat_with(fastrand::alphanumeric).take(10).collect();
+    format!("test:{CRATE_VERSION}:{}", random_string)
+  }
 
   #[tokio::test]
   async fn test_post_blob() {
+    let namespace: String = get_random_namespace();
+    let test_blob_string: &str = "testblob";
+
     db::init().unwrap();
-    let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
+    let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
     let result = post_blob(
-      Path(NAMESPACE.to_string()),
+      Path(namespace.to_string()),
       Query(PostBlobParameters {
         digest: Some(digest),
       }),
@@ -314,19 +320,21 @@ mod tests {
     let location = result.headers().get("Location").unwrap();
 
     assert_eq!(result.status(), StatusCode::CREATED);
-    assert!(location.to_str().unwrap().contains(NAMESPACE));
+    assert!(location.to_str().unwrap().contains(namespace.as_str()));
   }
 
   #[tokio::test]
   async fn test_get_blob() {
+    let namespace = get_random_namespace();
+    let test_blob_string: &str = "testblob";
     db::init().unwrap();
-    let test_blob_bytes: Bytes = Bytes::from(TEST_BLOB_STRING);
+    let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
     let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
     {
       // First, POST the blob
       post_blob(
-        Path(NAMESPACE.to_string()),
+        Path(namespace.to_string()),
         Query(PostBlobParameters {
           digest: Some(client_digest.clone()),
         }),
@@ -336,7 +344,7 @@ mod tests {
     }
 
     let result =
-      get_blob(Path((NAMESPACE.to_string(), client_digest.clone()))).await.into_response();
+      get_blob(Path((namespace.to_string(), client_digest.clone()))).await.into_response();
     let digest = result.headers().get("Docker-Content-Digest").unwrap();
 
     assert_eq!(result.status(), StatusCode::OK);
