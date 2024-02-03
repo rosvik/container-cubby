@@ -88,9 +88,9 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
   Err(Error::QueryReturnedNoRows)
 }
 
-pub fn insert_hunk(conn: &Connection, name: &str, reference: &str, data: &[u8]) -> Result<usize> {
+pub fn insert_empty_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
   let stmt = include_str!("../sql/insert_hunk.sql");
-  conn.execute(stmt, (&name, &reference, &data.len(), &data))
+  conn.execute(stmt, (&name, &reference))
 }
 
 pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRow> {
@@ -111,9 +111,15 @@ pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRo
   Err(Error::QueryReturnedNoRows)
 }
 
-pub fn append_hunk(conn: &Connection, reference: &str, data: &[u8]) -> Result<usize> {
-  let stmt = include_str!("../sql/append_hunk.sql");
-  conn.execute(stmt, (&reference, &data.len(), &data))
+pub fn append_hunk(conn: &Connection, name: &str, reference: &str, data: Vec<u8>) -> Result<usize> {
+  let hunk = get_hunk(conn, name, reference)?;
+
+  // Combine stored hunk data with new data
+  let mut new_data: Vec<u8> = hunk.data.unwrap_or(Vec::new());
+  new_data.extend(data);
+
+  let stmt = include_str!("../sql/update_hunk.sql");
+  conn.execute(stmt, (&reference, &new_data.len(), &new_data))
 }
 
 pub fn delete_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {

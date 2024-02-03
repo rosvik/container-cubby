@@ -118,7 +118,7 @@ async fn post_blob(
 
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
-      db::insert_hunk(&conn, &name, &reference, &Vec::new()).unwrap();
+      db::insert_empty_hunk(&conn, &name, &reference).unwrap();
 
       let mut headers = HeaderMap::new();
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
@@ -224,7 +224,7 @@ async fn patch_blob(
     }
   }
 
-  db::append_hunk(&conn, &reference, &data).unwrap();
+  db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
 
@@ -264,7 +264,7 @@ async fn put_blob(
     // TODO: Verify Content-Range
 
     // We have recieved the final hunk of a blob or the entire blob in one go
-    db::append_hunk(&conn, &reference, &data).unwrap();
+    db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
   }
 
   match db::commit_hunk(&conn, name.as_str(), &reference, digest.as_str()) {
