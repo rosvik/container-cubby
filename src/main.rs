@@ -84,7 +84,7 @@ async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
   println!("TODO: get_manifest not implemented");
 }
 
-/// end-4b: `POST /v2/<name>/blobs/uploads/?digest=<digest>` => 201/202 / 404/400
+/// end-4: `POST /v2/<name>/blobs/uploads/?digest=<digest>` => 201/202 / 404/400
 ///
 /// REQUEST
 /// - Content-Length: {length}          (must match the blob's actual content length)
@@ -106,14 +106,16 @@ async fn post_blob(
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let digest = match query.digest {
-    Some(digest) => digest,
+    Some(digest) => digest, // end-4b
     None => {
+      // end-4a
+
       // If the digest parameter is not provided, we are in the "POST then PUT"
-      // flow, and we should return the `location` header, pointing to a
-      // endpoint that accepts a PUT <location>?digest=<digest>. In practice, we
-      // use end-6, but the location MAY be absolute (containing the protocol
-      // and/or hostname), or it MAY be relative (containing just the URL path)
+      // or chunked upload flow (PATCH). We return the `location` header, which
+      // points to an endpoint that accepts PUT <location>?digest=<digest>
+      // (end-6) and PATCH <location> (end-5).
       // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
+      // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
 
       // MUST contain a UUID representing a unique session ID
       let uuid = Uuid::new_v4().to_string();
@@ -242,6 +244,8 @@ async fn patch_blob(
   }
 
   db::append_hunk(&conn, &hunk_id, &data).unwrap();
+
+  // TODO: handle the case where the last byte of the hunk is the last byte of the blob
 
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
