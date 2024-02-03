@@ -10,7 +10,6 @@ use axum::{
   routing::{get, patch, post, put},
   Router,
 };
-use regex_lite::Regex;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -175,24 +174,15 @@ async fn patch_blob(
   headers: HeaderMap,
   data: Bytes,
 ) -> impl IntoResponse {
-  let req_range = match headers.get("Content-Range") {
-    Some(range) => range.to_str().unwrap(),
+  let (range, range_start, range_end) = match utils::get_content_range(&headers) {
+    Some(range) => range,
     None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
   };
-  let req_length = match headers.get("Content-Length") {
-    Some(length) => length.to_str(),
+  let req_length = match utils::get_content_length(&headers) {
+    Some(length) => length,
     None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
-  }
-  .unwrap()
-  .parse::<usize>()
-  .unwrap();
+  };
 
-  // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
-  let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
-  if !re.is_match(req_range) {
-    println!("Error: Invalid range format: {:?}", req_range);
-    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
-  }
   // Content-Length header MUST match the actual number of bytes in the chunk.
   if req_length != data.len() {
     println!("Error: Invalid content length: Content-Length={}, data={}", req_length, data.len());
@@ -202,7 +192,6 @@ async fn patch_blob(
   let conn = db::connect().unwrap();
   let hunk_id: u32;
   {
-    let range = req_range.split('-').collect::<Vec<_>>();
     let stored_hunk = match db::get_hunk(&conn, &name, &reference) {
       Ok(hunk) => hunk,
       Err(e) => {
@@ -210,13 +199,12 @@ async fn patch_blob(
         return (StatusCode::NOT_FOUND, HeaderMap::new(), ());
       }
     };
-    let req_first_byte = range.first().unwrap().parse::<usize>().unwrap();
 
-    if stored_hunk.last_byte.is_none() && req_first_byte != 0 {
+    if stored_hunk.last_byte.is_none() && range_start != 0 {
       // The first chunk's range MUST begin with 0.
-      println!("Error: First chunk's range must begin with 0: {:?}", req_range);
+      println!("Error: First chunk's range must begin with 0: {:?}", range);
       return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
-    } else if stored_hunk.last_byte.unwrap() + 1 != req_first_byte {
+    } else if stored_hunk.last_byte.unwrap() + 1 != range_start {
       // Chunks MUST be uploaded in order, with the first byte of a chunk being
       // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
       // order, the registry MUST respond with a 416 Requested Range Not
@@ -224,28 +212,21 @@ async fn patch_blob(
       println!(
         "Error: Uploaded hunk range did not match stored hunk: Stored: {}, req_first_byte: {}",
         stored_hunk.last_byte.unwrap(),
-        req_first_byte
+        range_start
       );
       return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
     }
 
-    let req_last_byte = range.last().unwrap().parse::<usize>().unwrap();
-    if req_first_byte + req_length != req_last_byte {
+    if range_start + req_length != range_end {
       // The Content-Range header MUST specify the range of bytes being uploaded
       // in the format `0-{end-of-range}`.
-      println!(
-        "Error: Invalid range: {} ({req_first_byte}+{req_length}!={req_last_byte})",
-        req_range
-      );
+      println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end})", range);
       return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
     }
     hunk_id = stored_hunk.id;
   }
 
   db::append_hunk(&conn, &hunk_id, &data).unwrap();
-
-  // TODO: handle the case where the last byte of the hunk is the last byte of the blob
-
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
 
