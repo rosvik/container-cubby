@@ -203,15 +203,13 @@ async fn patch_blob(
   let hunk_id: u32;
   {
     let range = req_range.split('-').collect::<Vec<_>>();
-    let stored_hunk = db::get_hunk(&conn, &name, &reference).unwrap_or(db::HunkRow {
-      // TODO: We should initialize this in the preceding POST request (end-4a)
-      //       and instead return a 404 if it's not found here.
-      id: 0,
-      name: name.clone(),
-      reference: reference.clone(),
-      last_byte: None,
-      data: None,
-    });
+    let stored_hunk = match db::get_hunk(&conn, &name, &reference) {
+      Ok(hunk) => hunk,
+      Err(e) => {
+        println!("Error: Could not get hunk: {:?}", e);
+        return (StatusCode::NOT_FOUND, HeaderMap::new(), ());
+      }
+    };
     let req_first_byte = range.first().unwrap().parse::<usize>().unwrap();
 
     if stored_hunk.last_byte.is_none() && req_first_byte != 0 {
