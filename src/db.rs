@@ -111,7 +111,29 @@ pub fn get_hunk(conn: &Connection, name: &str, reference: &str) -> Result<HunkRo
   Err(Error::QueryReturnedNoRows)
 }
 
-pub fn append_hunk(conn: &Connection, id: &u32, data: &[u8]) -> Result<usize> {
+pub fn append_hunk(conn: &Connection, reference: &str, data: &[u8]) -> Result<usize> {
   let stmt = include_str!("../sql/append_hunk.sql");
-  conn.execute(stmt, (&id, &data.len(), &data))
+  conn.execute(stmt, (&reference, &data.len(), &data))
+}
+
+pub fn delete_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
+  let stmt = include_str!("../sql/delete_hunk.sql");
+  conn.execute(stmt, (&name, &reference))
+}
+
+pub fn commit_hunk(
+  conn: &Connection,
+  name: &str,
+  reference: &str,
+  digest: &str,
+) -> Result<(), Error> {
+  // Get stored hunk data
+  let hunk = get_hunk(conn, name, reference)?;
+
+  // Verify and insert as a blob
+  verify_and_insert_blob(conn, name, digest, &hunk.data.unwrap())?;
+
+  // Delete the hunk
+  delete_hunk(conn, name, reference)?;
+  Ok(())
 }

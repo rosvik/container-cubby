@@ -190,7 +190,6 @@ async fn patch_blob(
   }
 
   let conn = db::connect().unwrap();
-  let hunk_id: u32;
   {
     let stored_hunk = match db::get_hunk(&conn, &name, &reference) {
       Ok(hunk) => hunk,
@@ -223,22 +222,22 @@ async fn patch_blob(
       println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end})", range);
       return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
     }
-    hunk_id = stored_hunk.id;
   }
 
-  db::append_hunk(&conn, &hunk_id, &data).unwrap();
+  db::append_hunk(&conn, &reference, &data).unwrap();
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
 
 /// end-6: `PUT /v2/<name>/blobs/uploads/<reference>?digest=<digest>` => 201 / 404/400
 ///
 /// REQUEST
-/// - Content-Length: {length}     (must match the blob's actual content length)
+/// - Content-Length: {length}         (must match blob or chunk content length)
 /// - Content-Type: "application/octet-stream"
+/// - Content-Range: {chunk range}     (if the blob is being uploaded in chunks)
 /// - Body: {blob byte stream}
 ///
 /// RESPONSE
-/// - Location: {blob-location}    (a pullable blob URL)
+/// - Location: {blob-location}                            (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
 #[derive(Deserialize)]
@@ -246,14 +245,29 @@ struct PutBlobParameters {
   digest: String,
 }
 async fn put_blob(
-  Path((name, _reference)): Path<(String, String)>,
+  Path((name, reference)): Path<(String, String)>,
   Query(query): Query<PutBlobParameters>,
+  headers: HeaderMap,
   data: Bytes,
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let digest = query.digest;
+  let req_length = utils::get_content_length(&headers).unwrap_or(0);
 
-  match db::verify_and_insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
+  // Content-Length header MUST match the actual number of bytes in the chunk.
+  if req_length != data.len() {
+    println!("Error: Invalid content length: Content-Length={}, data={}", req_length, data.len());
+    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+  }
+
+  if !data.is_empty() {
+    // TODO: Verify Content-Range
+
+    // We have recieved the final hunk of a blob or the entire blob in one go
+    db::append_hunk(&conn, &reference, &data).unwrap();
+  }
+
+  match db::commit_hunk(&conn, name.as_str(), &reference, digest.as_str()) {
     Ok(_) => (),
     Err(e) => {
       if e == rusqlite::Error::InvalidQuery {
