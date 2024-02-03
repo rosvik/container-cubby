@@ -367,6 +367,64 @@ mod tests {
   }
 
   #[tokio::test]
+  async fn test_push_as_hunks() {
+    let namespace: String = get_random_namespace();
+    db::init().unwrap();
+
+    // POST to get reference
+    let response =
+      post_blob(Path(namespace.clone()), Query(PostBlobParameters { digest: None }), Bytes::new())
+        .await
+        .into_response();
+    let location = response.headers().get("Location").unwrap();
+    let reference = location.to_str().unwrap().split('/').last().unwrap();
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    assert!(!reference.is_empty());
+
+    // PATCH first chunk
+    let chunk = Bytes::from("AAAA");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
+    headers.insert("Content-Range", HeaderValue::from_str("0-3").unwrap());
+    let patch_response =
+      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+        .await
+        .into_response();
+    assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
+
+    // PATCH second chunk
+    let chunk = Bytes::from("BBBB");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
+    headers.insert("Content-Range", HeaderValue::from_str("4-7").unwrap());
+    let patch_response =
+      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+        .await
+        .into_response();
+    assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
+
+    // PUT blob
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Length", HeaderValue::from_str("0").unwrap());
+    let digest = get_sha256_digest(&"AAAABBBB".as_bytes().to_vec());
+    let result = put_blob(
+      Path((namespace.clone(), reference.to_string())),
+      Query(PutBlobParameters {
+        digest: digest.clone(),
+      }),
+      headers,
+      Bytes::new(),
+    )
+    .await
+    .into_response();
+    assert_eq!(result.status(), StatusCode::CREATED);
+
+    // Verify that the blob can be retrieved
+    let blob = get_blob(Path((namespace.clone(), digest.clone()))).await.into_response();
+    assert_eq!(blob.status(), StatusCode::OK);
+  }
+
+  #[tokio::test]
   async fn test_get_blob() {
     let namespace = get_random_namespace();
     let test_blob_string: &str = "testblob";
