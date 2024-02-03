@@ -203,7 +203,7 @@ async fn patch_blob(
       // The first chunk's range MUST begin with 0.
       println!("Error: First chunk's range must begin with 0: {:?}", range);
       return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
-    } else if stored_hunk.last_byte.unwrap() + 1 != range_start {
+    } else if stored_hunk.last_byte.is_some() && stored_hunk.last_byte.unwrap() + 1 != range_start {
       // Chunks MUST be uploaded in order, with the first byte of a chunk being
       // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
       // order, the registry MUST respond with a 416 Requested Range Not
@@ -216,10 +216,10 @@ async fn patch_blob(
       return (StatusCode::RANGE_NOT_SATISFIABLE, HeaderMap::new(), ());
     }
 
-    if range_start + req_length != range_end {
+    if range_start + req_length != range_end + 1 {
       // The Content-Range header MUST specify the range of bytes being uploaded
       // in the format `0-{end-of-range}`.
-      println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end})", range);
+      println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end}+1)", range);
       return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
     }
   }

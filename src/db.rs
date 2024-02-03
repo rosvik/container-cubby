@@ -119,7 +119,7 @@ pub fn append_hunk(conn: &Connection, name: &str, reference: &str, data: Vec<u8>
   new_data.extend(data);
 
   let stmt = include_str!("../sql/update_hunk.sql");
-  conn.execute(stmt, (&reference, &new_data.len(), &new_data))
+  conn.execute(stmt, (&reference, &new_data.len() - 1, &new_data))
 }
 
 pub fn delete_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
