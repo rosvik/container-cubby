@@ -28,8 +28,8 @@ pub fn init() -> Result<()> {
   if !is_blobs_initialized {
     conn.execute_batch(include_str!("../sql/create_blobs.sql"))?;
   }
-  let is_uploads_initialized = stmt.query(["uploads"])?.next()?.is_some();
-  if !is_uploads_initialized {
+  let is_hunks_initialized = stmt.query(["hunks"])?.next()?.is_some();
+  if !is_hunks_initialized {
     conn.execute_batch(include_str!("../sql/create_hunks.sql"))?;
   }
   Ok(())
