@@ -83,6 +83,10 @@ async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
   println!("TODO: get_manifest not implemented");
 }
 
+#[derive(Deserialize)]
+struct PostBlobParameters {
+  digest: Option<String>,
+}
 /// end-4: `POST /v2/<name>/blobs/uploads/?digest=<digest>` => 201/202 / 404/400
 ///
 /// REQUEST
@@ -94,10 +98,6 @@ async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
-#[derive(Deserialize)]
-struct PostBlobParameters {
-  digest: Option<String>,
-}
 async fn post_blob(
   Path(name): Path<String>,
   Query(query): Query<PostBlobParameters>,
@@ -228,6 +228,10 @@ async fn patch_blob(
   (StatusCode::ACCEPTED, HeaderMap::new(), ())
 }
 
+#[derive(Deserialize)]
+struct PutBlobParameters {
+  digest: String,
+}
 /// end-6: `PUT /v2/<name>/blobs/uploads/<reference>?digest=<digest>` => 201 / 404/400
 ///
 /// REQUEST
@@ -240,10 +244,6 @@ async fn patch_blob(
 /// - Location: {blob-location}                            (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
-#[derive(Deserialize)]
-struct PutBlobParameters {
-  digest: String,
-}
 async fn put_blob(
   Path((name, reference)): Path<(String, String)>,
   Query(query): Query<PutBlobParameters>,
