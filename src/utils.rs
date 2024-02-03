@@ -23,7 +23,8 @@ pub fn get_content_range(headers: &HeaderMap) -> Option<(&str, usize, usize)> {
     return None;
   }
 
-  let (start, end) = range.split_at(range.find('-').unwrap());
+  let (start, end_with_dash) = range.split_at(range.find('-').unwrap());
+  let end = &end_with_dash[1..];
   let start = match start.parse::<usize>() {
     Ok(start) => start,
     Err(e) => {
