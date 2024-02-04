@@ -35,6 +35,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/", post(post_blob))
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
+    .route("/v2/:name/manifests/:reference", put(put_manifest))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -282,6 +283,27 @@ async fn put_blob(
 
   let mut headers = HeaderMap::new();
   utils::insert_blob_location_header(&mut headers, "name", "digest");
+
+  (StatusCode::CREATED, headers, ())
+}
+
+/// end-7: `PUT /v2/<name>/manifests/<reference>` => 201 / 404
+///
+/// REQUEST
+/// - Content-Type: {content type}           (same as mediaType in the manifest)
+/// - Body: {manifest byte stream}
+///
+/// RESPONSE
+/// - Location: {manifest-location}                    (a pullable manifest URL)
+async fn put_manifest(
+  Path((name, reference)): Path<(String, String)>,
+  data: Bytes,
+) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  db::insert_manifest(&conn, &name, &reference, data.to_vec()).unwrap();
+
+  let mut headers = HeaderMap::new();
+  headers.insert("Location", HeaderValue::from_str("/v2/{name}/manifests/{reference}").unwrap());
 
   (StatusCode::CREATED, headers, ())
 }

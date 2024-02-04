@@ -32,6 +32,10 @@ pub fn init() -> Result<()> {
   if !is_hunks_initialized {
     conn.execute_batch(include_str!("../sql/create_hunks.sql"))?;
   }
+  let is_manifests_initialized = stmt.query(["manifests"])?.next()?.is_some();
+  if !is_manifests_initialized {
+    conn.execute_batch(include_str!("../sql/create_manifests.sql"))?;
+  }
   Ok(())
 }
 
@@ -142,4 +146,14 @@ pub fn commit_hunk(
   // Delete the hunk
   delete_hunk(conn, name, reference)?;
   Ok(())
+}
+
+pub fn insert_manifest(
+  conn: &Connection,
+  name: &str,
+  reference: &str,
+  data: Vec<u8>,
+) -> Result<usize> {
+  let stmt = include_str!("../sql/insert_manifest.sql");
+  conn.execute(stmt, (&name, &reference, data))
 }

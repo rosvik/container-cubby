@@ -27,7 +27,7 @@ Initial goals:
 | end-4b  | POST     | `/v2/<name>/blobs/uploads/?digest=<digest>`                  | 201/202 | 404/400     | X    |
 | end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | 202     | 404/416     | X    |
 | end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | 201     | 404/400     | X    |
-| end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | 201     | 404         |      |
+| end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | 201     | 404         | X    |
 | end-8a  | GET      | `/v2/<name>/tags/list`                                       | 200     | 404         |      |
 | end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<integer>`            | 200     | 404         |      |
 | end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | 202     | 404/400/405 |      |
