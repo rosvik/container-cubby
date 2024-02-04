@@ -21,6 +21,13 @@ pub struct HunkRow {
   pub data: Option<Vec<u8>>,
 }
 
+pub struct ManifestRow {
+  pub id: u32,
+  pub name: String,
+  pub reference: String,
+  pub data: Option<Vec<u8>>,
+}
+
 pub fn init() -> Result<()> {
   let conn = Connection::open(DATABASE_PATH)?;
   let mut stmt = conn.prepare(include_str!("../sql/find_existing_table.sql"))?;
@@ -156,4 +163,21 @@ pub fn insert_manifest(
 ) -> Result<usize> {
   let stmt = include_str!("../sql/insert_manifest.sql");
   conn.execute(stmt, (&name, &reference, data))
+}
+
+pub fn get_manifest(conn: &Connection, name: &str, reference: &str) -> Result<ManifestRow> {
+  let mut stmt = conn.prepare(include_str!("../sql/get_manifest.sql"))?;
+  let mut rows = stmt.query([&name, &reference])?;
+
+  if let Some(row) = rows.next()? {
+    let manifest = ManifestRow {
+      id: row.get(0)?,
+      name: row.get(1)?,
+      reference: row.get(2)?,
+      data: row.get(3)?,
+    };
+
+    return Ok(manifest);
+  }
+  Err(Error::QueryReturnedNoRows)
 }

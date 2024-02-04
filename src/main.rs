@@ -72,16 +72,31 @@ async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResp
 /// end-3: `GET /v2/<name>/manifests/<reference>` => 200 / 404
 ///
 /// REQUEST:
-/// - Accept: {content type}            (see spec / content-negotiation.md)
+/// - Accept: {content type}                 (see spec / content-negotiation.md)
 ///
 /// RESPONSE:
-/// - Content-Type: {content type}      (see spec / content-negotiation.md)
-/// - Docker-Content-Digest: {digest}   (the canonical digest of the uploaded blob)
+/// - Content-Type: {content type}           (see spec / content-negotiation.md)
+/// - Docker-Content-Digest: {digest}    (canonical digest of the uploaded blob)
 /// - Body: {manifest}
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
-async fn get_manifest(Path((_name, _reference)): Path<(String, String)>) {
-  println!("TODO: get_manifest not implemented");
+async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  let manifest = match db::get_manifest(&conn, &name, &reference) {
+    Ok(manifest) => manifest,
+    Err(e) => {
+      println!("Error getting manifest: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), ());
+    }
+  };
+
+  let mut headers = HeaderMap::new();
+  headers.insert(
+    "Docker-Content-Digest",
+    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.unwrap()).as_str()).unwrap(),
+  );
+
+  (StatusCode::OK, headers, ())
 }
 
 #[derive(Deserialize)]
