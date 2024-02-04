@@ -5,4 +5,4 @@ CREATE TABLE hunks (
   last_byte INTEGER,
   data      BLOB
 );
-CREATE UNIQUE INDEX idx_hunks_name_reference ON blobs (name, reference);
+CREATE UNIQUE INDEX idx_hunks_name_reference ON hunks (name, reference);
