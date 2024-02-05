@@ -1,11 +1,13 @@
 mod db;
 mod digestor;
+mod layers;
 mod utils;
 
 use axum::{
   body::Bytes,
   extract::{Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
+  middleware,
   response::IntoResponse,
   routing::{get, patch, post, put},
   Router,
@@ -36,6 +38,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
     .route("/v2/:name/manifests/:reference", put(put_manifest))
+    .layer(middleware::from_fn(layers::log_requests))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
