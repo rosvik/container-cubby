@@ -15,7 +15,7 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-const HOST: &str = "0.0.0.0:8602";
+const HOST: &str = "localhost:8602";
 const PROTOCOL: &str = "http";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
