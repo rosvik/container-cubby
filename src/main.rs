@@ -210,7 +210,10 @@ async fn patch_blob(
   };
   let req_length = match utils::get_content_length(&headers) {
     Some(length) => length,
-    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+    None => {
+      println!("Error: Invalid content length: {:?}", headers);
+      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+    }
   };
 
   // Content-Length header MUST match the actual number of bytes in the chunk.

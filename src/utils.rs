@@ -13,7 +13,10 @@ pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: 
 pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> {
   let range = match headers.get("Content-Range") {
     Some(range) => String::from(range.to_str().unwrap()),
-    None => return None,
+    None => {
+      println!("Warning: Missing Content-Range header");
+      return None;
+    }
   };
 
   // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
