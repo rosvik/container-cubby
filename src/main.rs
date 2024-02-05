@@ -192,7 +192,21 @@ async fn patch_blob(
 ) -> impl IntoResponse {
   let (range, range_start, range_end) = match utils::get_content_range(&headers) {
     Some(range) => range,
-    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+    None => {
+      if headers.get("Content-Range").is_some() {
+        println!("Error: Invalid range: {:?}", headers);
+        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      }
+
+      // NOTE: The spec isn't clear about the case where the Content-Range
+      // header is missing. But since the conformance tests and tools like
+      // podman excludes it when the entire blob is being uploaded
+      // monolithically, we'll assume that no range means the entire blob.
+      // https://github.com/opencontainers/distribution-spec/issues/506
+      let range_start = 0;
+      let range_end = data.len() - 1;
+      (format!("{}-{}", range_start, range_end), range_start, range_end)
+    }
   };
   let req_length = match utils::get_content_length(&headers) {
     Some(length) => length,
