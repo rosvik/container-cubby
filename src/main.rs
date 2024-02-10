@@ -31,7 +31,7 @@ async fn main() {
 fn router() -> Router {
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route("/v2", get(()))
+    .route("/v2/", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob))
