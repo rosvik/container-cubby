@@ -1,6 +1,6 @@
 # tiny-registry
 
-This is (an attempt at creating) a minimal implementation of a container registry, which closely follows the [OCI Image Format Specification](https://github.com/opencontainers/image-spec). The goal is to have a no-fuss registry to host my own images, that is easy to set up. For now, it uses a local SQLite database for storage.
+This is (an attempt at creating) a minimal implementation of a container registry, which closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The goal is to have a no-fuss registry to host my own images, that is easy to set up. For now, it uses a local SQLite database for storage.
 
 ## Spec links
 
