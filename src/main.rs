@@ -261,7 +261,12 @@ async fn patch_blob(
   }
 
   db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
-  (StatusCode::ACCEPTED, HeaderMap::new(), ())
+
+  let mut headers = HeaderMap::new();
+  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  // TODO: Add content range header
+  headers.insert("Location", HeaderValue::from_str(&location).unwrap());
+  (StatusCode::ACCEPTED, headers, ())
 }
 
 #[derive(Deserialize)]
