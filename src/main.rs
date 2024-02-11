@@ -345,7 +345,17 @@ async fn put_manifest(
   data: Bytes,
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
-  db::insert_manifest(&conn, &name, &reference, data.to_vec()).unwrap();
+  match db::insert_manifest(&conn, &name, &reference, data.to_vec()) {
+    Ok(_) => {}
+    Err(e) => {
+      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+      }
+      // We have already stored this blob. Until the spec tells us what to do in
+      // this case, we treat it as a success and continue the normal flow.
+      println!("Warning: Duplicate manifest, name='{}' reference='{}'", name, reference);
+    }
+  };
 
   let mut headers = HeaderMap::new();
   headers.insert("Location", HeaderValue::from_str("/v2/{name}/manifests/{reference}").unwrap());
