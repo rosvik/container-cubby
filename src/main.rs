@@ -214,8 +214,13 @@ async fn patch_blob(
   let req_length = match utils::get_content_length(&headers) {
     Some(length) => length,
     None => {
-      println!("Error: Invalid content length: {:?}", headers);
-      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      // NOTE: This is a conformance error, but since clients doesn't always
+      //       include it, we continue the flow.
+      println!(
+        "Warning: Not able to parse request content length from headers. Data is {} bytes.",
+        data.len()
+      );
+      data.len()
     }
   };
 
