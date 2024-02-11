@@ -5,7 +5,7 @@ mod utils;
 
 use axum::{
   body::Bytes,
-  extract::{Path, Query},
+  extract::{DefaultBodyLimit, Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
   middleware,
   response::IntoResponse,
@@ -29,15 +29,16 @@ async fn main() {
 }
 
 fn router() -> Router {
+  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::max(1024 * 1024 * 100);
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
     .route("/v2/", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob))
-    .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
-    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
-    .route("/v2/:name/manifests/:reference", put(put_manifest))
+    .route("/v2/:name/blobs/uploads/", post(post_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
     .layer(middleware::from_fn(layers::log_requests))
 }
 
