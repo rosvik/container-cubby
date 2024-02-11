@@ -1,13 +1,12 @@
 mod db;
 mod digestor;
-mod layers;
+mod middleware;
 mod utils;
 
 use axum::{
   body::Bytes,
   extract::{DefaultBodyLimit, Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
-  middleware,
   response::IntoResponse,
   routing::{get, patch, post, put},
   Router,
@@ -29,7 +28,7 @@ async fn main() {
 }
 
 fn router() -> Router {
-  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::max(1024 * 1024 * 100);
+  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::disable();
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
     .route("/v2/", get(()))
@@ -39,7 +38,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
     .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
-    .layer(middleware::from_fn(layers::log_requests))
+    .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
