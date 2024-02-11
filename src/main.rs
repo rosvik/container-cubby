@@ -89,17 +89,18 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl I
     Ok(manifest) => manifest,
     Err(e) => {
       println!("Error getting manifest: {:?}", e);
-      return (StatusCode::NOT_FOUND, HeaderMap::new(), ());
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
     }
   };
 
   let mut headers = HeaderMap::new();
   headers.insert(
     "Docker-Content-Digest",
-    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.unwrap()).as_str()).unwrap(),
+    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.clone().unwrap()).as_str())
+      .unwrap(),
   );
 
-  (StatusCode::OK, headers, ())
+  (StatusCode::OK, headers, Bytes::from(manifest.data.unwrap()))
 }
 
 #[derive(Deserialize)]
