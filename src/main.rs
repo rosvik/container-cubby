@@ -380,7 +380,7 @@ mod tests {
     let namespace: String = get_random_namespace();
     let test_blob_string: &str = "testblob";
 
-    db::init().unwrap();
+    let _ = db::init();
     let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
@@ -405,7 +405,7 @@ mod tests {
   async fn test_post_then_put() {
     let namespace: String = get_random_namespace();
     let test_blob: Bytes = Bytes::from("test_post_then_put");
-    db::init().unwrap();
+    let _ = db::init();
 
     // POST to get reference
     let response = post_blob(
@@ -447,7 +447,7 @@ mod tests {
   #[tokio::test]
   async fn test_push_as_hunks() {
     let namespace: String = get_random_namespace();
-    db::init().unwrap();
+    let _ = db::init();
 
     // POST to get reference
     let response =
@@ -506,7 +506,7 @@ mod tests {
   async fn test_get_blob() {
     let namespace = get_random_namespace();
     let test_blob_string: &str = "testblob";
-    db::init().unwrap();
+    let _ = db::init();
     let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
     let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
