@@ -1,22 +1,14 @@
 # tiny-registry
 
-Initial goals:
-
-1. Recieve a blob from a client (POST `/v2/<name>/blobs/<digest>`)
-	- https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
-2. Store the blob in a a Sqlite database
-	- https://lib.rs/crates/rusqlite
-3. Serve the blob to a client (GET `/v2/<name>/blobs/uploads/?digest=<digest>`)
-  - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
-
+This is (an attempt at creating) a minimal implementation of a container registry, closely following the [OCI Image Format Specification](https://github.com/opencontainers/image-spec). The goal is to have a no-fuss registry to host my own images, that is easy to set up. For now, it uses a local SQLite database for storage.
 
 ## Spec links
 
 - [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
 - [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
-- Google go-containerregistry have some good docs from the client's perspective
-	- [google/go-containerregistry](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
+
+## Endpoints
 
 | ID      | Method   | API Endpoint                                                 | Success | Failure     | Todo |
 | ------- | -------- | ------------------------------------------------------------ | ------- | ----------- | ---- |
@@ -38,3 +30,18 @@ Initial goals:
 | end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         |      |
 
 https://specs.opencontainers.org/distribution-spec/#endpoints
+
+## Related projects
+
+- [Azure Container Registry Documentation](https://learn.microsoft.com/en-us/rest/api/containerregistry)
+- [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
+
+### Go Implementations
+
+- [distribution/distribution](https://github.com/distribution/distribution/)
+- [google/go-containerregistry/pkg/registry](https://github.com/google/go-containerregistry/blob/main/pkg/registry/README.md)
+
+### Rust
+
+- [mcronce/oci-registry](https://github.com/mcronce/oci-registry)
+- [krustlet/oci-distribution](https://github.com/krustlet/oci-distribution)

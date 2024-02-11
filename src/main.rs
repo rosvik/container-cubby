@@ -1,11 +1,13 @@
 mod db;
 mod digestor;
+mod layers;
 mod utils;
 
 use axum::{
   body::Bytes,
   extract::{Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
+  middleware,
   response::IntoResponse,
   routing::{get, patch, post, put},
   Router,
@@ -29,13 +31,14 @@ async fn main() {
 fn router() -> Router {
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route("/v2", get(()))
+    .route("/v2/", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob))
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
     .route("/v2/:name/manifests/:reference", put(put_manifest))
+    .layer(middleware::from_fn(layers::log_requests))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -86,17 +89,18 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl I
     Ok(manifest) => manifest,
     Err(e) => {
       println!("Error getting manifest: {:?}", e);
-      return (StatusCode::NOT_FOUND, HeaderMap::new(), ());
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
     }
   };
 
   let mut headers = HeaderMap::new();
   headers.insert(
     "Docker-Content-Digest",
-    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.unwrap()).as_str()).unwrap(),
+    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.clone().unwrap()).as_str())
+      .unwrap(),
   );
 
-  (StatusCode::OK, headers, ())
+  (StatusCode::OK, headers, Bytes::from(manifest.data.unwrap()))
 }
 
 #[derive(Deserialize)]
@@ -192,11 +196,33 @@ async fn patch_blob(
 ) -> impl IntoResponse {
   let (range, range_start, range_end) = match utils::get_content_range(&headers) {
     Some(range) => range,
-    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+    None => {
+      if headers.get("Content-Range").is_some() {
+        println!("Error: Invalid range: {:?}", headers);
+        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      }
+
+      // NOTE: The spec isn't clear about the case where the Content-Range
+      // header is missing. But since the conformance tests and tools like
+      // podman excludes it when the entire blob is being uploaded
+      // monolithically, we'll assume that no range means the entire blob.
+      // https://github.com/opencontainers/distribution-spec/issues/506
+      let range_start = 0;
+      let range_end = data.len() - 1;
+      (format!("{}-{}", range_start, range_end), range_start, range_end)
+    }
   };
   let req_length = match utils::get_content_length(&headers) {
     Some(length) => length,
-    None => return (StatusCode::BAD_REQUEST, HeaderMap::new(), ()),
+    None => {
+      // NOTE: This is a conformance error, but since clients doesn't always
+      //       include it, we continue the flow.
+      println!(
+        "Warning: Not able to parse request content length from headers. Data is {} bytes.",
+        data.len()
+      );
+      data.len()
+    }
   };
 
   // Content-Length header MUST match the actual number of bytes in the chunk.
@@ -241,7 +267,12 @@ async fn patch_blob(
   }
 
   db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
-  (StatusCode::ACCEPTED, HeaderMap::new(), ())
+
+  let mut headers = HeaderMap::new();
+  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  // TODO: Add content range header
+  headers.insert("Location", HeaderValue::from_str(&location).unwrap());
+  (StatusCode::ACCEPTED, headers, ())
 }
 
 #[derive(Deserialize)]
@@ -315,7 +346,17 @@ async fn put_manifest(
   data: Bytes,
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
-  db::insert_manifest(&conn, &name, &reference, data.to_vec()).unwrap();
+  match db::insert_manifest(&conn, &name, &reference, data.to_vec()) {
+    Ok(_) => {}
+    Err(e) => {
+      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+      }
+      // We have already stored this blob. Until the spec tells us what to do in
+      // this case, we treat it as a success and continue the normal flow.
+      println!("Warning: Duplicate manifest, name='{}' reference='{}'", name, reference);
+    }
+  };
 
   let mut headers = HeaderMap::new();
   headers.insert("Location", HeaderValue::from_str("/v2/{name}/manifests/{reference}").unwrap());

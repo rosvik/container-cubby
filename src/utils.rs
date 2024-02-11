@@ -10,15 +10,18 @@ pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: 
   headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
 }
 
-pub fn get_content_range(headers: &HeaderMap) -> Option<(&str, usize, usize)> {
+pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> {
   let range = match headers.get("Content-Range") {
-    Some(range) => range.to_str().unwrap(),
-    None => return None,
+    Some(range) => String::from(range.to_str().unwrap()),
+    None => {
+      println!("Warning: Missing Content-Range header");
+      return None;
+    }
   };
 
   // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
   let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
-  if !re.is_match(range) {
+  if !re.is_match(&range) {
     println!("Error: Invalid range format: {:?}", range);
     return None;
   }
