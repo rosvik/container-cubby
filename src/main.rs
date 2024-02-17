@@ -100,6 +100,13 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl I
       .unwrap(),
   );
 
+  // In a successful response, the Content-Type header will indicate the type of
+  // the returned manifest.
+  headers.insert(
+    "Content-Type",
+    HeaderValue::from_str("application/vnd.oci.image.manifest.v1+json").unwrap(),
+  );
+
   (StatusCode::OK, headers, Bytes::from(manifest.data.unwrap()))
 }
 
