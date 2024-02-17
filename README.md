@@ -1,14 +1,10 @@
 # tiny-registry
 
-This is (an attempt at creating) a minimal implementation of a container registry, which closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The goal is to have a no-fuss registry to host my own images, that is easy to set up. For now, it uses a local SQLite database for storage.
-
-## Spec links
-
-- [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
-- [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
-- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+This is (an attempt at creating) a minimal implementation of a container registry, that closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The project is still a work in progress, but the goal is to create a no-fuss single-tenant container registry in rust.
 
 ## Endpoints
+
+The endpoints defined by the spec, and the project's current progress is the following:
 
 | ID      | Method   | API Endpoint                                                 | Success | Failure     | Todo |
 | ------- | -------- | ------------------------------------------------------------ | ------- | ----------- | ---- |
@@ -31,17 +27,23 @@ This is (an attempt at creating) a minimal implementation of a container registr
 
 https://specs.opencontainers.org/distribution-spec/#endpoints
 
+## Spec links
+
+- [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
+- [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
+- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+
 ## Related projects
 
 - [Azure Container Registry Documentation](https://learn.microsoft.com/en-us/rest/api/containerregistry)
 - [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
 
+### Rust Implementations
+
+- [mcronce/oci-registry](https://github.com/mcronce/oci-registry)
+- [krustlet/oci-distribution](https://github.com/krustlet/oci-distribution)
+
 ### Go Implementations
 
 - [distribution/distribution](https://github.com/distribution/distribution/)
 - [google/go-containerregistry/pkg/registry](https://github.com/google/go-containerregistry/blob/main/pkg/registry/README.md)
-
-### Rust
-
-- [mcronce/oci-registry](https://github.com/mcronce/oci-registry)
-- [krustlet/oci-distribution](https://github.com/krustlet/oci-distribution)
