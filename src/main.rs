@@ -349,8 +349,7 @@ async fn put_blob(
 /// RESPONSE
 /// - Location: {manifest-location}                    (a pullable manifest URL)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests
 async fn put_manifest(
   Path((name, reference)): Path<(String, String)>,
   data: Bytes,
