@@ -1,13 +1,12 @@
 mod db;
 mod digestor;
-mod layers;
+mod middleware;
 mod utils;
 
 use axum::{
   body::Bytes,
-  extract::{Path, Query},
+  extract::{DefaultBodyLimit, Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
-  middleware,
   response::IntoResponse,
   routing::{get, patch, post, put},
   Router,
@@ -29,16 +28,17 @@ async fn main() {
 }
 
 fn router() -> Router {
+  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::disable();
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
     .route("/v2/", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob))
-    .route("/v2/:name/blobs/uploads/:reference", put(put_blob))
-    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob))
-    .route("/v2/:name/manifests/:reference", put(put_manifest))
-    .layer(middleware::from_fn(layers::log_requests))
+    .route("/v2/:name/blobs/uploads/", post(post_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
+    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
+    .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -98,6 +98,13 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl I
     "Docker-Content-Digest",
     HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.clone().unwrap()).as_str())
       .unwrap(),
+  );
+
+  // In a successful response, the Content-Type header will indicate the type of
+  // the returned manifest.
+  headers.insert(
+    "Content-Type",
+    HeaderValue::from_str("application/vnd.oci.image.manifest.v1+json").unwrap(),
   );
 
   (StatusCode::OK, headers, Bytes::from(manifest.data.unwrap()))
@@ -341,6 +348,8 @@ async fn put_blob(
 ///
 /// RESPONSE
 /// - Location: {manifest-location}                    (a pullable manifest URL)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests
 async fn put_manifest(
   Path((name, reference)): Path<(String, String)>,
   data: Bytes,
@@ -380,7 +389,7 @@ mod tests {
     let namespace: String = get_random_namespace();
     let test_blob_string: &str = "testblob";
 
-    db::init().unwrap();
+    let _ = db::init();
     let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
@@ -405,7 +414,7 @@ mod tests {
   async fn test_post_then_put() {
     let namespace: String = get_random_namespace();
     let test_blob: Bytes = Bytes::from("test_post_then_put");
-    db::init().unwrap();
+    let _ = db::init();
 
     // POST to get reference
     let response = post_blob(
@@ -447,7 +456,7 @@ mod tests {
   #[tokio::test]
   async fn test_push_as_hunks() {
     let namespace: String = get_random_namespace();
-    db::init().unwrap();
+    let _ = db::init();
 
     // POST to get reference
     let response =
@@ -506,7 +515,7 @@ mod tests {
   async fn test_get_blob() {
     let namespace = get_random_namespace();
     let test_blob_string: &str = "testblob";
-    db::init().unwrap();
+    let _ = db::init();
     let test_blob_bytes: Bytes = Bytes::from(test_blob_string);
     let client_digest = get_sha256_digest(&test_blob_bytes.to_vec());
 

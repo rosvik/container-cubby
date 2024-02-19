@@ -14,9 +14,7 @@ jobs:
     - run: rustup toolchain install stable --profile minimal
     - name: Cache
       uses: Swatinem/rust-cache@v2
-
     - name: Build
       run: cargo build --verbose
-
     - name: Run tests
       run: cargo test --verbose
