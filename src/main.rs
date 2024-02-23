@@ -277,8 +277,13 @@ async fn patch_blob(
 
   let mut headers = HeaderMap::new();
   let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
-  // TODO: Add content range header
+
+  // Each successful chunk upload MUST have a 202 Accepted response code, and MUST have the following headers:
+  // - Location: <location>
+  // - Range: 0-<end-of-range>
   headers.insert("Location", HeaderValue::from_str(&location).unwrap());
+  headers.insert("Range", HeaderValue::from_str(format!("0-{}", range_end).as_str()).unwrap());
+
   (StatusCode::ACCEPTED, headers, ())
 }
 
