@@ -99,6 +99,11 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
   Err(Error::QueryReturnedNoRows)
 }
 
+pub fn delete_blob(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
+  let stmt = include_str!("../sql/delete_blob.sql");
+  conn.execute(stmt, (&name, &reference))
+}
+
 pub fn insert_empty_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
   let stmt = include_str!("../sql/insert_hunk.sql");
   conn.execute(stmt, (&name, &reference))

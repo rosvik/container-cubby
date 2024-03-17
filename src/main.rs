@@ -39,6 +39,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
     .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
     .route("/v2/:name/manifests/:reference", delete(delete_manifest))
+    .route("/v2/:name/blobs/:digest", delete(delete_blob))
     .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
@@ -399,6 +400,29 @@ async fn delete_manifest(Path((name, reference)): Path<(String, String)>) -> imp
   }
 
   // Upon success, the registry MUST respond with a 202 Accepted code.
+  StatusCode::ACCEPTED
+}
+
+/// end-10: `DELETE /v2/<name>/blobs/<digest>` => 202 / 404
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs
+async fn delete_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  match db::delete_blob(&conn, &name, &digest) {
+    Ok(num_rows_changed) => {
+      // If the blob is not found, a 404 Not Found code MUST be returned.
+      if num_rows_changed == 0 {
+        println!("Warning: Blob not found, name='{}' digest='{}'", name, digest);
+        return StatusCode::NOT_FOUND;
+      }
+    }
+    Err(e) => {
+      println!("Error deleting blob: {:?}", e);
+      return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+  }
+
+  // Upon success, the registry MUST respond with code 202 Accepted.
   StatusCode::ACCEPTED
 }
 
