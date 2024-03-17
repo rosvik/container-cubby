@@ -8,7 +8,7 @@ use axum::{
   extract::{DefaultBodyLimit, Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
   response::IntoResponse,
-  routing::{get, patch, post, put},
+  routing::{delete, get, patch, post, put},
   Router,
 };
 use serde::Deserialize;
@@ -38,6 +38,7 @@ fn router() -> Router {
     .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
     .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
     .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
+    .route("/v2/:name/manifests/:reference", delete(delete_manifest))
     .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
@@ -376,6 +377,29 @@ async fn put_manifest(
   headers.insert("Location", HeaderValue::from_str("/v2/{name}/manifests/{reference}").unwrap());
 
   (StatusCode::CREATED, headers, ())
+}
+
+/// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests
+async fn delete_manifest(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  match db::delete_manifest(&conn, &name, &reference) {
+    Ok(num_rows_changed) => {
+      // If the repository does not exist, the response MUST return 404 Not Found.
+      if num_rows_changed == 0 {
+        println!("Warning: Manifest not found, name='{}' reference='{}'", name, reference);
+        return StatusCode::NOT_FOUND;
+      }
+    }
+    Err(e) => {
+      println!("Error deleting manifest: {:?}", e);
+      return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+  }
+
+  // Upon success, the registry MUST respond with a 202 Accepted code.
+  StatusCode::ACCEPTED
 }
 
 #[cfg(test)]

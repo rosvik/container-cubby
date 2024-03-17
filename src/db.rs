@@ -181,3 +181,8 @@ pub fn get_manifest(conn: &Connection, name: &str, reference: &str) -> Result<Ma
   }
   Err(Error::QueryReturnedNoRows)
 }
+
+pub fn delete_manifest(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
+  let stmt = include_str!("../sql/delete_manifest.sql");
+  conn.execute(stmt, (&name, &reference))
+}
