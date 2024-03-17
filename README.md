@@ -23,7 +23,7 @@ The endpoints defined by the spec, and the project's current progress is the fol
 | end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         |      |
 | end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | 200     | 404/400     |      |
 | end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | 200     | 404/400     |      |
-| end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         |      |
+| end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         | X    |
 
 https://specs.opencontainers.org/distribution-spec/#endpoints
 

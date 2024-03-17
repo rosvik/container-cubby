@@ -40,6 +40,7 @@ fn router() -> Router {
     .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
     .route("/v2/:name/manifests/:reference", delete(delete_manifest))
     .route("/v2/:name/blobs/:digest", delete(delete_blob))
+    .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
     .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
@@ -425,6 +426,44 @@ async fn delete_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoR
 
   // Upon success, the registry MUST respond with code 202 Accepted.
   StatusCode::ACCEPTED
+}
+
+/// end-13: `GET /v2/<name>/blobs/uploads/<reference>` => 200 / 404
+///
+/// RESPONSE:
+/// - Location: {blob-location}                            (a pullable blob URL)
+/// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+async fn get_blob_upload(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
+  // To get the current status after a 416 error, issue a GET request to a URL
+  // <location> (end-13). The following chunk upload SHOULD use the <location>
+  // provided in the response.
+
+  let conn = db::connect().unwrap();
+  let hunk = match db::get_hunk(&conn, &name, &reference) {
+    Ok(hunk) => hunk,
+    Err(e) => {
+      println!("Error getting hunk: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new());
+    }
+  };
+  let mut headers = HeaderMap::new();
+
+  // The <location> refers to the URL obtained from any preceding POST or PATCH
+  // request.
+  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  headers.insert("Location", HeaderValue::from_str(location.as_str()).unwrap());
+
+  // The <end-of-range> value is the position of the last uploaded byte.
+  // NOTE: If the hunk is empty, end_of_range is set to -1 (`range: 0--1`). It's
+  //       unclear what's the expected behavior in this case.
+  let end_of_range: i64 = (hunk.data.unwrap_or(Vec::new()).len() as i64) - 1;
+  headers.insert("Range", HeaderValue::from_str(format!("0-{}", end_of_range).as_str()).unwrap());
+
+  // The response to an active upload <location> MUST be a 204 No Content
+  // response code
+  (StatusCode::NO_CONTENT, headers)
 }
 
 #[cfg(test)]
