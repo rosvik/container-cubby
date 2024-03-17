@@ -28,16 +28,22 @@ async fn main() {
 }
 
 fn router() -> Router {
-  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::disable();
+  let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
     .route("/v2/", get(()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(unlimited_upload_size.clone()))
+    .route(
+      "/v2/:name/blobs/uploads/:reference",
+      put(put_blob_upload).layer(unlimited_upload_size.clone()),
+    )
+    .route(
+      "/v2/:name/blobs/uploads/:reference",
+      patch(patch_blob_upload).layer(unlimited_upload_size.clone()),
+    )
+    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(unlimited_upload_size.clone()))
     .route("/v2/:name/manifests/:reference", delete(delete_manifest))
     .route("/v2/:name/blobs/:digest", delete(delete_blob))
     .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
@@ -128,7 +134,7 @@ struct PostBlobParameters {
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
-async fn post_blob(
+async fn post_blob_upload(
   Path(name): Path<String>,
   Query(query): Query<PostBlobParameters>,
   data: Bytes,
@@ -199,7 +205,7 @@ async fn post_blob(
 /// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
-async fn patch_blob(
+async fn patch_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   headers: HeaderMap,
   data: Bytes,
@@ -307,7 +313,7 @@ struct PutBlobParameters {
 /// - Location: {blob-location}                            (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
-async fn put_blob(
+async fn put_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   Query(query): Query<PutBlobParameters>,
   headers: HeaderMap,
@@ -487,7 +493,7 @@ mod tests {
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
-    let result = post_blob(
+    let result = post_blob_upload(
       Path(namespace.to_string()),
       Query(PostBlobParameters {
         digest: Some(digest),
@@ -510,7 +516,7 @@ mod tests {
     let _ = db::init();
 
     // POST to get reference
-    let response = post_blob(
+    let response = post_blob_upload(
       Path(namespace.to_string()),
       Query(PostBlobParameters { digest: None }),
       Bytes::new(),
@@ -529,7 +535,7 @@ mod tests {
       "Content-Length",
       HeaderValue::from_str(test_blob.len().to_string().as_str()).unwrap(),
     );
-    let put_response = put_blob(
+    let put_response = put_blob_upload(
       Path((namespace.to_string(), reference.to_string())),
       Query(PutBlobParameters {
         digest: digest.clone(),
@@ -552,10 +558,13 @@ mod tests {
     let _ = db::init();
 
     // POST to get reference
-    let response =
-      post_blob(Path(namespace.clone()), Query(PostBlobParameters { digest: None }), Bytes::new())
-        .await
-        .into_response();
+    let response = post_blob_upload(
+      Path(namespace.clone()),
+      Query(PostBlobParameters { digest: None }),
+      Bytes::new(),
+    )
+    .await
+    .into_response();
     let location = response.headers().get("Location").unwrap();
     let reference = location.to_str().unwrap().split('/').last().unwrap();
     assert_eq!(response.status(), StatusCode::ACCEPTED);
@@ -567,7 +576,7 @@ mod tests {
     headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
     headers.insert("Content-Range", HeaderValue::from_str("0-3").unwrap());
     let patch_response =
-      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+      patch_blob_upload(Path((namespace.clone(), reference.to_string())), headers, chunk)
         .await
         .into_response();
     assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
@@ -578,7 +587,7 @@ mod tests {
     headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
     headers.insert("Content-Range", HeaderValue::from_str("4-7").unwrap());
     let patch_response =
-      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+      patch_blob_upload(Path((namespace.clone(), reference.to_string())), headers, chunk)
         .await
         .into_response();
     assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
@@ -587,7 +596,7 @@ mod tests {
     let mut headers = HeaderMap::new();
     headers.insert("Content-Length", HeaderValue::from_str("0").unwrap());
     let digest = get_sha256_digest(&"AAAABBBB".as_bytes().to_vec());
-    let result = put_blob(
+    let result = put_blob_upload(
       Path((namespace.clone(), reference.to_string())),
       Query(PutBlobParameters {
         digest: digest.clone(),
@@ -614,7 +623,7 @@ mod tests {
 
     {
       // First, POST the blob
-      post_blob(
+      post_blob_upload(
         Path(namespace.to_string()),
         Query(PostBlobParameters {
           digest: Some(client_digest.clone()),
