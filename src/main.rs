@@ -120,7 +120,7 @@ struct PostBlobParameters {
 ///
 /// REQUEST
 /// - Content-Length: {length}          (must match the blob's actual content length)
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Body: {blob byte stream}
 ///
 /// RESPONSE
@@ -188,7 +188,7 @@ async fn post_blob(
 ///    post request MUST include the following header:
 ///
 /// REQUEST
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Content-Range: {range}   (byte range of the chunk, inclusive on both ends)
 /// - Content-Length: {length}    (must match the chunk's actual content length)
 /// - Body: {chunk byte stream}
@@ -280,7 +280,8 @@ async fn patch_blob(
   let mut headers = HeaderMap::new();
   let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
-  // Each successful chunk upload MUST have a 202 Accepted response code, and MUST have the following headers:
+  // Each successful chunk upload MUST have a 202 Accepted response code, and
+  // MUST have the following headers:
   // - Location: <location>
   // - Range: 0-<end-of-range>
   headers.insert("Location", HeaderValue::from_str(&location).unwrap());
@@ -297,7 +298,7 @@ struct PutBlobParameters {
 ///
 /// REQUEST
 /// - Content-Length: {length}         (must match blob or chunk content length)
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Content-Range: {chunk range}     (if the blob is being uploaded in chunks)
 /// - Body: {blob byte stream}
 ///
