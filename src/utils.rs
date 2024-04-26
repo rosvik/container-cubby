@@ -53,3 +53,10 @@ pub fn get_content_length(headers: &HeaderMap) -> Option<usize> {
   };
   Some(length)
 }
+
+use base64::{engine::general_purpose, Engine as _};
+pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>> {
+  let bytes = general_purpose::STANDARD.decode(input)?;
+  let utf8 = std::str::from_utf8(&bytes)?;
+  Ok(utf8.to_string())
+}

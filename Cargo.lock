@@ -123,6 +123,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
+
+[[package]]
 name = "bitflags"
 version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -729,6 +735,7 @@ name = "tiny-registry"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64",
  "fastrand",
  "regex-lite",
  "rusqlite",
