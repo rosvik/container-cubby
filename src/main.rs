@@ -31,7 +31,7 @@ fn router() -> Router {
   let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route("/v2/", get(()))
+    .route("/v2/", get(authenticate))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(unlimited_upload_size.clone()))
@@ -48,6 +48,32 @@ fn router() -> Router {
     .route("/v2/:name/blobs/:digest", delete(delete_blob))
     .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
     .layer(axum::middleware::from_fn(middleware::log_requests))
+}
+
+/// Authentication
+async fn authenticate(headers: HeaderMap) -> impl IntoResponse {
+  let authorization = headers.get("Authorization");
+  if authorization.is_none() {
+    // If Authorization header is not set, issue a basic auth challenge
+    let mut challenge_headers = HeaderMap::new();
+    challenge_headers
+      .insert("WWW-Authenticate", HeaderValue::from_static("Basic realm=\"\", charset=\"UTF-8\""));
+    return (StatusCode::UNAUTHORIZED, challenge_headers);
+  } else {
+    // TODO: Remove unwraps
+    let auth_header_value = authorization.unwrap().to_str().unwrap().to_string();
+    let b64 = auth_header_value.split_whitespace().last().unwrap().to_string();
+    let credentials = utils::decode_base64(b64).unwrap();
+
+    let username = credentials.split(':').next().unwrap();
+    let password = credentials.split(':').last().unwrap();
+
+    // TODO: Do some actual authentication
+    if username == "admin" && password == "hunter2" {
+      return (StatusCode::OK, HeaderMap::new());
+    }
+  }
+  (StatusCode::UNAUTHORIZED, HeaderMap::new())
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
