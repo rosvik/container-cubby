@@ -47,9 +47,7 @@ pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> 
 }
 
 pub fn get_content_length(headers: &HeaderMap) -> Option<usize> {
-  let length = match headers.get("Content-Length") {
-    Some(length) => length.to_str().unwrap().parse::<usize>().unwrap(),
-    None => return None,
-  };
+  let content_length = headers.get("Content-Length")?.to_str().ok()?;
+  let length = content_length.parse::<usize>().ok()?;
   Some(length)
 }
