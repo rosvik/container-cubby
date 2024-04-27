@@ -29,6 +29,13 @@ async fn main() {
   let port = env::var("PORT").unwrap_or(DEFAULT_PORT.to_string());
   let addr = format!("{}:{}", HOST, port);
 
+  dotenv().ok();
+  if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
+    println!(
+      "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
+    );
+  };
+
   db::init().unwrap();
   let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
