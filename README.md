@@ -37,6 +37,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 
 - [Azure Container Registry Documentation](https://learn.microsoft.com/en-us/rest/api/containerregistry)
 - [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
+- [CNCF Distribution Reference](https://distribution.github.io/distribution/spec/)
 
 ### Rust Implementations
 
