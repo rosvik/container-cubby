@@ -38,7 +38,10 @@ fn router() -> Router {
   let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route("/v2/", get(()))
+    .route(
+      "/v2/",
+      get("Authenticated").layer(axum::middleware::from_fn(middleware::basic_authenticate)),
+    )
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
     .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(unlimited_upload_size.clone()))
