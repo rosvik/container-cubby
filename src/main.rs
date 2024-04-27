@@ -11,19 +11,26 @@ use axum::{
   routing::{delete, get, patch, post, put},
   Router,
 };
+use dotenv::dotenv;
 use serde::Deserialize;
+use std::env;
 use uuid::Uuid;
 
-const HOST: &str = "0.0.0.0:8602";
 const PROTOCOL: &str = "http";
+const HOST: &str = "0.0.0.0";
+const DEFAULT_PORT: &str = "8602";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
+  dotenv().ok();
+  let port = env::var("PORT").unwrap_or(DEFAULT_PORT.to_string());
+  let addr = format!("{}:{}", HOST, port);
+
   db::init().unwrap();
-  let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-  println!("Listening on \x1b[1;4m{PROTOCOL}://{HOST}/\x1b[0m");
+  let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+  println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   axum::serve(listener, router()).await.unwrap();
 }
 
