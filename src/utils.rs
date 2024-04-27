@@ -7,7 +7,9 @@ pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: 
   // your registry, for example, in the case of a signed URL from some cloud
   // storage provider that your registry generates.
   let blob_location = format!("/v2/{name}/blobs/{digest}");
-  headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
+  if let Ok(header_value) = HeaderValue::from_str(blob_location.as_str()) {
+    headers.insert("Location", header_value);
+  }
 }
 
 pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> {
