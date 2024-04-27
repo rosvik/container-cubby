@@ -23,7 +23,7 @@ const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 async fn main() {
   db::init().unwrap();
   let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-  println!("Listening on {PROTOCOL}://{HOST}/");
+  println!("Listening on \x1b[1;4m{PROTOCOL}://{HOST}/\x1b[0m");
   axum::serve(listener, router()).await.unwrap();
 }
 
