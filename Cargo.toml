@@ -13,6 +13,7 @@ regex-lite = "0.1.5"
 serde = {version = "1.0.195", features = ["derive"]}
 sha2 = "0.9.9"
 tokio = {version = "1.35.1", features = ["rt-multi-thread"]}
+tower = "0.4.13"
 uuid = {version = "1.7.0", features = ["v4"]}
 
 [dependencies.rusqlite]

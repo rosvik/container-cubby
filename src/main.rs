@@ -14,6 +14,7 @@ use axum::{
 use dotenv::dotenv;
 use serde::Deserialize;
 use std::env;
+use tower::ServiceBuilder;
 use uuid::Uuid;
 
 const PROTOCOL: &str = "http";
@@ -36,26 +37,26 @@ async fn main() {
 
 fn router() -> Router {
   let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
+  let basic_auth = axum::middleware::from_fn(middleware::basic_authenticate);
+  let upload_middleware =
+    ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route(
-      "/v2/",
-      get("Authenticated").layer(axum::middleware::from_fn(middleware::basic_authenticate)),
-    )
+    .route("/v2/", get("Authenticated").layer(basic_auth.clone()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(unlimited_upload_size.clone()))
+    .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(upload_middleware.clone()))
     .route(
       "/v2/:name/blobs/uploads/:reference",
-      put(put_blob_upload).layer(unlimited_upload_size.clone()),
+      put(put_blob_upload).layer(upload_middleware.clone()),
     )
     .route(
       "/v2/:name/blobs/uploads/:reference",
-      patch(patch_blob_upload).layer(unlimited_upload_size.clone()),
+      patch(patch_blob_upload).layer(upload_middleware.clone()),
     )
-    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(unlimited_upload_size.clone()))
-    .route("/v2/:name/manifests/:reference", delete(delete_manifest))
-    .route("/v2/:name/blobs/:digest", delete(delete_blob))
+    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_middleware.clone()))
+    .route("/v2/:name/manifests/:reference", delete(delete_manifest).layer(basic_auth.clone()))
+    .route("/v2/:name/blobs/:digest", delete(delete_blob).layer(basic_auth.clone()))
     .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
     .layer(axum::middleware::from_fn(middleware::log_requests))
 }

@@ -749,6 +749,7 @@ dependencies = [
  "serde",
  "sha2",
  "tokio",
+ "tower",
  "uuid",
 ]
 
