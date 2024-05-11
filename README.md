@@ -32,6 +32,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 - [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
 - [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+  - [1.1 Release notes](https://opencontainers.org/posts/blog/2024-03-13-image-and-distribution-1-1/)
 
 ## Related projects
 
