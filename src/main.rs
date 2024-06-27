@@ -62,6 +62,7 @@ fn router() -> Router {
       patch(patch_blob_upload).layer(upload_middleware.clone()),
     )
     .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_middleware.clone()))
+    .route("/v2/:name/tags/list", get(get_tags_list))
     .route("/v2/:name/manifests/:reference", delete(delete_manifest).layer(basic_auth.clone()))
     .route("/v2/:name/blobs/:digest", delete(delete_blob).layer(basic_auth.clone()))
     .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
@@ -404,6 +405,31 @@ async fn put_manifest(
   headers.insert("Location", HeaderValue::from_str("/v2/{name}/manifests/{reference}").unwrap());
 
   (StatusCode::CREATED, headers, ())
+}
+
+/// end-8: `GET /v2/<name>/tags/list` => 200 / 404
+///
+/// skopeo list-tags docker://docker.io/rosvik/tiny-registry
+/// {
+///   "Repository": "docker.io/rosvik/tiny-registry",
+///   "Tags": [
+///       "v0.1"
+///   ]
+/// }
+async fn get_tags_list(Path(name): Path<String>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  let tags = match db::get_tags(&conn, &name) {
+    Ok(tags) => tags,
+    Err(e) => {
+      println!("Error getting tags: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
+    }
+  };
+
+  let mut headers = HeaderMap::new();
+  headers.insert("Content-Type", HeaderValue::from_str("application/json").unwrap());
+
+  (StatusCode::OK, headers, serde_json::to_string(&tags).unwrap())
 }
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
