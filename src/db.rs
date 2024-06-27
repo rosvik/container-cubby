@@ -191,3 +191,17 @@ pub fn delete_manifest(conn: &Connection, name: &str, reference: &str) -> Result
   let stmt = include_str!("../sql/delete_manifest.sql");
   conn.execute(stmt, (&name, &reference))
 }
+
+pub fn get_tags(conn: &Connection, name: &str) -> Result<Vec<String>> {
+  let mut stmt = conn.prepare(include_str!("../sql/get_tags.sql"))?;
+  let mut rows = stmt.query([&name])?;
+
+  let mut tags = Vec::new();
+  while let Some(row) = rows.next()? {
+    tags.push(row.get(0)?);
+  }
+
+  println!("tags: {:?}", tags);
+
+  Ok(tags)
+}
