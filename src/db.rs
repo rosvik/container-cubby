@@ -200,8 +200,5 @@ pub fn get_tags(conn: &Connection, name: &str) -> Result<Vec<String>> {
   while let Some(row) = rows.next()? {
     tags.push(row.get(0)?);
   }
-
-  println!("tags: {:?}", tags);
-
   Ok(tags)
 }
