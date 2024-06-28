@@ -407,6 +407,10 @@ async fn put_manifest(
   (StatusCode::CREATED, headers, ())
 }
 
+#[derive(Deserialize)]
+struct GetTagsListParameters {
+  n: Option<u32>,
+}
 /// end-8: `GET /v2/<name>/tags/list` => 200 / 404
 ///
 /// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/tiny-registry`)
@@ -414,9 +418,19 @@ async fn put_manifest(
 ///   "Repository": "docker.io/rosvik/tiny-registry",
 ///   "Tags": ["v0.1"]
 /// }
-async fn get_tags_list(Path(name): Path<String>) -> impl IntoResponse {
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-tags
+async fn get_tags_list(
+  Path(name): Path<String>,
+  Query(query): Query<GetTagsListParameters>,
+) -> impl IntoResponse {
+  // In addition to fetching the whole list of tags, a subset of the tags can be
+  // fetched by providing the n query parameter.
+  // NOTE: There is not an upper limit otherwise, but 10k ought to do it.
+  let count = query.n.unwrap_or(10_000);
+
   let conn = db::connect().unwrap();
-  let mut tags = match db::get_tags(&conn, &name) {
+  let mut tags = match db::get_tags(&conn, &name, count) {
     Ok(tags) => tags,
     Err(e) => {
       println!("Error getting tags: {:?}", e);
