@@ -409,15 +409,20 @@ async fn put_manifest(
 
 #[derive(Deserialize)]
 struct GetTagsListParameters {
-  n: Option<u32>,
+  n: Option<usize>,
 }
 /// end-8: `GET /v2/<name>/tags/list` => 200 / 404
 ///
 /// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/tiny-registry`)
+/// - Content-Type: `application/json`
+/// - Link: {RFC5988 with rel="next"}                   (if there are more tags)
+/// - Body:
+/// ```
 /// {
-///   "Repository": "docker.io/rosvik/tiny-registry",
-///   "Tags": ["v0.1"]
+///   "Repository": {name},
+///   "Tags": [ {list of tags} ]
 /// }
+/// ```
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-tags
 async fn get_tags_list(
@@ -426,11 +431,10 @@ async fn get_tags_list(
 ) -> impl IntoResponse {
   // In addition to fetching the whole list of tags, a subset of the tags can be
   // fetched by providing the n query parameter.
-  // NOTE: There is not an upper limit otherwise, but 10k ought to do it.
-  let count = query.n.unwrap_or(10_000);
+  let count = query.n.unwrap_or(100).clamp(0, 100);
 
   let conn = db::connect().unwrap();
-  let mut tags = match db::get_tags(&conn, &name, count) {
+  let mut tags = match db::get_tags(&conn, &name) {
     Ok(tags) => tags,
     Err(e) => {
       println!("Error getting tags: {:?}", e);
@@ -443,8 +447,24 @@ async fn get_tags_list(
   // case-insensitive alphanumeric order).
   tags.sort_by_key(|tag| tag.to_lowercase());
 
+  // A subset of the tags can be fetched by providing the n query parameter
+  let tags = tags[..count].to_vec();
+
   let mut headers = HeaderMap::new();
   headers.insert("Content-Type", HeaderValue::from_str("application/json").unwrap());
+
+  // The response MAY return fewer than n results, but only when the total
+  // number of tags attached to the repository is less than n or a Link header
+  // is provided.
+  if tags.len() > count {
+    let link = format!(
+      "</v2/{name}/tags/list?n={count}&last={last}>; rel=\"next\"",
+      name = name,
+      count = tags.len(),
+      last = tags.last().unwrap()
+    );
+    headers.insert("Link", HeaderValue::from_str(link.as_str()).unwrap());
+  }
 
   // <name> is the namespace of the repository. Assuming a repository is found,
   // this request MUST return a 200 OK response code. The list of tags MAY be
