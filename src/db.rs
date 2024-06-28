@@ -99,6 +99,11 @@ pub fn get_blob(conn: &Connection, name: &str, digest: &str) -> Result<BlobRow> 
   Err(Error::QueryReturnedNoRows)
 }
 
+pub fn delete_blob(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
+  let stmt = include_str!("../sql/delete_blob.sql");
+  conn.execute(stmt, (&name, &reference))
+}
+
 pub fn insert_empty_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
   let stmt = include_str!("../sql/insert_hunk.sql");
   conn.execute(stmt, (&name, &reference))
@@ -180,4 +185,20 @@ pub fn get_manifest(conn: &Connection, name: &str, reference: &str) -> Result<Ma
     return Ok(manifest);
   }
   Err(Error::QueryReturnedNoRows)
+}
+
+pub fn delete_manifest(conn: &Connection, name: &str, reference: &str) -> Result<usize> {
+  let stmt = include_str!("../sql/delete_manifest.sql");
+  conn.execute(stmt, (&name, &reference))
+}
+
+pub fn get_tags(conn: &Connection, name: &str) -> Result<Vec<String>> {
+  let mut stmt = conn.prepare(include_str!("../sql/get_tags.sql"))?;
+  let mut rows = stmt.query([&name])?;
+
+  let mut tags = Vec::new();
+  while let Some(row) = rows.next()? {
+    tags.push(row.get(0)?);
+  }
+  Ok(tags)
 }

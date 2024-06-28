@@ -7,26 +7,23 @@ pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: 
   // your registry, for example, in the case of a signed URL from some cloud
   // storage provider that your registry generates.
   let blob_location = format!("/v2/{name}/blobs/{digest}");
-  headers.insert("Location", HeaderValue::from_str(blob_location.as_str()).unwrap());
+  if let Ok(header_value) = HeaderValue::from_str(blob_location.as_str()) {
+    headers.insert("Location", header_value);
+  }
 }
 
 pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> {
-  let range = match headers.get("Content-Range") {
-    Some(range) => String::from(range.to_str().unwrap()),
-    None => {
-      println!("Warning: Missing Content-Range header");
-      return None;
-    }
-  };
+  let content_range = headers.get("Content-Range")?.to_str().ok()?;
+  let range = String::from(content_range);
 
   // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
-  let re = Regex::new(r"^[0-9]+-[0-9]+$").unwrap();
+  let re = Regex::new(r"^[0-9]+-[0-9]+$").ok()?;
   if !re.is_match(&range) {
     println!("Error: Invalid range format: {:?}", range);
     return None;
   }
 
-  let (start, end_with_dash) = range.split_at(range.find('-').unwrap());
+  let (start, end_with_dash) = range.split_at(range.find('-')?);
   let end = &end_with_dash[1..];
   let start = match start.parse::<usize>() {
     Ok(start) => start,
@@ -47,9 +44,14 @@ pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> 
 }
 
 pub fn get_content_length(headers: &HeaderMap) -> Option<usize> {
-  let length = match headers.get("Content-Length") {
-    Some(length) => length.to_str().unwrap().parse::<usize>().unwrap(),
-    None => return None,
-  };
+  let content_length = headers.get("Content-Length")?.to_str().ok()?;
+  let length = content_length.parse::<usize>().ok()?;
   Some(length)
+}
+
+use base64::{engine::general_purpose, Engine as _};
+pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>> {
+  let bytes = general_purpose::STANDARD.decode(input)?;
+  let utf8 = std::str::from_utf8(&bytes)?;
+  Ok(utf8.to_string())
 }

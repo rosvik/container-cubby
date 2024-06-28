@@ -8,36 +8,64 @@ use axum::{
   extract::{DefaultBodyLimit, Path, Query},
   http::{HeaderMap, HeaderValue, StatusCode},
   response::IntoResponse,
-  routing::{get, patch, post, put},
+  routing::{delete, get, patch, post, put},
   Router,
 };
+use dotenv::dotenv;
 use serde::Deserialize;
+use std::env;
+use tower::ServiceBuilder;
 use uuid::Uuid;
 
-const HOST: &str = "0.0.0.0:8602";
 const PROTOCOL: &str = "http";
+const HOST: &str = "0.0.0.0";
+const DEFAULT_PORT: &str = "8602";
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
+  dotenv().ok();
+  let port = env::var("PORT").unwrap_or(DEFAULT_PORT.to_string());
+  let addr = format!("{}:{}", HOST, port);
+
+  dotenv().ok();
+  if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
+    println!(
+      "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
+    );
+  };
+
   db::init().unwrap();
-  let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
-  println!("Listening on {PROTOCOL}://{HOST}/");
+  let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+  println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   axum::serve(listener, router()).await.unwrap();
 }
 
 fn router() -> Router {
-  let upload_body_limit: DefaultBodyLimit = DefaultBodyLimit::disable();
+  let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
+  let basic_auth = axum::middleware::from_fn(middleware::basic_authenticate);
+  let upload_middleware =
+    ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
   Router::new()
     .route("/", get(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-    .route("/v2/", get(()))
+    .route("/v2/", get("Authenticated").layer(basic_auth.clone()))
     .route("/v2/:name/blobs/:digest", get(get_blob))
     .route("/v2/:name/manifests/:reference", get(get_manifest))
-    .route("/v2/:name/blobs/uploads/", post(post_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/blobs/uploads/:reference", put(put_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/blobs/uploads/:reference", patch(patch_blob).layer(upload_body_limit.clone()))
-    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_body_limit.clone()))
+    .route("/v2/:name/blobs/uploads/", post(post_blob_upload).layer(upload_middleware.clone()))
+    .route(
+      "/v2/:name/blobs/uploads/:reference",
+      put(put_blob_upload).layer(upload_middleware.clone()),
+    )
+    .route(
+      "/v2/:name/blobs/uploads/:reference",
+      patch(patch_blob_upload).layer(upload_middleware.clone()),
+    )
+    .route("/v2/:name/manifests/:reference", put(put_manifest).layer(upload_middleware.clone()))
+    .route("/v2/:name/tags/list", get(get_tags_list))
+    .route("/v2/:name/manifests/:reference", delete(delete_manifest).layer(basic_auth.clone()))
+    .route("/v2/:name/blobs/:digest", delete(delete_blob).layer(basic_auth.clone()))
+    .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
     .layer(axum::middleware::from_fn(middleware::log_requests))
 }
 
@@ -118,14 +146,14 @@ struct PostBlobParameters {
 ///
 /// REQUEST
 /// - Content-Length: {length}          (must match the blob's actual content length)
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Body: {blob byte stream}
 ///
 /// RESPONSE
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
-async fn post_blob(
+async fn post_blob_upload(
   Path(name): Path<String>,
   Query(query): Query<PostBlobParameters>,
   data: Bytes,
@@ -186,7 +214,7 @@ async fn post_blob(
 ///    post request MUST include the following header:
 ///
 /// REQUEST
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Content-Range: {range}   (byte range of the chunk, inclusive on both ends)
 /// - Content-Length: {length}    (must match the chunk's actual content length)
 /// - Body: {chunk byte stream}
@@ -196,7 +224,7 @@ async fn post_blob(
 /// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
-async fn patch_blob(
+async fn patch_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   headers: HeaderMap,
   data: Bytes,
@@ -277,8 +305,14 @@ async fn patch_blob(
 
   let mut headers = HeaderMap::new();
   let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
-  // TODO: Add content range header
+
+  // Each successful chunk upload MUST have a 202 Accepted response code, and
+  // MUST have the following headers:
+  // - Location: <location>
+  // - Range: 0-<end-of-range>
   headers.insert("Location", HeaderValue::from_str(&location).unwrap());
+  headers.insert("Range", HeaderValue::from_str(format!("0-{}", range_end).as_str()).unwrap());
+
   (StatusCode::ACCEPTED, headers, ())
 }
 
@@ -290,7 +324,7 @@ struct PutBlobParameters {
 ///
 /// REQUEST
 /// - Content-Length: {length}         (must match blob or chunk content length)
-/// - Content-Type: "application/octet-stream"
+/// - Content-Type: `application/octet-stream`
 /// - Content-Range: {chunk range}     (if the blob is being uploaded in chunks)
 /// - Body: {blob byte stream}
 ///
@@ -298,7 +332,7 @@ struct PutBlobParameters {
 /// - Location: {blob-location}                            (a pullable blob URL)
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
-async fn put_blob(
+async fn put_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   Query(query): Query<PutBlobParameters>,
   headers: HeaderMap,
@@ -373,6 +407,161 @@ async fn put_manifest(
   (StatusCode::CREATED, headers, ())
 }
 
+#[derive(Deserialize)]
+struct GetTagsListParameters {
+  n: Option<usize>,
+}
+/// end-8: `GET /v2/<name>/tags/list` => 200 / 404
+///
+/// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/tiny-registry`)
+/// - Content-Type: `application/json`
+/// - Link: {RFC5988 with rel="next"}                   (if there are more tags)
+/// - Body:
+/// ```
+/// {
+///   "Repository": {name},
+///   "Tags": [ {list of tags} ]
+/// }
+/// ```
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-tags
+async fn get_tags_list(
+  Path(name): Path<String>,
+  Query(query): Query<GetTagsListParameters>,
+) -> impl IntoResponse {
+  // In addition to fetching the whole list of tags, a subset of the tags can be
+  // fetched by providing the n query parameter.
+  let count = query.n.unwrap_or(100).clamp(0, 100);
+
+  let conn = db::connect().unwrap();
+  let mut tags = match db::get_tags(&conn, &name) {
+    Ok(tags) => tags,
+    Err(e) => {
+      println!("Error getting tags: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
+    }
+  };
+
+  // The list of tags MAY be empty if there are no tags on the repository.
+  // If the list is not empty, the tags MUST be in lexical order (i.e.
+  // case-insensitive alphanumeric order).
+  tags.sort_by_key(|tag| tag.to_lowercase());
+
+  // A subset of the tags can be fetched by providing the n query parameter
+  let tags = tags[..count].to_vec();
+
+  let mut headers = HeaderMap::new();
+  headers.insert("Content-Type", HeaderValue::from_str("application/json").unwrap());
+
+  // The response MAY return fewer than n results, but only when the total
+  // number of tags attached to the repository is less than n or a Link header
+  // is provided.
+  if tags.len() > count {
+    let link = format!(
+      "</v2/{name}/tags/list?n={count}&last={last}>; rel=\"next\"",
+      name = name,
+      count = tags.len(),
+      last = tags.last().unwrap()
+    );
+    headers.insert("Link", HeaderValue::from_str(link.as_str()).unwrap());
+  }
+
+  // <name> is the namespace of the repository. Assuming a repository is found,
+  // this request MUST return a 200 OK response code. The list of tags MAY be
+  // empty if there are no tags on the repository. If the list is not empty, the
+  // tags MUST be in lexical order (i.e. case-insensitive alphanumeric order).
+  let tags_list = serde_json::json!({
+    "Repository": name,
+    "Tags": tags
+  });
+
+  (StatusCode::OK, headers, serde_json::to_string(&tags_list).unwrap())
+}
+
+/// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests
+async fn delete_manifest(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  match db::delete_manifest(&conn, &name, &reference) {
+    Ok(num_rows_changed) => {
+      // If the repository does not exist, the response MUST return 404 Not Found.
+      if num_rows_changed == 0 {
+        println!("Warning: Manifest not found, name='{}' reference='{}'", name, reference);
+        return StatusCode::NOT_FOUND;
+      }
+    }
+    Err(e) => {
+      println!("Error deleting manifest: {:?}", e);
+      return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+  }
+
+  // Upon success, the registry MUST respond with a 202 Accepted code.
+  StatusCode::ACCEPTED
+}
+
+/// end-10: `DELETE /v2/<name>/blobs/<digest>` => 202 / 404
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs
+async fn delete_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
+  let conn = db::connect().unwrap();
+  match db::delete_blob(&conn, &name, &digest) {
+    Ok(num_rows_changed) => {
+      // If the blob is not found, a 404 Not Found code MUST be returned.
+      if num_rows_changed == 0 {
+        println!("Warning: Blob not found, name='{}' digest='{}'", name, digest);
+        return StatusCode::NOT_FOUND;
+      }
+    }
+    Err(e) => {
+      println!("Error deleting blob: {:?}", e);
+      return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+  }
+
+  // Upon success, the registry MUST respond with code 202 Accepted.
+  StatusCode::ACCEPTED
+}
+
+/// end-13: `GET /v2/<name>/blobs/uploads/<reference>` => 200 / 404
+///
+/// RESPONSE:
+/// - Location: {blob-location}                            (a pullable blob URL)
+/// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
+///
+/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+async fn get_blob_upload(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
+  // To get the current status after a 416 error, issue a GET request to a URL
+  // <location> (end-13). The following chunk upload SHOULD use the <location>
+  // provided in the response.
+
+  let conn = db::connect().unwrap();
+  let hunk = match db::get_hunk(&conn, &name, &reference) {
+    Ok(hunk) => hunk,
+    Err(e) => {
+      println!("Error getting hunk: {:?}", e);
+      return (StatusCode::NOT_FOUND, HeaderMap::new());
+    }
+  };
+  let mut headers = HeaderMap::new();
+
+  // The <location> refers to the URL obtained from any preceding POST or PATCH
+  // request.
+  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  headers.insert("Location", HeaderValue::from_str(location.as_str()).unwrap());
+
+  // The <end-of-range> value is the position of the last uploaded byte.
+  // NOTE: If the hunk is empty, end_of_range is set to -1 (`range: 0--1`). It's
+  //       unclear what's the expected behavior in this case.
+  let end_of_range: i64 = (hunk.data.unwrap_or(Vec::new()).len() as i64) - 1;
+  headers.insert("Range", HeaderValue::from_str(format!("0-{}", end_of_range).as_str()).unwrap());
+
+  // The response to an active upload <location> MUST be a 204 No Content
+  // response code
+  (StatusCode::NO_CONTENT, headers)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -394,7 +583,7 @@ mod tests {
 
     let digest = get_sha256_digest(&test_blob_bytes.to_vec());
 
-    let result = post_blob(
+    let result = post_blob_upload(
       Path(namespace.to_string()),
       Query(PostBlobParameters {
         digest: Some(digest),
@@ -417,7 +606,7 @@ mod tests {
     let _ = db::init();
 
     // POST to get reference
-    let response = post_blob(
+    let response = post_blob_upload(
       Path(namespace.to_string()),
       Query(PostBlobParameters { digest: None }),
       Bytes::new(),
@@ -436,7 +625,7 @@ mod tests {
       "Content-Length",
       HeaderValue::from_str(test_blob.len().to_string().as_str()).unwrap(),
     );
-    let put_response = put_blob(
+    let put_response = put_blob_upload(
       Path((namespace.to_string(), reference.to_string())),
       Query(PutBlobParameters {
         digest: digest.clone(),
@@ -459,10 +648,13 @@ mod tests {
     let _ = db::init();
 
     // POST to get reference
-    let response =
-      post_blob(Path(namespace.clone()), Query(PostBlobParameters { digest: None }), Bytes::new())
-        .await
-        .into_response();
+    let response = post_blob_upload(
+      Path(namespace.clone()),
+      Query(PostBlobParameters { digest: None }),
+      Bytes::new(),
+    )
+    .await
+    .into_response();
     let location = response.headers().get("Location").unwrap();
     let reference = location.to_str().unwrap().split('/').last().unwrap();
     assert_eq!(response.status(), StatusCode::ACCEPTED);
@@ -474,7 +666,7 @@ mod tests {
     headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
     headers.insert("Content-Range", HeaderValue::from_str("0-3").unwrap());
     let patch_response =
-      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+      patch_blob_upload(Path((namespace.clone(), reference.to_string())), headers, chunk)
         .await
         .into_response();
     assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
@@ -485,7 +677,7 @@ mod tests {
     headers.insert("Content-Length", HeaderValue::from_str("4").unwrap());
     headers.insert("Content-Range", HeaderValue::from_str("4-7").unwrap());
     let patch_response =
-      patch_blob(Path((namespace.clone(), reference.to_string())), headers, chunk)
+      patch_blob_upload(Path((namespace.clone(), reference.to_string())), headers, chunk)
         .await
         .into_response();
     assert_eq!(patch_response.status(), StatusCode::ACCEPTED);
@@ -494,7 +686,7 @@ mod tests {
     let mut headers = HeaderMap::new();
     headers.insert("Content-Length", HeaderValue::from_str("0").unwrap());
     let digest = get_sha256_digest(&"AAAABBBB".as_bytes().to_vec());
-    let result = put_blob(
+    let result = put_blob_upload(
       Path((namespace.clone(), reference.to_string())),
       Query(PutBlobParameters {
         digest: digest.clone(),
@@ -521,7 +713,7 @@ mod tests {
 
     {
       // First, POST the blob
-      post_blob(
+      post_blob_upload(
         Path(namespace.to_string()),
         Query(PostBlobParameters {
           digest: Some(client_digest.clone()),
