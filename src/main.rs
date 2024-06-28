@@ -409,16 +409,14 @@ async fn put_manifest(
 
 /// end-8: `GET /v2/<name>/tags/list` => 200 / 404
 ///
-/// skopeo list-tags docker://docker.io/rosvik/tiny-registry
+/// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/tiny-registry`)
 /// {
 ///   "Repository": "docker.io/rosvik/tiny-registry",
-///   "Tags": [
-///       "v0.1"
-///   ]
+///   "Tags": ["v0.1"]
 /// }
 async fn get_tags_list(Path(name): Path<String>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
-  let tags = match db::get_tags(&conn, &name) {
+  let mut tags = match db::get_tags(&conn, &name) {
     Ok(tags) => tags,
     Err(e) => {
       println!("Error getting tags: {:?}", e);
@@ -426,10 +424,24 @@ async fn get_tags_list(Path(name): Path<String>) -> impl IntoResponse {
     }
   };
 
+  // The list of tags MAY be empty if there are no tags on the repository.
+  // If the list is not empty, the tags MUST be in lexical order (i.e.
+  // case-insensitive alphanumeric order).
+  tags.sort_by_key(|tag| tag.to_lowercase());
+
   let mut headers = HeaderMap::new();
   headers.insert("Content-Type", HeaderValue::from_str("application/json").unwrap());
 
-  (StatusCode::OK, headers, serde_json::to_string(&tags).unwrap())
+  // <name> is the namespace of the repository. Assuming a repository is found,
+  // this request MUST return a 200 OK response code. The list of tags MAY be
+  // empty if there are no tags on the repository. If the list is not empty, the
+  // tags MUST be in lexical order (i.e. case-insensitive alphanumeric order).
+  let tags_list = serde_json::json!({
+    "Repository": name,
+    "Tags": tags
+  });
+
+  (StatusCode::OK, headers, serde_json::to_string(&tags_list).unwrap())
 }
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
