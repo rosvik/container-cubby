@@ -1,11 +1,8 @@
+mod utils;
+
 use super::*;
 use crate::digestor::get_sha256_digest;
-use std::iter::repeat_with;
-
-fn get_random_namespace() -> String {
-  let random_string: String = repeat_with(fastrand::alphanumeric).take(10).collect();
-  format!("test:{CRATE_VERSION}:{}", random_string)
-}
+use utils::get_random_namespace;
 
 #[tokio::test]
 async fn test_post_blob() {
