@@ -20,6 +20,10 @@ pub async fn log_requests(
 }
 
 pub async fn basic_authenticate(headers: HeaderMap, request: Request, next: Next) -> Response {
+  let auth_enabled = env::var("AUTH_ENABLED").unwrap_or_default().parse::<bool>().unwrap_or(true);
+  if !auth_enabled {
+    return next.run(request).await;
+  }
   fn unauthorized() -> Response {
     Response::builder()
       .status(StatusCode::UNAUTHORIZED)

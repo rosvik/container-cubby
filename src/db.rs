@@ -1,4 +1,9 @@
 use rusqlite::{Connection, Error, ErrorCode, Result};
+use testcontainers_modules::postgres::Postgres as PostgresContainer;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::ContainerAsync;
+use tokio_postgres::tls::NoTlsStream;
+use tokio_postgres::Client as PostgresClient;
 
 use crate::digestor;
 
@@ -44,6 +49,47 @@ pub fn init() -> Result<()> {
     conn.execute_batch(include_str!("../sql/create_manifests.sql"))?;
   }
   Ok(())
+}
+
+pub async fn init_testcontainer() -> (ContainerAsync<PostgresContainer>, String) {
+  let db_name = "postgres";
+  let username = "postgres";
+  let password = "postgres";
+
+  let node = PostgresContainer::default()
+    .with_user(username)
+    .with_password(password)
+    .with_db_name(db_name)
+    .start()
+    .await
+    .unwrap();
+
+  let connection_string = format!(
+    "postgres://{username}:{password}@{host}:{port}/postgres",
+    host = node.get_host().await.unwrap(),
+    port = node.get_host_port_ipv4(5432).await.unwrap()
+  );
+
+  println!("Testcontainer connection string: {}", connection_string);
+  (node, connection_string)
+}
+
+pub async fn connect_postgres(
+  connection_string: &str,
+) -> (tokio_postgres::Client, tokio_postgres::Connection<tokio_postgres::Socket, NoTlsStream>) {
+  let (client, connection) =
+    tokio_postgres::connect(connection_string, tokio_postgres::NoTls).await.unwrap();
+  println!("Connected to Postgres");
+  (client, connection)
+}
+
+pub async fn init_postgres(client: &PostgresClient) {
+  let res = client.execute(include_str!("../sql/create_blobs.sql"), &[]).await.unwrap();
+  println!("Created blobs table, res: {}", res);
+  client.execute(include_str!("../sql/create_hunks.sql"), &[]).await.unwrap();
+  println!("Created hunks table");
+  client.execute(include_str!("../sql/create_manifests.sql"), &[]).await.unwrap();
+  println!("Created manifests table");
 }
 
 pub fn connect() -> Result<Connection> {

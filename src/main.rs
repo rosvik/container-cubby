@@ -30,6 +30,11 @@ async fn main() {
   let addr = format!("{}:{}", HOST, port);
 
   dotenv().ok();
+
+  let (node, connection_string) = db::init_testcontainer().await;
+  let (client, connection) = db::connect_postgres(&connection_string).await;
+  db::init_postgres(&client).await;
+
   if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
     println!(
       "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
@@ -40,6 +45,9 @@ async fn main() {
   let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   axum::serve(listener, router()).await.unwrap();
+
+  drop(node);
+  drop(connection);
 }
 
 fn router() -> Router {

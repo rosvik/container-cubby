@@ -1,7 +1,7 @@
 CREATE TABLE blobs (
-  id        INTEGER PRIMARY KEY,
-  name      TEXT NOT NULL,
-  digest    TEXT NOT NULL,
-  data      BLOB
-);
-CREATE UNIQUE INDEX idx_blobs_digest ON blobs (name, digest);
+  id        SERIAL PRIMARY KEY,
+  name      VARCHAR(1024) NOT NULL,
+  digest    CHAR(32) NOT NULL,
+  data      BYTEA,
+  UNIQUE(name, digest)
+)
