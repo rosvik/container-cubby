@@ -2,6 +2,16 @@
 
 This is (an attempt at creating) a minimal implementation of a container registry, that closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The project is still a work in progress, but the goal is to create a no-fuss single-tenant container registry in rust.
 
+## TODO
+
+- [ ] Use postgres
+- [ ] Add testcontainers for bootstraping and testing
+- [ ] Implement the endpoints
+- [ ] Use a proper blob storage backend
+  - S3?
+  - Some other self hosted blob storage?
+  - Files on disk?
+
 ## Endpoints
 
 The endpoints defined by the spec, and the project's current progress is the following:
