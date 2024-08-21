@@ -73,6 +73,7 @@ fn router() -> Router {
 ///
 /// RESPONSE:
 /// - Docker-Content-Digest: {the blob's digest}
+/// - Body: {blob data}
 ///
 /// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
 async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
