@@ -75,7 +75,7 @@ fn router() -> Router {
 /// - Docker-Content-Digest: {the blob's digest}
 /// - Body: {blob data}
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs>
 async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let blob = match db::get_blob(&conn, &name, &digest) {
@@ -111,7 +111,7 @@ async fn get_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResp
 /// - Docker-Content-Digest: {digest}    (canonical digest of the uploaded blob)
 /// - Body: {manifest}
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests>
 async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let manifest = match db::get_manifest(&conn, &name, &reference) {
@@ -153,7 +153,7 @@ struct PostBlobParameters {
 /// RESPONSE
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
 async fn post_blob_upload(
   Path(name): Path<String>,
   Query(query): Query<PostBlobParameters>,
@@ -169,8 +169,8 @@ async fn post_blob_upload(
       // or chunked upload flow (PATCH). We return the `location` header, which
       // points to an endpoint that accepts PUT <location>?digest=<digest>
       // (end-6) and PATCH <location> (end-5).
-      // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
-      // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
+      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
@@ -224,7 +224,7 @@ async fn post_blob_upload(
 /// - Location: {location}                        (url to the next chunk upload)
 /// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 async fn patch_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   headers: HeaderMap,
@@ -242,7 +242,7 @@ async fn patch_blob_upload(
       // header is missing. But since the conformance tests and tools like
       // podman excludes it when the entire blob is being uploaded
       // monolithically, we'll assume that no range means the entire blob.
-      // https://github.com/opencontainers/distribution-spec/issues/506
+      // <https://github.com/opencontainers/distribution-spec/issues/506>
       let range_start = 0;
       let range_end = data.len() - 1;
       (format!("{}-{}", range_start, range_end), range_start, range_end)
@@ -332,7 +332,7 @@ struct PutBlobParameters {
 /// RESPONSE
 /// - Location: {blob-location}                            (a pullable blob URL)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
 async fn put_blob_upload(
   Path((name, reference)): Path<(String, String)>,
   Query(query): Query<PutBlobParameters>,
@@ -384,7 +384,7 @@ async fn put_blob_upload(
 /// RESPONSE
 /// - Location: {manifest-location}                    (a pullable manifest URL)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests>
 async fn put_manifest(
   Path((name, reference)): Path<(String, String)>,
   data: Bytes,
@@ -425,7 +425,7 @@ struct GetTagsListParameters {
 /// }
 /// ```
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-tags
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-tags>
 async fn get_tags_list(
   Path(name): Path<String>,
   Query(query): Query<GetTagsListParameters>,
@@ -481,7 +481,7 @@ async fn get_tags_list(
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests>
 async fn delete_manifest(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   match db::delete_manifest(&conn, &name, &reference) {
@@ -504,7 +504,7 @@ async fn delete_manifest(Path((name, reference)): Path<(String, String)>) -> imp
 
 /// end-10: `DELETE /v2/<name>/blobs/<digest>` => 202 / 404
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs>
 async fn delete_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   match db::delete_blob(&conn, &name, &digest) {
@@ -531,7 +531,7 @@ async fn delete_blob(Path((name, digest)): Path<(String, String)>) -> impl IntoR
 /// - Location: {blob-location}                            (a pullable blob URL)
 /// - Range: 0-{end-of-range}          (0 to position of the last uploaded byte)
 ///
-/// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 async fn get_blob_upload(Path((name, reference)): Path<(String, String)>) -> impl IntoResponse {
   // To get the current status after a 416 error, issue a GET request to a URL
   // <location> (end-13). The following chunk upload SHOULD use the <location>
