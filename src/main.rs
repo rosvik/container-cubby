@@ -1,3 +1,4 @@
+mod blob;
 mod db;
 mod digestor;
 mod manifest;
@@ -16,7 +17,7 @@ use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
 use serde::Deserialize;
-use std::env;
+use std::{env, io::Write};
 use tower::ServiceBuilder;
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
@@ -194,6 +195,9 @@ async fn post_blob_upload(
       return (StatusCode::ACCEPTED, headers, ());
     }
   };
+
+  println!("Creating blob with digest: {}", digest);
+  blob::create_blob(&digest).unwrap();
 
   match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
     Ok(_) => (),
