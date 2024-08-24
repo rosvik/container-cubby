@@ -7,21 +7,20 @@ use std::collections::HashMap;
 /// This describes the `application/vnd.oci.descriptor.v1+json` media type.
 ///
 /// https://github.com/opencontainers/image-spec/blob/v1.0.1/manifest.md#image-manifest
-#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde_with::skip_serializing_none]
 pub struct Manifest {
   /// This REQUIRED property specifies the image manifest schema version. For
   /// this version of the specification, this MUST be 2 to ensure backward
   /// compatibility with older versions of Docker. The value of this field will
   /// not change. This field MAY be removed in a future version of the
   /// specification.
-  #[serde(rename = "schemaVersion")]
   pub schema_version: u32,
 
   /// This property is reserved for use, to maintain compatibility. When used,
   /// this field contains the media type of this document, which differs from
   /// the descriptor use of mediaType.
-  #[serde(rename = "mediaType")]
   pub media_type: String,
 
   /// This REQUIRED property references a configuration object for a container,
@@ -43,8 +42,9 @@ pub struct Manifest {
 }
 
 /// <https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md>
-#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde_with::skip_serializing_none]
 pub struct Descriptor {
   /// This REQUIRED property contains the media type of the referenced content.
   /// Values MUST comply with RFC 6838, including the naming requirements in
