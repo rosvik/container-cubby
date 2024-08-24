@@ -25,10 +25,26 @@ pub fn create_blob_file(digest: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+pub fn get_blob_file(digest: &str) -> Result<File, io::Error> {
+  let directory = make_dir("blobs", digest)?;
+  let file_name = get_file_name(digest, "blob");
+
+  let file = File::open(format!("{directory}/{file_name}"))?;
+  Ok(file)
+}
+
 pub fn create_manifest_file(digest: &str) -> Result<File, io::Error> {
   let directory = make_dir("manifests", digest)?;
   let file_name = get_file_name(digest, "json");
 
   let file = File::create(format!("{directory}/{file_name}"))?;
+  Ok(file)
+}
+
+pub fn get_manifest_file(digest: &str) -> Result<File, io::Error> {
+  let directory = make_dir("manifests", digest)?;
+  let file_name = get_file_name(digest, "json");
+
+  let file = File::open(format!("{directory}/{file_name}"))?;
   Ok(file)
 }
