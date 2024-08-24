@@ -163,3 +163,16 @@ async fn test_get_blob() {
   //       something is wrong if the digests don't match.
   assert_eq!(digest.to_str().unwrap(), client_digest);
 }
+
+#[tokio::test]
+async fn test_put_manifest() {
+  let namespace = get_random_namespace();
+  let _ = db::init();
+
+  let manifest = include_str!("./fixtures/manifest.json");
+  let result = put_manifest(Path((namespace.to_string(), String::from("latest"))), manifest.into())
+    .await
+    .into_response();
+
+  assert_eq!(result.status(), StatusCode::CREATED);
+}
