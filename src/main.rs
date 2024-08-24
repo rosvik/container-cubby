@@ -14,6 +14,7 @@ use axum::{
 };
 use db::CommitHunkError;
 use dotenv::dotenv;
+use manifest::Manifest;
 use serde::Deserialize;
 use std::env;
 use tower::ServiceBuilder;
@@ -411,6 +412,15 @@ async fn put_manifest(
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
     return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
   }
+
+  match serde_json::from_slice::<Manifest>(&data) {
+    Ok(manifest) => manifest,
+    Err(e) => {
+      println!("Error: Invalid manifest: {:?}", e);
+      return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+    }
+  };
+
   let conn = db::connect().unwrap();
   match db::insert_manifest(&conn, &name, &reference, data.to_vec()) {
     Ok(_) => {}
