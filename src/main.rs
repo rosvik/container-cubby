@@ -1,5 +1,6 @@
 mod db;
 mod digestor;
+mod manifest;
 mod middleware;
 mod utils;
 
