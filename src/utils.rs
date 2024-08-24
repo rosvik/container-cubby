@@ -106,3 +106,46 @@ pub fn verify_reference(tag: &str) -> Result<Reference, ()> {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_verify_reference() {
+    let sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+    assert!(matches!(verify_reference(sha256), Ok(Reference::Sha256(_))));
+
+    let invalid_sha256 = "sha256:x94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+    assert!(verify_reference(invalid_sha256).is_err());
+
+    let too_long_sha256 =
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde90";
+    assert!(verify_reference(too_long_sha256).is_err());
+
+    let too_short_sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde";
+    assert!(verify_reference(too_short_sha256).is_err());
+
+    let tag = "latest";
+    assert!(matches!(verify_reference(tag), Ok(Reference::Tag(_))));
+
+    let invalid_tag = "latest/";
+    assert!(verify_reference(invalid_tag).is_err());
+  }
+
+  #[test]
+  fn test_get_content_range() {
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Range", HeaderValue::from_str("0-123").unwrap());
+    assert_eq!(get_content_range(&headers), Some(("0-123".to_string(), 0, 123)));
+
+    let headers = HeaderMap::new();
+    assert_eq!(get_content_range(&headers), None);
+  }
+
+  #[test]
+  fn test_decode_base64() {
+    let input = "aGVsbG8gd29ybGQ=";
+    assert_eq!(decode_base64(input.to_string()).unwrap(), "hello world");
+  }
+}
