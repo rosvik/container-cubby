@@ -1,6 +1,5 @@
+use crate::utils::{verify_blob, DigestMismatch};
 use rusqlite::{Connection, Error, ErrorCode, Result};
-
-use crate::digestor;
 
 const DATABASE_PATH: &str = "./db.sqlite3";
 
@@ -51,24 +50,9 @@ pub fn connect() -> Result<Connection> {
   Ok(conn)
 }
 
-pub fn insert_blob(conn: &Connection, name: &str, digest: &str, data: &[u8]) -> Result<usize> {
+pub fn insert_blob(conn: &Connection, name: &str, digest: &str, data: &[u8]) -> Result<(), Error> {
   let stmt = include_str!("../sql/insert_blob.sql");
-  conn.execute(stmt, (&name, &digest, &data))
-}
-
-pub fn verify_and_insert_blob(
-  conn: &Connection,
-  name: &str,
-  digest: &str,
-  data: &[u8],
-) -> Result<(), Error> {
-  // Query digest MUST match the blob's digest.
-  let blob_digest = digestor::get_sha256_digest(&data.to_vec());
-  if blob_digest != digest {
-    println!("Digest mismatch: digest_hash_string {}, digest {}", blob_digest, digest);
-    return Err(Error::InvalidQuery);
-  }
-  match insert_blob(conn, name, digest, data) {
+  match conn.execute(stmt, (&name, &digest, &data)) {
     Ok(_) => Ok(()),
     Err(e) => {
       if e.sqlite_error_code() != Some(ErrorCode::ConstraintViolation) {
@@ -143,20 +127,38 @@ pub fn delete_hunk(conn: &Connection, name: &str, reference: &str) -> Result<usi
   conn.execute(stmt, (&name, &reference))
 }
 
+pub enum CommitHunkError {
+  DigestMismatch(DigestMismatch),
+  DatabaseError(Error),
+}
 pub fn commit_hunk(
   conn: &Connection,
   name: &str,
   reference: &str,
   digest: &str,
-) -> Result<(), Error> {
+) -> Result<(), CommitHunkError> {
   // Get stored hunk data
-  let hunk = get_hunk(conn, name, reference)?;
+  let hunk = match get_hunk(conn, name, reference) {
+    Ok(hunk) => hunk.data.unwrap_or(Vec::new()),
+    Err(e) => return Err(CommitHunkError::DatabaseError(e)),
+  };
+
+  match verify_blob(hunk.as_slice(), digest) {
+    Ok(_) => (),
+    Err(e) => return Err(CommitHunkError::DigestMismatch(e)),
+  }
 
   // Verify and insert as a blob
-  verify_and_insert_blob(conn, name, digest, &hunk.data.unwrap())?;
+  match insert_blob(conn, name, digest, hunk.as_slice()) {
+    Ok(_) => (),
+    Err(e) => return Err(CommitHunkError::DatabaseError(e)),
+  }
 
   // Delete the hunk
-  delete_hunk(conn, name, reference)?;
+  match delete_hunk(conn, name, reference) {
+    Ok(_) => (),
+    Err(e) => return Err(CommitHunkError::DatabaseError(e)),
+  }
   Ok(())
 }
 

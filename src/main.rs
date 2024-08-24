@@ -11,6 +11,7 @@ use axum::{
   routing::{delete, get, patch, post, put},
   Router,
 };
+use db::CommitHunkError;
 use dotenv::dotenv;
 use serde::Deserialize;
 use std::env;
@@ -161,7 +162,13 @@ async fn post_blob_upload(
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let digest = match query.digest {
-    Some(digest) => digest, // end-4b
+    Some(digest) => {
+      // end-4b
+      if verify_blob(&data, digest.as_str()).is_err() {
+        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      }
+      digest
+    }
     None => {
       // end-4a
 
@@ -185,7 +192,7 @@ async fn post_blob_upload(
     }
   };
 
-  match db::verify_and_insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
+  match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
     Ok(_) => (),
     Err(e) => {
       if e == rusqlite::Error::InvalidQuery {
@@ -359,13 +366,22 @@ async fn put_blob_upload(
   match db::commit_hunk(&conn, name.as_str(), &reference, digest.as_str()) {
     Ok(_) => (),
     Err(e) => {
-      if e == rusqlite::Error::InvalidQuery {
-        // If the request is invalid, such as a <digest> with an invalid syntax,
-        // a 400 Bad Request MUST be returned.
-        return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+      match e {
+        CommitHunkError::DatabaseError(e) => {
+          if e == rusqlite::Error::InvalidQuery {
+            // If the request is invalid, such as a <digest> with an invalid syntax,
+            // a 400 Bad Request MUST be returned.
+            return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+          }
+          println!("Error inserting blob: {:?}", e);
+          return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
+        }
+        CommitHunkError::DigestMismatch(e) => {
+          // Query digest MUST match the blob's digest.
+          println!("Error: Digest mismatch: {:?}", e);
+          return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+        }
       }
-      println!("Error inserting blob: {:?}", e);
-      return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
     }
   }
 

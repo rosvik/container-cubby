@@ -1,3 +1,4 @@
+use crate::digestor;
 use axum::http::{HeaderMap, HeaderValue};
 use regex_lite::Regex;
 
@@ -54,4 +55,28 @@ pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>
   let bytes = general_purpose::STANDARD.decode(input)?;
   let utf8 = std::str::from_utf8(&bytes)?;
   Ok(utf8.to_string())
+}
+
+pub struct DigestMismatch {
+  digest: String,
+  computed_digest: String,
+}
+impl std::fmt::Debug for DigestMismatch {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "DigestMismatch {{ digest: {}, computed_digest: {} }}",
+      self.digest, self.computed_digest
+    )
+  }
+}
+pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
+  let computed_digest = digestor::get_sha256_digest(&data.to_vec());
+  if computed_digest != digest {
+    return Err(DigestMismatch {
+      digest: digest.to_string(),
+      computed_digest,
+    });
+  }
+  Ok(())
 }
