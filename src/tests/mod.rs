@@ -2,6 +2,8 @@ mod utils;
 
 use super::*;
 use crate::digestor::get_sha256_digest;
+use axum::body::to_bytes;
+use manifest::Manifest;
 use utils::get_random_namespace;
 
 #[tokio::test]
@@ -181,4 +183,27 @@ async fn test_put_manifest() {
       .await
       .into_response();
   assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_get_manifest() {
+  let namespace = get_random_namespace();
+  let _ = db::init();
+
+  let manifest = include_str!("./fixtures/manifest.json");
+  let manifest_source = serde_json::from_str::<Manifest>(manifest).unwrap();
+
+  let result = put_manifest(Path((namespace.to_string(), String::from("latest"))), manifest.into())
+    .await
+    .into_response();
+  assert_eq!(result.status(), StatusCode::CREATED);
+
+  let result =
+    get_manifest(Path((namespace.to_string(), String::from("latest")))).await.into_response();
+
+  assert_eq!(result.status(), StatusCode::OK);
+
+  let bytes = to_bytes(result.into_body(), usize::MAX).await.unwrap();
+  let manifest_result = serde_json::from_slice::<Manifest>(&bytes).unwrap();
+  assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
 }
