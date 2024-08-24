@@ -1,22 +1,34 @@
 use std::fs::{DirBuilder, File};
+use std::io;
 
-const DIR: &str = "data/blobs";
-pub fn get_blob_dir_path(digest: &str) -> String {
+const DATA_DIR: &str = "data";
+
+fn make_dir(folder: &str, digest: &str) -> Result<String, io::Error> {
   let digest = digest.replace("sha256:", "");
   let prefix = digest.chars().take(2).collect::<String>();
-  format!("{DIR}/{prefix}/")
+  let directory = format!("{DATA_DIR}/{folder}/{prefix}/");
+  DirBuilder::new().recursive(true).create(&directory)?;
+  Ok(directory)
 }
-pub fn get_blob_file_name(digest: &str) -> String {
+
+fn get_file_name(digest: &str, extension: &str) -> String {
   let digest = digest.replace("sha256:", "");
-  let digest = format!("{}.blob", digest);
+  let digest = format!("{}.{extension}", digest);
   digest.chars().skip(2).collect::<String>()
 }
 
-pub fn create_blob(digest: &str) -> Result<File, std::io::Error> {
-  let directory = get_blob_dir_path(digest);
-  DirBuilder::new().recursive(true).create(&directory)?;
+pub fn create_blob_file(digest: &str) -> Result<File, io::Error> {
+  let directory = make_dir("blobs", digest)?;
+  let file_name = get_file_name(digest, "blob");
 
-  let file_path = format!("{directory}/{}", get_blob_file_name(digest));
-  let file = File::create(file_path)?;
+  let file = File::create(format!("{directory}/{file_name}"))?;
+  Ok(file)
+}
+
+pub fn create_manifest_file(digest: &str) -> Result<File, io::Error> {
+  let directory = make_dir("manifests", digest)?;
+  let file_name = get_file_name(digest, "json");
+
+  let file = File::create(format!("{directory}/{file_name}"))?;
   Ok(file)
 }
