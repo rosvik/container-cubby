@@ -80,3 +80,14 @@ pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
   }
   Ok(())
 }
+
+pub fn verify_reference(tag: &str) -> Result<(), ()> {
+  // <reference> as a tag MUST be at most 128 characters in length and MUST
+  // match the following regular expression:
+  // `[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`
+  let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]$").unwrap();
+  if !re.is_match(tag) || tag.len() > 128 {
+    return Err(());
+  };
+  Ok(())
+}

@@ -16,6 +16,7 @@ use dotenv::dotenv;
 use serde::Deserialize;
 use std::env;
 use tower::ServiceBuilder;
+use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
 const PROTOCOL: &str = "http";
@@ -405,6 +406,10 @@ async fn put_manifest(
   Path((name, reference)): Path<(String, String)>,
   data: Bytes,
 ) -> impl IntoResponse {
+  if verify_reference(&reference).is_err() {
+    // NOTE: The spec doesn't mention what to do if the reference is invalid.
+    return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
+  }
   let conn = db::connect().unwrap();
   match db::insert_manifest(&conn, &name, &reference, data.to_vec()) {
     Ok(_) => {}
