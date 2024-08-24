@@ -197,7 +197,8 @@ async fn post_blob_upload(
   };
 
   println!("Creating blob with digest: {}", digest);
-  blob::create_blob(&digest).unwrap();
+  let mut blob_file = blob::create_blob(&digest).unwrap();
+  blob_file.write_all(&data).unwrap();
 
   match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
     Ok(_) => (),
