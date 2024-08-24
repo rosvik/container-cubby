@@ -81,13 +81,28 @@ pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
   Ok(())
 }
 
-pub fn verify_reference(tag: &str) -> Result<(), ()> {
-  // <reference> as a tag MUST be at most 128 characters in length and MUST
-  // match the following regular expression:
-  // `[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`
-  let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]$").unwrap();
-  if !re.is_match(tag) || tag.len() > 128 {
-    return Err(());
-  };
-  Ok(())
+pub enum Reference<'a> {
+  Sha256(&'a str),
+  Tag(&'a str),
+}
+pub fn verify_reference(tag: &str) -> Result<Reference, ()> {
+  match tag.starts_with("sha256:") {
+    true => {
+      let re = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
+      if !re.is_match(tag) {
+        return Err(());
+      };
+      return Ok(Reference::Sha256(tag));
+    }
+    false => {
+      // <reference> as a tag MUST be at most 128 characters in length and MUST
+      // match the following regular expression:
+      // `[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`
+      let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();
+      if !re.is_match(tag) {
+        return Err(());
+      };
+      return Ok(Reference::Tag(tag));
+    }
+  }
 }
