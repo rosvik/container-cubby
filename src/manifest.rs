@@ -7,6 +7,7 @@ use std::collections::HashMap;
 /// This describes the `application/vnd.oci.descriptor.v1+json` media type.
 ///
 /// https://github.com/opencontainers/image-spec/blob/v1.0.1/manifest.md#image-manifest
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
   /// This REQUIRED property specifies the image manifest schema version. For
@@ -42,6 +43,7 @@ pub struct Manifest {
 }
 
 /// <https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md>
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Descriptor {
   /// This REQUIRED property contains the media type of the referenced content.
