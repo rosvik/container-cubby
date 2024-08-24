@@ -5,6 +5,12 @@ mod manifest;
 mod middleware;
 mod utils;
 
+use digestor::*;
+use filesystem::*;
+use manifest::*;
+use middleware::*;
+use utils::*;
+
 use axum::{
   body::Bytes,
   extract::{DefaultBodyLimit, Path, Query},
@@ -13,13 +19,11 @@ use axum::{
   routing::{delete, get, patch, post, put},
   Router,
 };
-use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
 use serde::Deserialize;
 use std::{env, io::Write};
 use tower::ServiceBuilder;
-use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
 const PROTOCOL: &str = "http";
@@ -49,7 +53,7 @@ async fn main() {
 
 fn router() -> Router {
   let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
-  let basic_auth = axum::middleware::from_fn(middleware::basic_authenticate);
+  let basic_auth = axum::middleware::from_fn(basic_authenticate);
   let upload_middleware =
     ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
   Router::new()
@@ -71,7 +75,7 @@ fn router() -> Router {
     .route("/v2/:name/manifests/:reference", delete(delete_manifest).layer(basic_auth.clone()))
     .route("/v2/:name/blobs/:digest", delete(delete_blob).layer(basic_auth.clone()))
     .route("/v2/:name/blobs/uploads/:reference", get(get_blob_upload))
-    .layer(axum::middleware::from_fn(middleware::log_requests))
+    .layer(axum::middleware::from_fn(log_requests))
 }
 
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
@@ -130,8 +134,7 @@ async fn get_manifest(Path((name, reference)): Path<(String, String)>) -> impl I
   let mut headers = HeaderMap::new();
   headers.insert(
     "Docker-Content-Digest",
-    HeaderValue::from_str(digestor::get_sha256_digest(&manifest.data.clone().unwrap()).as_str())
-      .unwrap(),
+    HeaderValue::from_str(get_sha256_digest(&manifest.data.clone().unwrap()).as_str()).unwrap(),
   );
 
   // In a successful response, the Content-Type header will indicate the type of
@@ -197,7 +200,7 @@ async fn post_blob_upload(
   };
 
   println!("Creating blob with digest: {}", digest);
-  let mut blob_file = filesystem::create_blob_file(&digest).unwrap();
+  let mut blob_file = create_blob_file(&digest).unwrap();
   blob_file.write_all(&data).unwrap();
 
   match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
@@ -214,7 +217,7 @@ async fn post_blob_upload(
   }
 
   let mut headers = HeaderMap::new();
-  utils::insert_blob_location_header(&mut headers, name.as_str(), digest.as_str());
+  insert_blob_location_header(&mut headers, name.as_str(), digest.as_str());
 
   // Successful completion of the request MUST return a 201 Created status code.
   (StatusCode::CREATED, headers, ())
@@ -245,7 +248,7 @@ async fn patch_blob_upload(
   headers: HeaderMap,
   data: Bytes,
 ) -> impl IntoResponse {
-  let (range, range_start, range_end) = match utils::get_content_range(&headers) {
+  let (range, range_start, range_end) = match get_content_range(&headers) {
     Some(range) => range,
     None => {
       if headers.get("Content-Range").is_some() {
@@ -263,7 +266,7 @@ async fn patch_blob_upload(
       (format!("{}-{}", range_start, range_end), range_start, range_end)
     }
   };
-  let req_length = match utils::get_content_length(&headers) {
+  let req_length = match get_content_length(&headers) {
     Some(length) => length,
     None => {
       // NOTE: This is a conformance error, but since clients doesn't always
@@ -356,7 +359,7 @@ async fn put_blob_upload(
 ) -> impl IntoResponse {
   let conn = db::connect().unwrap();
   let digest = query.digest;
-  let req_length = utils::get_content_length(&headers).unwrap_or(0);
+  let req_length = get_content_length(&headers).unwrap_or(0);
 
   // Content-Length header MUST match the actual number of bytes in the chunk.
   if req_length != data.len() {
@@ -375,7 +378,7 @@ async fn put_blob_upload(
     Ok(_) => (),
     Err(e) => {
       match e {
-        CommitHunkError::DatabaseError(e) => {
+        db::CommitHunkError::DatabaseError(e) => {
           if e == rusqlite::Error::InvalidQuery {
             // If the request is invalid, such as a <digest> with an invalid syntax,
             // a 400 Bad Request MUST be returned.
@@ -384,7 +387,7 @@ async fn put_blob_upload(
           println!("Error inserting blob: {:?}", e);
           return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
         }
-        CommitHunkError::DigestMismatch(e) => {
+        db::CommitHunkError::DigestMismatch(e) => {
           // Query digest MUST match the blob's digest.
           println!("Error: Digest mismatch: {:?}", e);
           return (StatusCode::BAD_REQUEST, HeaderMap::new(), ());
@@ -394,7 +397,7 @@ async fn put_blob_upload(
   }
 
   let mut headers = HeaderMap::new();
-  utils::insert_blob_location_header(&mut headers, "name", "digest");
+  insert_blob_location_header(&mut headers, "name", "digest");
 
   (StatusCode::CREATED, headers, ())
 }
