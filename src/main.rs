@@ -1,6 +1,6 @@
-mod blob;
 mod db;
 mod digestor;
+mod filesystem;
 mod manifest;
 mod middleware;
 mod utils;
@@ -197,7 +197,7 @@ async fn post_blob_upload(
   };
 
   println!("Creating blob with digest: {}", digest);
-  let mut blob_file = blob::create_blob(&digest).unwrap();
+  let mut blob_file = filesystem::create_blob_file(&digest).unwrap();
   blob_file.write_all(&data).unwrap();
 
   match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
