@@ -71,7 +71,7 @@ pub struct Descriptor {
   ///
   /// <https://datatracker.ietf.org/doc/html/rfc3986>
   /// <https://datatracker.ietf.org/doc/html/rfc7230>
-  pub urls: Vec<String>,
+  pub urls: Option<Vec<String>>,
 
   /// This OPTIONAL property contains arbitrary metadata for this descriptor.
   pub annotations: Option<Annotations>,
