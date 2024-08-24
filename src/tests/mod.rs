@@ -173,6 +173,12 @@ async fn test_put_manifest() {
   let result = put_manifest(Path((namespace.to_string(), String::from("latest"))), manifest.into())
     .await
     .into_response();
-
   assert_eq!(result.status(), StatusCode::CREATED);
+
+  let incomplete = "{\"schemaVersion\": 2}";
+  let result =
+    put_manifest(Path((namespace.to_string(), String::from("incomplete"))), incomplete.into())
+      .await
+      .into_response();
+  assert_eq!(result.status(), StatusCode::BAD_REQUEST);
 }
