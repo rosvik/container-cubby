@@ -1,20 +1,20 @@
 use crate::digestor;
-use axum::http::{HeaderMap, HeaderValue};
+use actix_web::http::header::HeaderValue;
 use regex_lite::Regex;
 
-pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: &str) {
-  // Successful completion MUST include the following header. Location is a
-  // pullable blob URL. This location does not necessarily have to be served by
-  // your registry, for example, in the case of a signed URL from some cloud
-  // storage provider that your registry generates.
-  let blob_location = format!("/v2/{name}/blobs/{digest}");
-  if let Ok(header_value) = HeaderValue::from_str(blob_location.as_str()) {
-    headers.insert("Location", header_value);
-  }
-}
+// pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: &str) {
+//   // Successful completion MUST include the following header. Location is a
+//   // pullable blob URL. This location does not necessarily have to be served by
+//   // your registry, for example, in the case of a signed URL from some cloud
+//   // storage provider that your registry generates.
+//   let blob_location = format!("/v2/{name}/blobs/{digest}");
+//   if let Ok(header_value) = HeaderValue::from_str(blob_location.as_str()) {
+//     headers.insert("Location", header_value);
+//   }
+// }
 
-pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> {
-  let content_range = headers.get("Content-Range")?.to_str().ok()?;
+pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String, usize, usize)> {
+  let content_range = content_range?.to_str().ok()?;
   let range = String::from(content_range);
 
   // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
@@ -44,9 +44,8 @@ pub fn get_content_range(headers: &HeaderMap) -> Option<(String, usize, usize)> 
   Some((range, start, end))
 }
 
-pub fn get_content_length(headers: &HeaderMap) -> Option<usize> {
-  let content_length = headers.get("Content-Length")?.to_str().ok()?;
-  let length = content_length.parse::<usize>().ok()?;
+pub fn get_content_length(content_length: Option<&HeaderValue>) -> Option<usize> {
+  let length = content_length?.to_str().ok()?.parse::<usize>().ok()?;
   Some(length)
 }
 
@@ -135,12 +134,11 @@ mod tests {
 
   #[test]
   fn test_get_content_range() {
-    let mut headers = HeaderMap::new();
-    headers.insert("Content-Range", HeaderValue::from_str("0-123").unwrap());
-    assert_eq!(get_content_range(&headers), Some(("0-123".to_string(), 0, 123)));
+    let content_range = &HeaderValue::from_str("0-123").unwrap();
+    assert_eq!(get_content_range(Some(content_range)), Some(("0-123".to_string(), 0, 123)));
 
-    let headers = HeaderMap::new();
-    assert_eq!(get_content_range(&headers), None);
+    let content_range = &HeaderValue::from_str("").unwrap();
+    assert_eq!(get_content_range(Some(content_range)), None);
   }
 
   #[test]
