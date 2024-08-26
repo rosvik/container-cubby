@@ -4,7 +4,7 @@ mod manifest;
 mod middleware;
 mod utils;
 
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{dev::Service, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
@@ -43,6 +43,10 @@ async fn main() -> std::io::Result<()> {
     // let upload_middleware =
     //   ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
     App::new()
+      .wrap_fn(|req, srv| {
+        middleware::log_requests(&req);
+        srv.call(req)
+      })
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" })) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/{digest}", web::get().to(get_blob))
@@ -64,7 +68,6 @@ async fn main() -> std::io::Result<()> {
       .route("/v2/{name}/manifests/{reference}", web::delete().to(delete_manifest)) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/{digest}", web::delete().to(delete_blob)) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/uploads/{reference}", web::get().to(get_blob_upload))
-    // .layer(axum::middleware::from_fn(middleware::log_requests))
   })
   .bind((HOST, DEFAULT_PORT))?
   .run()
