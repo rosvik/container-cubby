@@ -1,12 +1,17 @@
 mod utils;
 
 use super::*;
-use actix_web::http::Method;
-use actix_web::{dev::Service, http::StatusCode, test, App};
+use actix_web::{
+  dev::Service,
+  http::{Method, StatusCode},
+  test, App,
+};
 use utils::*;
 
-#[actix_web::test]
+#[test]
 async fn test_create_blob() {
+  let _ = db::init();
+
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
