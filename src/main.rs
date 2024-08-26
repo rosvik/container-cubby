@@ -4,7 +4,7 @@ mod manifest;
 mod middleware;
 mod utils;
 
-use actix_web::{dev::Service, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
