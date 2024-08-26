@@ -150,3 +150,45 @@ async fn test_put_manifest() {
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 }
+
+#[test]
+async fn test_get_manifest() {
+  let _ = db::init();
+
+  let name: String = get_random_namespace();
+  let manifest = include_str!("./fixtures/manifest.json");
+  let manifest_source = serde_json::from_str::<Manifest>(manifest).unwrap();
+
+  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").put(put_manifest));
+  let service = test::init_service(app).await;
+
+  // PUT manifest
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // GET manifest
+  // TODO: Figure out how to use the same service for PUT and GET when the path
+  //       is the same.
+  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").get(get_manifest));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::GET)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+
+  let bytes = test::read_body(res).await;
+  let manifest_result = serde_json::from_slice::<Manifest>(&bytes).unwrap();
+  assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
+}
