@@ -1,11 +1,13 @@
 mod utils;
 
 use super::*;
+use crate::utils::encode_base64;
 use actix_web::{
   dev::Service,
   http::{Method, StatusCode},
   test, App,
 };
+use middleware::basic_auth::BasicAuth;
 use utils::*;
 
 #[test]
@@ -269,4 +271,33 @@ async fn test_push_as_hunks() {
 
   let bytes = test::read_body(res).await;
   assert_eq!(bytes, blob);
+}
+
+#[test]
+async fn test_basic_auth() {
+  env::set_var("USERNAME", "admin");
+  env::set_var("PASSWORD", "hunter2");
+  let user = env::var("USERNAME").unwrap();
+  let pass = env::var("PASSWORD").unwrap();
+
+  let app =
+    App::new().service(web::resource("/v2/").get(|| async { "Authenticated" })).wrap(BasicAuth);
+  let service = test::init_service(app).await;
+
+  // Auth challenge
+  let req = test::TestRequest::with_uri("/v2/").method(Method::GET).to_request();
+  let res = service.call(req).await;
+  assert_eq!(res.unwrap().status(), StatusCode::UNAUTHORIZED);
+
+  // Auth success
+  let req = test::TestRequest::with_uri("/v2/")
+    .insert_header((
+      "Authorization",
+      format!("Basic {}", encode_base64(format!("{}:{}", user, pass))),
+    ))
+    .method(Method::GET)
+    .to_request();
+
+  let res = service.call(req).await;
+  assert_eq!(res.unwrap().status(), StatusCode::OK);
 }
