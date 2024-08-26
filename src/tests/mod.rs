@@ -192,3 +192,81 @@ async fn test_get_manifest() {
   let manifest_result = serde_json::from_slice::<Manifest>(&bytes).unwrap();
   assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
 }
+
+#[test]
+async fn test_push_as_hunks() {
+  let _ = db::init();
+
+  let name: String = get_random_namespace();
+  let blob = "AAAABBBB".as_bytes();
+  let digest = digestor::get_sha256_digest(&blob.to_vec());
+
+  let app = App::new()
+    .service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload))
+    .service(web::resource("/v2/{name}/blobs/uploads/{reference}").patch(patch_blob_upload));
+  let service = test::init_service(app).await;
+
+  // POST to get reference
+  let uri = format!("/v2/{}/blobs/uploads/", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Content-Length", blob.len().to_string()))
+    .insert_header(("Content-Type", "application/octet-stream"))
+    .insert_header(("Content-Range", "0-3"))
+    .method(Method::POST)
+    .to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::ACCEPTED);
+  let location = res.headers().get("Location").unwrap();
+  let reference = location.to_str().unwrap().split('/').last().unwrap();
+
+  // PATCH first chunk
+  let uri = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload("AAAA")
+    .insert_header(("Content-Length", "4"))
+    .insert_header(("Content-Range", "0-3"))
+    .method(Method::PATCH)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::ACCEPTED);
+
+  // PATCH second chunk
+  let uri = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload("BBBB")
+    .insert_header(("Content-Length", "4"))
+    .insert_header(("Content-Range", "4-7"))
+    .method(Method::PATCH)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::ACCEPTED);
+
+  // PUT blob
+  // TODO: Figure out how to use the same service for PUT and GET when the path
+  //       is the same.
+  let app = App::new()
+    .service(web::resource("/v2/{name}/blobs/uploads/{reference}").put(put_blob_upload))
+    .service(web::resource("/v2/{name}/blobs/{digest}").get(get_blob));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{}/blobs/uploads/{}?digest={}", name, reference, digest);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    // TODO: Test with final part of the blob
+    // .set_payload(blob)
+    .insert_header(("Content-Length", "0"))
+    .method(Method::PUT)
+    .to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // Verify that the blob can be retrieved
+  let uri = format!("/v2/{}/blobs/{}", name, digest);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+
+  let bytes = test::read_body(res).await;
+  assert_eq!(bytes, blob);
+}
