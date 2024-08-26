@@ -38,15 +38,11 @@ async fn main() -> std::io::Result<()> {
 
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   HttpServer::new(|| {
-    // let unlimited_upload_size: DefaultBodyLimit = DefaultBodyLimit::disable();
     // let basic_auth = axum::middleware::from_fn(middleware::basic_authenticate);
     // let upload_middleware =
     //   ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
     App::new()
-      .wrap_fn(|req, srv| {
-        middleware::log_requests(&req);
-        srv.call(req)
-      })
+      .wrap(middleware::LogRequests)
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" })) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/{digest}", web::get().to(get_blob))
