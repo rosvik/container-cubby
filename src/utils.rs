@@ -56,6 +56,12 @@ pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>
   Ok(utf8.to_string())
 }
 
+#[allow(dead_code)]
+pub fn encode_base64(input: String) -> String {
+  let bytes = input.as_bytes();
+  general_purpose::STANDARD.encode(bytes)
+}
+
 pub struct DigestMismatch {
   digest: String,
   computed_digest: String,
@@ -145,5 +151,11 @@ mod tests {
   fn test_decode_base64() {
     let input = "aGVsbG8gd29ybGQ=";
     assert_eq!(decode_base64(input.to_string()).unwrap(), "hello world");
+  }
+
+  #[test]
+  fn test_encode_base64() {
+    let input = "hello world";
+    assert_eq!(encode_base64(input.to_string()), "aGVsbG8gd29ybGQ=");
   }
 }
