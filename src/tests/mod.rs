@@ -75,3 +75,46 @@ async fn test_post_then_put() {
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::CREATED);
 }
+
+#[test]
+async fn test_get_blob() {
+  let _ = db::init();
+
+  let name: String = get_random_namespace();
+  let blob = "testblob".as_bytes();
+  let digest = digestor::get_sha256_digest(&blob.to_vec());
+
+  let app = App::new()
+    .service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload))
+    .service(web::resource("/v2/{name}/blobs/{digest}").get(get_blob));
+  let service = test::init_service(app).await;
+
+  // POST to get reference
+  let uri = format!("/v2/{}/blobs/uploads/?digest={}", name, digest);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(blob)
+    .insert_header(("Content-Length", blob.len().to_string()))
+    .insert_header(("Content-Type", "application/octet-stream"))
+    .insert_header(("Content-Range", "0-9"))
+    .method(Method::POST)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // GET blob
+  let uri = format!("/v2/{}/blobs/{}", name, digest);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+
+  // NOTE: The spec says "The Docker-Content-Digest header returns the canonical
+  //       digest of the uploaded blob which MAY differ from the provided
+  //       digest", but since we only support sha256 we can assume something is
+  //       wrong if the digests don't match.
+  let response_digest = res.headers().get("Docker-Content-Digest").unwrap();
+  assert_eq!(response_digest.to_str().unwrap(), digest);
+
+  let bytes = test::read_body(res).await;
+  assert_eq!(bytes, blob);
+}
