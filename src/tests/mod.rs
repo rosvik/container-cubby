@@ -118,3 +118,35 @@ async fn test_get_blob() {
   let bytes = test::read_body(res).await;
   assert_eq!(bytes, blob);
 }
+
+#[test]
+async fn test_put_manifest() {
+  let _ = db::init();
+
+  let name: String = get_random_namespace();
+  let manifest = include_str!("./fixtures/manifest.json");
+
+  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").put(put_manifest));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  let incomplete = "{\"schemaVersion\": 2}";
+  let uri = format!("/v2/{}/manifests/incomplete", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(incomplete)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
