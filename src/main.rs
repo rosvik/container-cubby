@@ -22,8 +22,8 @@ const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
-  // let port = env::var("PORT").unwrap_or(DEFAULT_PORT);
-  let addr = format!("{}:{}", HOST, DEFAULT_PORT);
+  let port = env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT);
+  let addr = format!("{}:{}", HOST, port);
 
   dotenv().ok();
   if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
@@ -65,7 +65,7 @@ async fn main() -> std::io::Result<()> {
       .route("/v2/{name}/blobs/{digest}", web::delete().to(delete_blob)) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/uploads/{reference}", web::get().to(get_blob_upload))
   })
-  .bind((HOST, DEFAULT_PORT))?
+  .bind((HOST, port))?
   .run()
   .await
 }
