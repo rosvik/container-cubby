@@ -48,13 +48,20 @@ where
   forward_ready!(service);
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
-    let auth_success = basic_auth(req.headers().get("Authorization"));
-    if !auth_success {
-      let http_res = HttpResponse::Unauthorized().finish();
-      let (http_req, _) = req.into_parts();
-      let res = ServiceResponse::new(http_req, http_res);
+    let credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
+      (Ok(username), Ok(password)) => Some(format!("{}:{}", username, password)),
+      _ => None,
+    };
 
-      return (async move { Ok(res.map_into_right_body()) }).boxed_local();
+    if let Some(credentials) = credentials {
+      let auth_success = basic_auth(req.headers().get("Authorization"), credentials);
+      if !auth_success {
+        let http_res = HttpResponse::Unauthorized().finish();
+        let (http_req, _) = req.into_parts();
+        let res = ServiceResponse::new(http_req, http_res);
+
+        return (async move { Ok(res.map_into_right_body()) }).boxed_local();
+      }
     }
 
     let service = Rc::clone(&self.service);
@@ -65,41 +72,18 @@ where
   }
 }
 
-fn basic_auth(auth_header: Option<&HeaderValue>) -> bool {
+fn basic_auth(auth_header: Option<&HeaderValue>, server_credentials: String) -> bool {
   let auth_header = match auth_header {
-    Some(header) => header.to_str(),
-    None => return false,
-  };
-  let auth_header = match auth_header {
-    Ok(header) => header,
-    Err(_) => return false,
+    Some(header) => header.to_str().unwrap_or_default(),
+    _ => return false,
   };
 
   let auth = auth_header.split_whitespace().collect::<Vec<&str>>();
   if auth.len() != 2 {
     return false;
   }
-
   let auth = auth[1];
-  let auth = decode_base64(auth.to_string()).unwrap();
-  let auth = auth.split(':').collect::<Vec<&str>>();
-  if auth.len() != 2 {
-    return false;
-  }
+  let request_credentials = decode_base64(auth.to_string()).unwrap_or_default();
 
-  let user = match env::var("USERNAME") {
-    Ok(username) => username,
-    Err(_) => return false,
-  };
-  let pass = match env::var("PASSWORD") {
-    Ok(password) => password,
-    Err(_) => return false,
-  };
-  let username = auth[0];
-  let password = auth[1];
-
-  if username == user && password == pass {
-    return true;
-  }
-  false
+  request_credentials == server_credentials
 }
