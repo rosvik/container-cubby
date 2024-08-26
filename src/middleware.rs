@@ -1,4 +1,5 @@
 use crate::utils;
+use actix_web::dev::ServiceRequest;
 use axum::{
   extract::Request,
   http::{HeaderMap, HeaderValue, StatusCode},
@@ -7,16 +8,11 @@ use axum::{
 };
 use std::env;
 
-pub async fn log_requests(
-  headers: HeaderMap,
-  request: Request,
-  next: Next,
-) -> Result<Response, StatusCode> {
+pub fn log_requests(request: &ServiceRequest) {
   println!("\n\x1b[1;34m{} {:?}\x1b[0m", &request.method(), &request.uri());
-  headers.iter().for_each(|(name, value)| {
+  request.headers().iter().for_each(|(name, value)| {
     println!("  \x1b[36m{}: {:?}\x1b[0m", name, value);
   });
-  Ok(next.run(request).await)
 }
 
 pub async fn basic_authenticate(headers: HeaderMap, request: Request, next: Next) -> Response {
