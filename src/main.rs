@@ -33,8 +33,6 @@ async fn main() -> std::io::Result<()> {
   };
 
   db::init().unwrap();
-  // let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-  // axum::serve(listener, router()).await.unwrap();
 
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   HttpServer::new(|| {
