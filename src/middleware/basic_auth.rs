@@ -12,6 +12,7 @@ use std::{
   rc::Rc,
 };
 
+#[derive(Clone)]
 pub struct BasicAuth;
 impl<S, B> Transform<S, ServiceRequest> for BasicAuth
 where

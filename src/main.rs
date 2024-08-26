@@ -27,6 +27,7 @@ async fn main() -> std::io::Result<()> {
 
   dotenv().ok();
   if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
+    // TODO: Add test for read-only mode
     println!(
       "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
     );
@@ -36,32 +37,33 @@ async fn main() -> std::io::Result<()> {
 
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   HttpServer::new(|| {
-    // let basic_auth = axum::middleware::from_fn(middleware::basic_authenticate);
-    // let upload_middleware =
-    //   ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
+    let auth = middleware::basic_auth::BasicAuth;
     App::new()
       .wrap(middleware::log_requests::LogRequests)
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
-      .route("/v2/", web::get().to(|| async { "Authenticated" })) //.layer(basic_auth.clone()))
+      .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
       .route("/v2/{name}/blobs/{digest}", web::get().to(get_blob))
       .route("/v2/{name}/manifests/{reference}", web::get().to(get_manifest))
+      .route("/v2/{name}/blobs/uploads/", web::post().to(post_blob_upload).wrap(auth.clone()))
       .route(
-        "/v2/{name}/blobs/uploads/",
-        web::post().to(post_blob_upload), //.layer(upload_middleware.clone()),
+        "/v2/{name}/blobs/uploads/{reference}",
+        web::put().to(put_blob_upload).wrap(auth.clone()),
       )
       .route(
         "/v2/{name}/blobs/uploads/{reference}",
-        web::put().to(put_blob_upload), //.layer(upload_middleware.clone()),
+        web::patch().to(patch_blob_upload).wrap(auth.clone()),
       )
-      .route(
-        "/v2/{name}/blobs/uploads/{reference}",
-        web::patch().to(patch_blob_upload), //.layer(upload_middleware.clone()),
-      )
-      .route("/v2/{name}/manifests/{reference}", web::put().to(put_manifest)) //.layer(upload_middleware.clone()))
+      .route("/v2/{name}/manifests/{reference}", web::put().to(put_manifest).wrap(auth.clone()))
       .route("/v2/{name}/tags/list", web::get().to(get_tags_list))
-      .route("/v2/{name}/manifests/{reference}", web::delete().to(delete_manifest)) //.layer(basic_auth.clone()))
-      .route("/v2/{name}/blobs/{digest}", web::delete().to(delete_blob)) //.layer(basic_auth.clone()))
-      .route("/v2/{name}/blobs/uploads/{reference}", web::get().to(get_blob_upload))
+      .route(
+        "/v2/{name}/manifests/{reference}",
+        web::delete().to(delete_manifest).wrap(auth.clone()),
+      )
+      .route("/v2/{name}/blobs/{digest}", web::delete().to(delete_blob).wrap(auth.clone()))
+      .route(
+        "/v2/{name}/blobs/uploads/{reference}",
+        web::get().to(get_blob_upload).wrap(auth.clone()),
+      )
   })
   .bind((HOST, port))?
   .run()
