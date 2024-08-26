@@ -42,7 +42,7 @@ async fn main() -> std::io::Result<()> {
     // let upload_middleware =
     //   ServiceBuilder::new().layer(basic_auth.clone()).layer(unlimited_upload_size.clone());
     App::new()
-      .wrap(middleware::LogRequests)
+      .wrap(middleware::log_requests::LogRequests)
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" })) //.layer(basic_auth.clone()))
       .route("/v2/{name}/blobs/{digest}", web::get().to(get_blob))
