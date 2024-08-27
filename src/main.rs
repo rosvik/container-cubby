@@ -86,7 +86,6 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
       // If the blob is not found in the registry, the response code MUST be
       // 404 Not Found.
       println!("Error getting blob: {:?}", e);
-      // return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
       return HttpResponse::NotFound().finish();
     }
   };
@@ -118,7 +117,6 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     Ok(manifest) => manifest,
     Err(e) => {
       println!("Error getting manifest: {:?}", e);
-      // return (StatusCode::NOT_FOUND, HeaderMap::new(), "".into());
       return HttpResponse::NotFound().finish();
     }
   };
@@ -180,12 +178,9 @@ async fn post_blob_upload(
       let reference = Uuid::new_v4().to_string();
       db::insert_empty_hunk(&conn, &name, &reference).unwrap();
 
-      // let mut headers = HeaderMap::new();
-      // headers.insert("Location", HeaderValue::from_str(location.as_str()).unwrap());
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
       // Upon success, the response MUST have a code of 202 Accepted
-      // return (StatusCode::ACCEPTED, headers, ());
       return HttpResponse::Accepted().insert_header(("Location", location)).finish();
     }
   };
@@ -199,7 +194,6 @@ async fn post_blob_upload(
         return HttpResponse::BadRequest().finish();
       }
       println!("Error inserting blob: {:?}", e);
-      // return (StatusCode::INTERNAL_SERVER_ERROR, HeaderMap::new(), ());
       return HttpResponse::InternalServerError().finish();
     }
   }
@@ -214,10 +208,10 @@ async fn post_blob_upload(
 ///
 /// NOTE: This should be referred to from a preceeding POST request to end-4a:
 ///
-///  > For information on obtaining a session ID, reference the above
-///    section on pushing a blob monolithically via the POST/PUT method.
-///    The process remains unchanged for chunked upload, except that the
-///    post request MUST include the following header:
+///  > For information on obtaining a session ID, reference the above section on
+///  > pushing a blob monolithically via the POST/PUT method. The process
+///  > remains unchanged for chunked upload, except that the POST request MUST
+///  > include the following header: `Content-Length: 0`
 ///
 /// REQUEST
 /// - Content-Type: `application/octet-stream`
@@ -232,7 +226,6 @@ async fn post_blob_upload(
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 async fn patch_blob_upload(
   path: web::Path<(String, String)>,
-  // content_range: Option<web::Header<http::header::ContentRange>>,
   req: HttpRequest,
   data: web::Bytes,
 ) -> impl Responder {
