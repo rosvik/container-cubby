@@ -82,24 +82,29 @@ pub enum Reference<'a> {
 }
 pub fn verify_reference(tag: &str) -> Result<Reference, ()> {
   match tag.starts_with("sha256:") {
-    true => {
-      let re = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
-      if !re.is_match(tag) {
-        return Err(());
-      };
-      return Ok(Reference::Sha256(tag));
-    }
-    false => {
-      // <reference> as a tag MUST be at most 128 characters in length and MUST
-      // match the following regular expression:
-      // `[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`
-      let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();
-      if !re.is_match(tag) {
-        return Err(());
-      };
-      return Ok(Reference::Tag(tag));
-    }
+    true => match is_safe_digest(tag) {
+      true => Ok(Reference::Sha256(tag)),
+      false => Err(()),
+    },
+    false => match is_safe_reference(tag) {
+      true => Ok(Reference::Tag(tag)),
+      false => Err(()),
+    },
   }
+}
+
+pub fn is_safe_name(path: &str) -> bool {
+  let re = Regex::new(r"^[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*$")
+    .unwrap();
+  re.is_match(path)
+}
+pub fn is_safe_reference(reference: &str) -> bool {
+  let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();
+  re.is_match(reference)
+}
+pub fn is_safe_digest(digest: &str) -> bool {
+  let re = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
+  re.is_match(digest)
 }
 
 #[cfg(test)]
@@ -113,10 +118,6 @@ mod tests {
 
     let invalid_sha256 = "sha256:x94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
     assert!(verify_reference(invalid_sha256).is_err());
-
-    let too_long_sha256 =
-      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde90";
-    assert!(verify_reference(too_long_sha256).is_err());
 
     let too_short_sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde";
     assert!(verify_reference(too_short_sha256).is_err());
@@ -147,5 +148,63 @@ mod tests {
   fn test_encode_base64() {
     let input = "hello world";
     assert_eq!(encode_base64(input.to_string()), "aGVsbG8gd29ybGQ=");
+  }
+
+  #[test]
+  fn test_is_safe_name() {
+    assert!(is_safe_name("hello-world"));
+    assert!(is_safe_name("hello_world"));
+    assert!(is_safe_name("hello__world"));
+    assert!(is_safe_name("hello.world"));
+    assert!(is_safe_name("hello.world/1.3"));
+    assert!(is_safe_name("hello/world/123_456"));
+
+    assert!(!is_safe_name("hello___world"));
+    assert!(!is_safe_name("hello.world/"));
+    assert!(!is_safe_name("hello.world/123-"));
+    assert!(!is_safe_name("hello.world/.."));
+    assert!(!is_safe_name(".."));
+  }
+
+  #[test]
+  fn test_is_safe_reference() {
+    assert!(is_safe_reference("hello-world"));
+    assert!(is_safe_reference("hello_world"));
+    assert!(is_safe_reference("hello__world"));
+    assert!(is_safe_reference("hello.world"));
+    assert!(is_safe_reference("hello.world-1.3"));
+    assert!(is_safe_reference("hello.world-123_456"));
+
+    assert!(!is_safe_reference("hello.world/1.3"));
+    assert!(!is_safe_reference("hello.world/"));
+    assert!(!is_safe_reference("hello.world/123-"));
+    assert!(!is_safe_reference("hello.world/.."));
+    assert!(!is_safe_reference(".."));
+  }
+
+  #[test]
+  fn test_is_safe_digest() {
+    assert!(is_safe_digest(
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+    ));
+
+    assert!(!is_safe_digest(
+      "sha512:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+    ));
+    assert!(!is_safe_digest(
+      "sha256:B94D27B9934D3E08A52E52D7DA7DABFAC484EFE37A5380EE9088F7ACE2EFCDE9"
+    ));
+    assert!(!is_safe_digest(
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde"
+    ));
+    assert!(!is_safe_digest(
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde90"
+    ));
+    assert!(!is_safe_digest(
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde90"
+    ));
+    assert!(!is_safe_digest(
+      "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9/"
+    ));
   }
 }
