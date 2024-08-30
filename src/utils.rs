@@ -2,17 +2,6 @@ use crate::digestor;
 use actix_web::http::header::HeaderValue;
 use regex_lite::Regex;
 
-// pub fn insert_blob_location_header(headers: &mut HeaderMap, name: &str, digest: &str) {
-//   // Successful completion MUST include the following header. Location is a
-//   // pullable blob URL. This location does not necessarily have to be served by
-//   // your registry, for example, in the case of a signed URL from some cloud
-//   // storage provider that your registry generates.
-//   let blob_location = format!("/v2/{name}/blobs/{digest}");
-//   if let Ok(header_value) = HeaderValue::from_str(blob_location.as_str()) {
-//     headers.insert("Location", header_value);
-//   }
-// }
-
 pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String, usize, usize)> {
   let content_range = content_range?.to_str().ok()?;
   let range = String::from(content_range);

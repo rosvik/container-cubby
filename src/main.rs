@@ -148,7 +148,6 @@ struct PostBlobParameters {
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
-
 async fn post_blob_upload(
   path: web::Path<String>,
   query: web::Query<PostBlobParameters>,
