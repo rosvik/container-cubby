@@ -10,7 +10,10 @@ use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
 use serde::Deserialize;
-use std::env;
+use std::{
+  env,
+  io::{Read, Write},
+};
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
@@ -80,16 +83,18 @@ async fn main() -> std::io::Result<()> {
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs>
 async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
-  let conn = db::connect().unwrap();
-  let blob = match db::get_blob(&conn, &name, &digest) {
-    Ok(blob) => blob,
+
+  let file = filesystem::get_blob_file(&digest);
+  let mut file = match file {
+    Ok(file) => file,
     Err(e) => {
-      // If the blob is not found in the registry, the response code MUST be
-      // 404 Not Found.
       println!("Error getting blob: {:?}", e);
       return HttpResponse::NotFound().finish();
     }
   };
+
+  let mut buf = Vec::new();
+  file.read_to_end(&mut buf).unwrap();
 
   // A successful response SHOULD contain the digest of the uploaded blob in the
   // header Docker-Content-Digest. If present, the value of this header MUST be
@@ -97,7 +102,7 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
 
   // A GET request to an existing blob URL MUST provide the expected blob, with
   // a response code that MUST be 200 OK.
-  HttpResponse::Ok().insert_header(("Docker-Content-Digest", blob.digest)).body(blob.data.unwrap())
+  HttpResponse::Ok().insert_header(("Docker-Content-Digest", digest)).body(buf)
 }
 
 /// end-3: `GET /v2/<name>/manifests/<reference>` => 200 / 404
@@ -185,18 +190,8 @@ async fn post_blob_upload(
     }
   };
 
-  match db::insert_blob(&conn, name.as_str(), digest.as_str(), &data) {
-    Ok(_) => (),
-    Err(e) => {
-      if e == rusqlite::Error::InvalidQuery {
-        // If the request is invalid, such as a <digest> with an invalid syntax,
-        // a 400 Bad Request MUST be returned.
-        return HttpResponse::BadRequest().finish();
-      }
-      println!("Error inserting blob: {:?}", e);
-      return HttpResponse::InternalServerError().finish();
-    }
-  }
+  let mut file = filesystem::create_blob_file(digest).unwrap();
+  file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/blobs/{digest}");
 
