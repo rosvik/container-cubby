@@ -118,16 +118,18 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests>
 async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
-  let conn = db::connect().unwrap();
-  let manifest = match db::get_manifest(&conn, &name, &reference) {
-    Ok(manifest) => manifest,
-    Err(e) => {
-      println!("Error getting manifest: {:?}", e);
-      return HttpResponse::NotFound().finish();
-    }
-  };
 
-  let digest = digestor::get_sha256_digest(&manifest.data.clone().unwrap());
+  if verify_reference(&reference).is_err() {
+    // NOTE: The spec doesn't mention what to do if the reference is invalid.
+    println!("Error: Invalid reference: {:?}", reference);
+    return HttpResponse::BadRequest().finish();
+  }
+
+  let mut file = filesystem::get_manifest_file(&name, &reference).unwrap();
+  let mut data = Vec::new();
+  file.read_to_end(&mut data).unwrap();
+
+  let digest = digestor::get_sha256_digest(&data);
 
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
@@ -136,7 +138,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   HttpResponse::Ok()
     .insert_header(("Docker-Content-Digest", digest))
     .content_type(content_type)
-    .body(manifest.data.unwrap())
+    .body(data)
 }
 
 #[derive(Deserialize)]
@@ -396,6 +398,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
   let (name, reference) = path.into_inner();
   if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
+    println!("Error: Invalid reference: {:?}", reference);
     return HttpResponse::BadRequest().finish();
   }
 
@@ -407,18 +410,8 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     }
   };
 
-  let conn = db::connect().unwrap();
-  match db::insert_manifest(&conn, &name, &reference, data.to_vec()) {
-    Ok(_) => {}
-    Err(e) => {
-      if e.sqlite_error_code() != Some(rusqlite::ErrorCode::ConstraintViolation) {
-        return HttpResponse::InternalServerError().finish();
-      }
-      // We have already stored this blob. Until the spec tells us what to do in
-      // this case, we treat it as a success and continue the normal flow.
-      println!("Warning: Duplicate manifest, name='{}' reference='{}'", name, reference);
-    }
-  };
+  let mut file = filesystem::create_manifest_file(&name, &reference).unwrap();
+  file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/manifests/{reference}");
   HttpResponse::Created().insert_header(("Location", location)).finish()
