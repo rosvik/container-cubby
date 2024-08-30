@@ -3,6 +3,7 @@ use rusqlite::{Connection, Error, ErrorCode, Result};
 
 const DATABASE_PATH: &str = "./db.sqlite3";
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct BlobRow {
   pub id: u32,
@@ -11,6 +12,7 @@ pub struct BlobRow {
   pub data: Option<Vec<u8>>,
 }
 
+#[allow(dead_code)]
 pub struct HunkRow {
   pub id: u32,
   pub name: String,
@@ -20,6 +22,7 @@ pub struct HunkRow {
   pub data: Option<Vec<u8>>,
 }
 
+#[allow(dead_code)]
 pub struct ManifestRow {
   pub id: u32,
   pub name: String,

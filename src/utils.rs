@@ -86,6 +86,7 @@ pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
   Ok(())
 }
 
+#[allow(dead_code)] // TODO: Remove this once fields are used in logs
 pub enum Reference<'a> {
   Sha256(&'a str),
   Tag(&'a str),
