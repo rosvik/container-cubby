@@ -114,7 +114,7 @@ pub fn is_safe_digest(digest: &str) -> bool {
 pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Error> {
   // Disallow symlinks with '..' to prevent directory traversal attacks. This
   // also prevents files like "foo..bar.txt" from being created, but since
-  // that's not a valid namespace or reference, this is ok.
+  // that's not a valid namespace or digest, this is ok.
   if to.contains("..") || from.contains("..") {
     return Err(std::io::Error::new(
       std::io::ErrorKind::InvalidInput,
