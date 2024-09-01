@@ -162,14 +162,7 @@ async fn post_blob_upload(
   data: web::Bytes,
 ) -> impl Responder {
   let name = path.into_inner();
-  let digest = match &query.digest {
-    Some(digest) => {
-      // end-4b
-      if verify_blob(&data, digest.as_str()).is_err() {
-        return HttpResponse::BadRequest().finish();
-      }
-      digest
-    }
+  match &query.digest {
     None => {
       // end-4a
 
@@ -188,17 +181,22 @@ async fn post_blob_upload(
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
       // Upon success, the response MUST have a code of 202 Accepted
-      return HttpResponse::Accepted().insert_header(("Location", location)).finish();
+      HttpResponse::Accepted().insert_header(("Location", location)).finish()
     }
-  };
+    Some(digest) => {
+      // end-4b
+      if verify_blob(&data, digest.as_str()).is_err() {
+        return HttpResponse::BadRequest().finish();
+      }
+      let mut file = storage::create_blob_file(&name, digest).unwrap();
+      file.write_all(&data).unwrap();
 
-  let mut file = storage::create_blob_file(&name, digest).unwrap();
-  file.write_all(&data).unwrap();
+      let location = format!("/v2/{name}/blobs/{digest}");
 
-  let location = format!("/v2/{name}/blobs/{digest}");
-
-  // Successful completion of the request MUST return a 201 Created status code.
-  HttpResponse::Created().insert_header(("Location", location)).finish()
+      // Successful completion of the request MUST return a 201 Created status code.
+      HttpResponse::Created().insert_header(("Location", location)).finish()
+    }
+  }
 }
 
 /// end-5: `PATCH /v2/<name>/blobs/uploads/<reference>` => 202 / 404/416
