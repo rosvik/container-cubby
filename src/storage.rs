@@ -42,7 +42,7 @@ fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io:
 
   let file_name = match reference.starts_with("sha256:") {
     true => {
-      let digest = reference.replace("sha256:", "");
+      let digest = reference.replace("sha256:", "sha256@");
       format!("{}.json", digest)
     }
     false => {
