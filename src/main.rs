@@ -84,7 +84,7 @@ async fn main() -> std::io::Result<()> {
 async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let file = filesystem::get_blob_file(&digest);
+  let file = filesystem::get_blob_file(&name, &digest);
   let mut file = match file {
     Ok(file) => file,
     Err(e) => {
@@ -192,7 +192,7 @@ async fn post_blob_upload(
     }
   };
 
-  let mut file = filesystem::create_blob_file(digest).unwrap();
+  let mut file = filesystem::create_blob_file(&name, digest).unwrap();
   file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/blobs/{digest}");
