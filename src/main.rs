@@ -444,18 +444,14 @@ async fn get_tags_list(
   // fetched by providing the n query parameter.
   let count = query.n.unwrap_or(100).clamp(0, 100);
 
-  let conn = db::connect().unwrap();
-  let mut tags = match db::get_tags(&conn, &name) {
-    Ok(tags) => tags,
-    Err(e) => {
-      println!("Error getting tags: {:?}", e);
-      return HttpResponse::NotFound().finish();
-    }
-  };
+  let mut tags = storage::get_tags(&name).unwrap();
 
   // The list of tags MAY be empty if there are no tags on the repository.
   // If the list is not empty, the tags MUST be in lexical order (i.e.
   // case-insensitive alphanumeric order).
+  //
+  // NOTE: The order in which fs::read_dir returns entries is platform and
+  // filesystem dependent.
   tags.sort_by_key(|tag| tag.to_lowercase());
 
   // A subset of the tags can be fetched by providing the n query parameter

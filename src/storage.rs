@@ -88,3 +88,20 @@ pub fn get_manifest_file(name: &str, reference: &str) -> Result<File, io::Error>
   let file = File::open(format!("{directory}/{file_name}"))?;
   Ok(file)
 }
+
+pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
+  if !utils::is_safe_name(name) {
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
+  }
+  let container_directory = format!("{DATA_DIR}/containers/{name}");
+  let entries = std::fs::read_dir(container_directory)?;
+
+  let mut tags = Vec::new();
+  for entry in entries {
+    let file_name = entry?.file_name().into_string().unwrap();
+    if file_name.ends_with(".json") && !file_name.starts_with("sha256@") {
+      tags.push(file_name.chars().take(file_name.len() - 5).collect::<String>());
+    }
+  }
+  Ok(tags)
+}
