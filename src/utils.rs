@@ -107,6 +107,26 @@ pub fn is_safe_digest(digest: &str) -> bool {
   re.is_match(digest)
 }
 
+/// Create a symlink using relative paths, so the containing directory can be
+/// moved without breaking the symlink.
+/// - `from` is the path to the symlink file
+/// - `to` is the path to the target (original) file
+pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Error> {
+  // Disallow symlinks with '..' to prevent directory traversal attacks. This
+  // also prevents files like "foo..bar.txt" from being created, but since
+  // that's not a valid namespace or reference, this is ok.
+  if to.contains("..") || from.contains("..") {
+    return Err(std::io::Error::new(
+      std::io::ErrorKind::InvalidInput,
+      "Symlinks with '..' are disallowed",
+    ));
+  }
+
+  let dir_levels = from.split("/").count() - 1;
+  let link = format!("{}{to}", "../".repeat(dir_levels));
+  std::os::unix::fs::symlink(link, from)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
