@@ -162,7 +162,6 @@ async fn post_blob_upload(
   data: web::Bytes,
 ) -> impl Responder {
   let name = path.into_inner();
-  let conn = db::connect().unwrap();
   let digest = match &query.digest {
     Some(digest) => {
       // end-4b
@@ -183,7 +182,8 @@ async fn post_blob_upload(
 
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
-      db::insert_empty_hunk(&conn, &name, &reference).unwrap();
+
+      let _ = storage::get_hunk_file(name.as_str(), reference.as_str());
 
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
