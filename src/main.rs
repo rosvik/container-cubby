@@ -1,8 +1,8 @@
 mod db;
 mod digestor;
-mod filesystem;
 mod manifest;
 mod middleware;
+mod storage;
 mod utils;
 
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
@@ -84,7 +84,7 @@ async fn main() -> std::io::Result<()> {
 async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let file = filesystem::get_blob_file(&name, &digest);
+  let file = storage::get_blob_file(&name, &digest);
   let mut file = match file {
     Ok(file) => file,
     Err(e) => {
@@ -125,7 +125,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     return HttpResponse::BadRequest().finish();
   }
 
-  let mut file = filesystem::get_manifest_file(&name, &reference).unwrap();
+  let mut file = storage::get_manifest_file(&name, &reference).unwrap();
   let mut data = Vec::new();
   file.read_to_end(&mut data).unwrap();
 
@@ -192,7 +192,7 @@ async fn post_blob_upload(
     }
   };
 
-  let mut file = filesystem::create_blob_file(&name, digest).unwrap();
+  let mut file = storage::create_blob_file(&name, digest).unwrap();
   file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/blobs/{digest}");
@@ -410,7 +410,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     }
   };
 
-  let mut file = filesystem::create_manifest_file(&name, &reference).unwrap();
+  let mut file = storage::create_manifest_file(&name, &reference).unwrap();
   file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/manifests/{reference}");
