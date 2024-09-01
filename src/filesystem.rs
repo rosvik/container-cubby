@@ -56,26 +56,14 @@ fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io:
 pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   let (container_directory, blob_directory) = prepare_blob(name, digest)?;
 
-  let original_path = format!(
+  let file_path = format!(
     "{blob_directory}/{}.blob",
     digest.replace("sha256:", "").chars().skip(2).collect::<String>()
   );
-  let file = File::create(&original_path)?;
+  let file = File::create(&file_path)?;
 
   let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
-
-  let dir_levels = blob_directory.split("/").count() - 1;
-  println!("{:?}", dir_levels);
-
-  std::os::unix::fs::symlink(
-    format!(
-      "{}blobs/{}/{}.blob",
-      "../".repeat(dir_levels),
-      digest.replace("sha256:", "").chars().take(2).collect::<String>(),
-      digest.replace("sha256:", "").chars().skip(2).collect::<String>()
-    ),
-    symlink_path,
-  )?;
+  utils::create_relative_symlink(&symlink_path, &file_path)?;
 
   Ok(file)
 }
