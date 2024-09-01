@@ -53,6 +53,22 @@ fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io:
   Ok((container_directory, file_name))
 }
 
+fn prepare_hunk(name: &str, reference: &str) -> Result<String, io::Error> {
+  if !utils::is_safe_reference(reference) {
+    return Err(io::Error::new(
+      io::ErrorKind::InvalidInput,
+      format!("Unsafe reference: {}", reference),
+    ));
+  }
+
+  let container_directory = prepare_container(name)?;
+
+  let file_name = format!("{reference}.hunk");
+  let file_path = format!("{container_directory}/{file_name}");
+
+  Ok(file_path)
+}
+
 pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   let (container_directory, blob_directory) = prepare_blob(name, digest)?;
 
@@ -104,4 +120,10 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
     }
   }
   Ok(tags)
+}
+
+pub fn get_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
+  let file_path = prepare_hunk(name, reference)?;
+  let file = File::open(file_path)?;
+  Ok(file)
 }
