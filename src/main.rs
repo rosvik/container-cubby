@@ -1,4 +1,3 @@
-mod db;
 mod digestor;
 mod manifest;
 mod middleware;
@@ -35,8 +34,6 @@ async fn main() -> std::io::Result<()> {
       "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
     );
   };
-
-  db::init().unwrap();
 
   println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   HttpServer::new(|| {

@@ -4,13 +4,11 @@ This is (an attempt at creating) a minimal implementation of a container registr
 
 ## TODO
 
-- [ ] Use postgres
+- [x] ~Use postgres~
 - [ ] Add testcontainers for bootstraping and testing
 - [ ] Implement the endpoints
-- [ ] Use a proper blob storage backend
-  - S3?
-  - Some other self hosted blob storage?
-  - Files on disk?
+- [x] Use a proper blob storage backend
+  - Files on disk
 
 ## Endpoints
 
