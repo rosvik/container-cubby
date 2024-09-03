@@ -6,7 +6,6 @@ mod storage;
 mod utils;
 
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use db::CommitHunkError;
 use dotenv::dotenv;
 use manifest::Manifest;
 use serde::Deserialize;
@@ -176,7 +175,7 @@ async fn post_blob_upload(
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
 
-      let _ = storage::get_hunk_file(name.as_str(), reference.as_str());
+      let _ = storage::create_hunk_file(&name, &reference);
 
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
@@ -265,42 +264,42 @@ async fn patch_blob_upload(
     return HttpResponse::BadRequest().finish();
   }
 
-  let conn = db::connect().unwrap();
-  {
-    let stored_hunk = match db::get_hunk(&conn, &name, &reference) {
-      Ok(hunk) => hunk,
-      Err(e) => {
-        println!("Error: Could not get hunk: {:?}", e);
-        return HttpResponse::NotFound().finish();
-      }
-    };
-
-    if stored_hunk.last_byte.is_none() && range_start != 0 {
-      // The first chunk's range MUST begin with 0.
-      println!("Error: First chunk's range must begin with 0: {:?}", range);
-      return HttpResponse::RangeNotSatisfiable().finish();
-    } else if stored_hunk.last_byte.is_some() && stored_hunk.last_byte.unwrap() + 1 != range_start {
-      // Chunks MUST be uploaded in order, with the first byte of a chunk being
-      // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
-      // order, the registry MUST respond with a 416 Requested Range Not
-      // Satisfiable code.
-      println!(
-        "Error: Uploaded hunk range did not match stored hunk: Stored: {}, req_first_byte: {}",
-        stored_hunk.last_byte.unwrap(),
-        range_start
-      );
-      return HttpResponse::RangeNotSatisfiable().finish();
+  let hunk = match storage::open_hunk_file(&name, &reference) {
+    Ok(hunk) => hunk,
+    Err(e) => {
+      println!("Error: Could not get hunk: {:?}", e);
+      return HttpResponse::NotFound().finish();
     }
+  };
 
-    if range_start + req_length != range_end + 1 {
-      // The Content-Range header MUST specify the range of bytes being uploaded
-      // in the format `0-{end-of-range}`.
-      println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end}+1)", range);
-      return HttpResponse::BadRequest().finish();
-    }
+  let size_in_bytes = hunk.metadata().unwrap().len();
+  drop(hunk);
+
+  if size_in_bytes == 0 && range_start != 0 {
+    // The first chunk's range MUST begin with 0.
+    println!("Error: First chunk's range must begin with 0: {:?}", range);
+    return HttpResponse::RangeNotSatisfiable().finish();
+  } else if size_in_bytes != 0 && size_in_bytes != (range_start as u64) {
+    // Chunks MUST be uploaded in order, with the first byte of a chunk being
+    // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
+    // order, the registry MUST respond with a 416 Requested Range Not
+    // Satisfiable code.
+    println!(
+      "Error: Uploaded hunk range did not match stored hunk: Stored: {}, req_first_byte: {}",
+      size_in_bytes, range_start
+    );
+    return HttpResponse::RangeNotSatisfiable().finish();
   }
 
-  db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
+  if range_start + req_length != range_end + 1 {
+    // The Content-Range header MUST specify the range of bytes being uploaded
+    // in the format `0-{end-of-range}`.
+    println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end}+1)", range);
+    return HttpResponse::BadRequest().finish();
+  }
+
+  let mut hunk = storage::append_hunk_file(&name, &reference).unwrap();
+  hunk.write_all(&data).unwrap();
 
   // Each successful chunk upload MUST have a 202 Accepted response code, and
   // MUST have the following headers:
@@ -338,7 +337,6 @@ async fn put_blob_upload(
   req: HttpRequest,
 ) -> impl Responder {
   let (name, reference) = path.into_inner();
-  let conn = db::connect().unwrap();
   let content_length = req.headers().get("Content-Length");
   let req_length = utils::get_content_length(content_length).unwrap_or(0);
 
@@ -352,33 +350,20 @@ async fn put_blob_upload(
     // TODO: Verify Content-Range
 
     // We have recieved the final hunk of a blob or the entire blob in one go
-    db::append_hunk(&conn, &name, &reference, data.to_vec()).unwrap();
+    let mut hunk = storage::append_hunk_file(&name, &reference).unwrap();
+    hunk.write_all(&data).unwrap();
   }
 
-  match db::commit_hunk(&conn, name.as_str(), &reference, query.digest.as_str()) {
+  let digest = query.digest.as_str();
+  match storage::commit_hunk(&name, &reference, digest) {
     Ok(_) => (),
     Err(e) => {
-      match e {
-        CommitHunkError::DatabaseError(e) => {
-          if e == rusqlite::Error::InvalidQuery {
-            // If the request is invalid, such as a <digest> with an invalid syntax,
-            // a 400 Bad Request MUST be returned.
-            return HttpResponse::BadRequest().finish();
-          }
-          println!("Error inserting blob: {:?}", e);
-          return HttpResponse::InternalServerError().finish();
-        }
-        CommitHunkError::DigestMismatch(e) => {
-          // Query digest MUST match the blob's digest.
-          println!("Error: Digest mismatch: {:?}", e);
-          return HttpResponse::BadRequest().finish();
-        }
-      }
+      println!("Error: Could not commit hunk: {:?}", e);
+      return HttpResponse::InternalServerError().finish();
     }
-  }
+  };
 
-  let blob_location = format!("/v2/{name}/blobs/{}", query.digest);
-
+  let blob_location = format!("/v2/{name}/blobs/{}", digest);
   HttpResponse::Created().insert_header(("Location", blob_location)).finish()
 }
 
