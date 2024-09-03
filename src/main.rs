@@ -499,18 +499,11 @@ async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs>
 async fn delete_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
-  let conn = db::connect().unwrap();
-  match db::delete_blob(&conn, &name, &digest) {
-    Ok(num_rows_changed) => {
-      // If the blob is not found, a 404 Not Found code MUST be returned.
-      if num_rows_changed == 0 {
-        println!("Warning: Blob not found, name='{}' digest='{}'", name, digest);
-        return HttpResponse::NotFound().finish();
-      }
-    }
+  match storage::delete_blob_file(&name, &digest) {
+    Ok(_) => (),
     Err(e) => {
-      println!("Error deleting blob: {:?}", e);
-      return HttpResponse::InternalServerError().finish();
+      println!("Warning: Error '{e}' when deleting blob, name='{}' digest='{}'", name, digest);
+      return HttpResponse::NotFound().finish();
     }
   }
 

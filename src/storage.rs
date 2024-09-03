@@ -84,6 +84,15 @@ pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+pub fn delete_blob_file(name: &str, digest: &str) -> Result<(), io::Error> {
+  let container_directory = prepare_container(name)?;
+
+  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  std::fs::remove_file(&symlink_path)?;
+
+  Ok(())
+}
+
 pub fn get_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   let container_directory = prepare_container(name)?;
 
