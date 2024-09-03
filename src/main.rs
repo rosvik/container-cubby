@@ -520,11 +520,10 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
   // <location> (end-13). The following chunk upload SHOULD use the <location>
   // provided in the response.
 
-  let conn = db::connect().unwrap();
-  let hunk = match db::get_hunk(&conn, &name, &reference) {
+  let hunk = match storage::open_hunk_file(&name, &reference) {
     Ok(hunk) => hunk,
     Err(e) => {
-      println!("Error getting hunk: {:?}", e);
+      println!("Error: Could not get hunk: {:?}", e);
       return HttpResponse::NotFound().finish();
     }
   };
@@ -534,10 +533,8 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
   let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
   // The <end-of-range> value is the position of the last uploaded byte.
-  // NOTE: If the hunk is empty, end_of_range is set to -1 (`range: 0--1`). It's
-  //       unclear what's the expected behavior in this case.
-  let end_of_range: i64 = (hunk.data.unwrap_or(Vec::new()).len() as i64) - 1;
-  let range = format!("0-{}", end_of_range);
+  let size_in_bytes = hunk.metadata().unwrap().len();
+  let range = format!("0-{}", size_in_bytes);
 
   // The response to an active upload <location> MUST be a 204 No Content
   // response code
