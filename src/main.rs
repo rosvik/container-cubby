@@ -475,18 +475,14 @@ async fn get_tags_list(
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests>
 async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
-  let conn = db::connect().unwrap();
-  match db::delete_manifest(&conn, &name, &reference) {
-    Ok(num_rows_changed) => {
-      // If the repository does not exist, the response MUST return 404 Not Found.
-      if num_rows_changed == 0 {
-        println!("Warning: Manifest not found, name='{}' reference='{}'", name, reference);
-        return HttpResponse::NotFound().finish();
-      }
-    }
+  match storage::delete_manifest_file(&name, &reference) {
+    Ok(_) => (),
     Err(e) => {
-      println!("Error deleting manifest: {:?}", e);
-      return HttpResponse::InternalServerError().finish();
+      println!(
+        "Warning: Error '{e}' when deleting manifest, name='{}' reference='{}'",
+        name, reference
+      );
+      return HttpResponse::NotFound().finish();
     }
   }
 

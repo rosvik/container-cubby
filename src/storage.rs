@@ -108,6 +108,12 @@ pub fn create_manifest_file(name: &str, reference: &str) -> Result<File, io::Err
   Ok(file)
 }
 
+pub fn delete_manifest_file(name: &str, reference: &str) -> Result<(), io::Error> {
+  let (directory, file_name) = prepare_manifest(name, reference)?;
+  std::fs::remove_file(format!("{directory}/{file_name}"))?;
+  Ok(())
+}
+
 pub fn get_manifest_file(name: &str, reference: &str) -> Result<File, io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   let file = File::open(format!("{directory}/{file_name}"))?;
