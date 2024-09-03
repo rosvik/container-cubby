@@ -1,6 +1,6 @@
 use crate::utils;
-use std::fs::{DirBuilder, File};
-use std::io;
+use std::fs::{DirBuilder, File, OpenOptions};
+use std::io::{self, Read};
 
 const DATA_DIR: &str = "data";
 
@@ -122,8 +122,53 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   Ok(tags)
 }
 
-pub fn get_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
+/// Opens a file in write-only mode. This function will create a file if it
+/// does not exist, and will truncate it if it does.
+pub fn create_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
+  println!("get_hunk_file, name: {}, reference: {}", name, reference);
   let file_path = prepare_hunk(name, reference)?;
+  let file = File::create(file_path)?;
+  Ok(file)
+}
+
+pub fn append_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
+  let file_path = prepare_hunk(name, reference)?;
+  let file = OpenOptions::new().append(true).open(file_path)?;
+  Ok(file)
+}
+
+/// Opens a file in read-only mode.
+pub fn open_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
+  let file_path = prepare_hunk(name, reference)?;
+
   let file = File::open(file_path)?;
   Ok(file)
+}
+
+pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
+  let hunk_path = prepare_hunk(name, reference)?;
+
+  let mut file = File::open(&hunk_path)?;
+  let mut buf = Vec::new();
+  file.read_to_end(&mut buf)?;
+
+  if utils::verify_blob(&buf, digest).is_err() {
+    return Err(io::Error::new(
+      io::ErrorKind::InvalidData,
+      format!("Digest mismatch: {}", reference),
+    ));
+  }
+
+  let (container_directory, blob_directory) = prepare_blob(name, digest)?;
+
+  let blob_path = format!(
+    "{blob_directory}/{}.blob",
+    digest.replace("sha256:", "").chars().skip(2).collect::<String>()
+  );
+  std::fs::rename(&hunk_path, &blob_path)?;
+
+  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  utils::create_relative_symlink(&symlink_path, &blob_path)?;
+
+  Ok(())
 }
