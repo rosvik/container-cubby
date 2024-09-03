@@ -12,8 +12,6 @@ use utils::*;
 
 #[test]
 async fn test_create_blob() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
@@ -39,8 +37,6 @@ async fn test_create_blob() {
 
 #[test]
 async fn test_post_then_put() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
@@ -80,8 +76,6 @@ async fn test_post_then_put() {
 
 #[test]
 async fn test_get_blob() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
@@ -123,8 +117,6 @@ async fn test_get_blob() {
 
 #[test]
 async fn test_put_manifest() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/manifest.json");
 
@@ -155,8 +147,6 @@ async fn test_put_manifest() {
 
 #[test]
 async fn test_get_manifest() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/manifest.json");
   let manifest_source = serde_json::from_str::<Manifest>(manifest).unwrap();
@@ -197,8 +187,6 @@ async fn test_get_manifest() {
 
 #[test]
 async fn test_push_as_hunks() {
-  let _ = db::init();
-
   let name: String = get_random_namespace();
   let blob = "AAAABBBB".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
