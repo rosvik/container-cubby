@@ -74,24 +74,30 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 /// Creates a manifest file, and retuns it in write-only mode. If the file
 /// already exists, an error is returned.
 pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  let (directory, file_name) = prepare_manifest(name, reference)?;
-  let file_path = format!("{directory}/{file_name}");
-  let file = OpenOptions::new().create_new(true).write(true).open(file_path)?;
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_name = manifest_file_name(reference);
+  let file =
+    OpenOptions::new().create_new(true).write(true).open(format!("{container_dir}/{file_name}"))?;
   Ok(file)
 }
 
 /// Deletes a manifest file. If the file does not exist, an error is returned.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
-  let (directory, file_name) = prepare_manifest(name, reference)?;
-  std::fs::remove_file(format!("{directory}/{file_name}"))?;
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_name = manifest_file_name(reference);
+  std::fs::remove_file(format!("{container_dir}/{file_name}"))?;
   Ok(())
 }
 
 /// Opens a manifest file in read-only mode. If the file does not exist, an error
 /// is returned.
 pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  let (directory, file_name) = prepare_manifest(name, reference)?;
-  let file = File::open(format!("{directory}/{file_name}"))?;
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_name = manifest_file_name(reference);
+  let file = File::open(format!("{container_dir}/{file_name}"))?;
   Ok(file)
 }
 
@@ -169,7 +175,6 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
 
   let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   utils::create_relative_symlink(&symlink_path, &blob_path)?;
-
   Ok(())
 }
 
@@ -207,12 +212,9 @@ fn blob_dir(digest: &str) -> Result<String, io::Error> {
   DirBuilder::new().recursive(true).create(&blob_dir)?;
   Ok(blob_dir)
 }
-fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io::Error> {
-  is_safe_reference(reference)?;
-  let container_directory = container_dir(name)?;
-  let file_name = match reference.starts_with("sha256:") {
+fn manifest_file_name(reference: &str) -> String {
+  match reference.starts_with("sha256:") {
     true => format!("{}.json", reference.replace("sha256:", "sha256@")),
     false => format!("{}.json", reference),
-  };
-  Ok((container_directory, file_name))
+  }
 }
