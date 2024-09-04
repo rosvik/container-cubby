@@ -4,50 +4,6 @@ use std::io::{self, Read};
 
 const DATA_DIR: &str = "data";
 
-fn is_safe_name(name: &str) -> Result<(), io::Error> {
-  match utils::is_safe_name(name) {
-    true => Ok(()),
-    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name))),
-  }
-}
-fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
-  match utils::is_safe_digest(digest) {
-    true => Ok(()),
-    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest))),
-  }
-}
-fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
-  match utils::is_safe_reference(reference) {
-    true => Ok(()),
-    false => {
-      Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
-    }
-  }
-}
-
-fn container_dir(name: &str) -> Result<String, io::Error> {
-  is_safe_name(name)?;
-  let container_dir = format!("{DATA_DIR}/containers/{name}");
-  DirBuilder::new().recursive(true).create(&container_dir)?;
-  Ok(container_dir)
-}
-fn blob_dir(digest: &str) -> Result<String, io::Error> {
-  is_safe_digest(digest)?;
-  let prefix = digest.chars().take(2).collect::<String>();
-  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
-  DirBuilder::new().recursive(true).create(&blob_dir)?;
-  Ok(blob_dir)
-}
-fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io::Error> {
-  is_safe_reference(reference)?;
-  let container_directory = container_dir(name)?;
-  let file_name = match reference.starts_with("sha256:") {
-    true => format!("{}.json", reference.replace("sha256:", "sha256@")),
-    false => format!("{}.json", reference),
-  };
-  Ok((container_directory, file_name))
-}
-
 /// Creates a blob file, and retuns it in write-only mode. If the file already
 /// exists, an error is returned.
 pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
@@ -215,4 +171,48 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   utils::create_relative_symlink(&symlink_path, &blob_path)?;
 
   Ok(())
+}
+
+fn is_safe_name(name: &str) -> Result<(), io::Error> {
+  match utils::is_safe_name(name) {
+    true => Ok(()),
+    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name))),
+  }
+}
+fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
+  match utils::is_safe_digest(digest) {
+    true => Ok(()),
+    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest))),
+  }
+}
+fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
+  match utils::is_safe_reference(reference) {
+    true => Ok(()),
+    false => {
+      Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
+    }
+  }
+}
+
+fn container_dir(name: &str) -> Result<String, io::Error> {
+  is_safe_name(name)?;
+  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  DirBuilder::new().recursive(true).create(&container_dir)?;
+  Ok(container_dir)
+}
+fn blob_dir(digest: &str) -> Result<String, io::Error> {
+  is_safe_digest(digest)?;
+  let prefix = digest.chars().take(2).collect::<String>();
+  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
+  DirBuilder::new().recursive(true).create(&blob_dir)?;
+  Ok(blob_dir)
+}
+fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io::Error> {
+  is_safe_reference(reference)?;
+  let container_directory = container_dir(name)?;
+  let file_name = match reference.starts_with("sha256:") {
+    true => format!("{}.json", reference.replace("sha256:", "sha256@")),
+    false => format!("{}.json", reference),
+  };
+  Ok((container_directory, file_name))
 }
