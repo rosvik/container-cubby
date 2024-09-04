@@ -4,21 +4,39 @@ use std::io::{self, Read};
 
 const DATA_DIR: &str = "data";
 
-fn prepare_container(name: &str) -> Result<String, io::Error> {
-  if !utils::is_safe_name(name) {
-    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
+fn is_safe_name(name: &str) -> Result<(), io::Error> {
+  match utils::is_safe_name(name) {
+    true => Ok(()),
+    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name))),
   }
+}
+
+fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
+  match utils::is_safe_digest(digest) {
+    true => Ok(()),
+    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest))),
+  }
+}
+
+fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
+  match utils::is_safe_reference(reference) {
+    true => Ok(()),
+    false => {
+      Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
+    }
+  }
+}
+
+fn prepare_container(name: &str) -> Result<String, io::Error> {
+  is_safe_name(name)?;
 
   let container_directory = format!("{DATA_DIR}/containers/{name}");
   DirBuilder::new().recursive(true).create(&container_directory)?;
-
   Ok(container_directory)
 }
 
 fn prepare_blob(name: &str, digest: &str) -> Result<(String, String), io::Error> {
-  if !utils::is_safe_digest(digest) {
-    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest)));
-  }
+  is_safe_digest(digest)?;
 
   let digest = digest.replace("sha256:", "");
   let prefix = digest.chars().take(2).collect::<String>();
@@ -31,12 +49,7 @@ fn prepare_blob(name: &str, digest: &str) -> Result<(String, String), io::Error>
 }
 
 fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io::Error> {
-  if !utils::is_safe_reference(reference) {
-    return Err(io::Error::new(
-      io::ErrorKind::InvalidInput,
-      format!("Unsafe reference: {}", reference),
-    ));
-  }
+  is_safe_reference(reference)?;
 
   let container_directory = prepare_container(name)?;
 
@@ -54,12 +67,7 @@ fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io:
 }
 
 fn prepare_hunk(name: &str, reference: &str) -> Result<String, io::Error> {
-  if !utils::is_safe_reference(reference) {
-    return Err(io::Error::new(
-      io::ErrorKind::InvalidInput,
-      format!("Unsafe reference: {}", reference),
-    ));
-  }
+  is_safe_reference(reference)?;
 
   let container_directory = prepare_container(name)?;
 
@@ -85,9 +93,7 @@ pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
 }
 
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
-  if !utils::is_safe_digest(digest) {
-    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest)));
-  }
+  is_safe_digest(digest)?;
 
   let prefix = digest.chars().take(2).collect::<String>();
   let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
@@ -144,9 +150,8 @@ pub fn get_manifest_file(name: &str, reference: &str) -> Result<File, io::Error>
 }
 
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
-  if !utils::is_safe_name(name) {
-    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
-  }
+  is_safe_name(name)?;
+
   let container_directory = format!("{DATA_DIR}/containers/{name}");
   let entries = std::fs::read_dir(container_directory)?;
 
