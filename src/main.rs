@@ -448,6 +448,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
 #[derive(Deserialize)]
 struct GetTagsListParameters {
   n: Option<usize>,
+  last: Option<String>,
 }
 /// end-8: `GET /v2/<name>/tags/list` => 200 / 404
 ///
@@ -482,8 +483,11 @@ async fn get_tags_list(
   // filesystem dependent.
   tags.sort_by_key(|tag| tag.to_lowercase());
 
-  // A subset of the tags can be fetched by providing the n query parameter
-  let tags = tags[..count].to_vec();
+  // A subset of the tags can be fetched by providing the n query parameter.
+  // The last query parameter provides further means for limiting the number of
+  // tags. <tagname> will not be included in the results, but up to <int> tags
+  // after <tagname> will be returned.
+  let tags = utils::get_tag_range(tags, count, query.last.as_deref());
 
   // <name> is the namespace of the repository. Assuming a repository is found,
   // this request MUST return a 200 OK response code. The list of tags MAY be

@@ -127,9 +127,26 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
   std::os::unix::fs::symlink(link, from)
 }
 
+pub fn get_tag_range(tags: Vec<String>, count: usize, last: Option<&str>) -> Vec<String> {
+  let last = last.unwrap_or("");
+  let last_index = tags.iter().position(|tag| tag == last);
+  match last_index {
+    Some(last_index) => tags.iter().skip(last_index + 1).take(count).cloned().collect(),
+    None => tags.iter().take(count).cloned().collect(),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_get_tag_range() {
+    let tags = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    assert_eq!(get_tag_range(tags.clone(), 2, None), vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(get_tag_range(tags.clone(), 2, Some("a")), vec!["b".to_string(), "c".to_string()]);
+    assert_eq!(get_tag_range(tags.clone(), 2, Some("b")), vec!["c".to_string()]);
+  }
 
   #[test]
   fn test_verify_reference() {
