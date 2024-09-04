@@ -96,7 +96,6 @@ pub fn delete_blob_file(name: &str, digest: &str) -> Result<(), io::Error> {
 pub fn get_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   let container_directory = prepare_container(name)?;
 
-  println!("{container_directory}/{digest}.blob");
   let symlink =
     File::open(format!("{container_directory}/{}.blob", digest.replace("sha256:", "")))?;
   Ok(symlink)
