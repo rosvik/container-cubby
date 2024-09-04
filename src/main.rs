@@ -80,7 +80,7 @@ async fn main() -> std::io::Result<()> {
 async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let file = storage::get_blob_file(&name, &digest);
+  let file = storage::get_blob(&name, &digest);
   let mut file = match file {
     Ok(file) => file,
     Err(e) => {
@@ -121,7 +121,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     return HttpResponse::BadRequest().finish();
   }
 
-  let mut file = storage::get_manifest_file(&name, &reference).unwrap();
+  let mut file = storage::get_manifest(&name, &reference).unwrap();
   let mut data = Vec::new();
   file.read_to_end(&mut data).unwrap();
 
@@ -204,7 +204,7 @@ async fn post_blob_upload(
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
 
-      let _ = storage::create_hunk_file(&name, &reference);
+      let _ = storage::create_hunk(&name, &reference);
 
       let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
 
@@ -216,8 +216,20 @@ async fn post_blob_upload(
       if verify_blob(&data, digest.as_str()).is_err() {
         return HttpResponse::BadRequest().finish();
       }
-      let mut file = storage::create_blob_file(&name, digest).unwrap();
-      file.write_all(&data).unwrap();
+      match storage::create_blob(&name, digest) {
+        Ok(mut file) => file.write_all(&data).unwrap(),
+        Err(e) => {
+          if e.kind() == std::io::ErrorKind::AlreadyExists {
+            // We have already stored this blob. Until the spec tells us what to
+            // do in this case, we treat it as a success and continue the normal
+            // flow.
+            println!("Warning: Existing blob uploaded, name='{}' digest='{}'", name, digest);
+          } else {
+            println!("Error: Could not create blob: {:?}", e);
+            return HttpResponse::InternalServerError().finish();
+          }
+        }
+      };
 
       let location = format!("/v2/{name}/blobs/{digest}");
 
@@ -293,7 +305,7 @@ async fn patch_blob_upload(
     return HttpResponse::BadRequest().finish();
   }
 
-  let hunk = match storage::open_hunk_file(&name, &reference) {
+  let hunk = match storage::read_hunk(&name, &reference) {
     Ok(hunk) => hunk,
     Err(e) => {
       println!("Error: Could not get hunk: {:?}", e);
@@ -327,7 +339,7 @@ async fn patch_blob_upload(
     return HttpResponse::BadRequest().finish();
   }
 
-  let mut hunk = storage::append_hunk_file(&name, &reference).unwrap();
+  let mut hunk = storage::append_hunk(&name, &reference).unwrap();
   hunk.write_all(&data).unwrap();
 
   // Each successful chunk upload MUST have a 202 Accepted response code, and
@@ -379,7 +391,7 @@ async fn put_blob_upload(
     // TODO: Verify Content-Range
 
     // We have recieved the final hunk of a blob or the entire blob in one go
-    let mut hunk = storage::append_hunk_file(&name, &reference).unwrap();
+    let mut hunk = storage::append_hunk(&name, &reference).unwrap();
     hunk.write_all(&data).unwrap();
   }
 
@@ -422,7 +434,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     }
   };
 
-  let mut file = storage::create_manifest_file(&name, &reference).unwrap();
+  let mut file = storage::create_manifest(&name, &reference).unwrap();
   file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/manifests/{reference}");
@@ -504,7 +516,7 @@ async fn get_tags_list(
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests>
 async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
-  match storage::delete_manifest_file(&name, &reference) {
+  match storage::delete_manifest(&name, &reference) {
     Ok(_) => (),
     Err(e) => {
       println!(
@@ -524,7 +536,7 @@ async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs>
 async fn delete_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
-  match storage::delete_blob_file(&name, &digest) {
+  match storage::delete_blob(&name, &digest) {
     Ok(_) => (),
     Err(e) => {
       println!("Warning: Error '{e}' when deleting blob, name='{}' digest='{}'", name, digest);
@@ -549,7 +561,7 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
   // <location> (end-13). The following chunk upload SHOULD use the <location>
   // provided in the response.
 
-  let hunk = match storage::open_hunk_file(&name, &reference) {
+  let hunk = match storage::read_hunk(&name, &reference) {
     Ok(hunk) => hunk,
     Err(e) => {
       println!("Error: Could not get hunk: {:?}", e);

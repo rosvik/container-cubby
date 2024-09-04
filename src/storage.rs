@@ -10,14 +10,12 @@ fn is_safe_name(name: &str) -> Result<(), io::Error> {
     false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name))),
   }
 }
-
 fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
   match utils::is_safe_digest(digest) {
     true => Ok(()),
     false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest))),
   }
 }
-
 fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
   match utils::is_safe_reference(reference) {
     true => Ok(()),
@@ -27,68 +25,51 @@ fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
   }
 }
 
-fn prepare_container(name: &str) -> Result<String, io::Error> {
+fn container_dir(name: &str) -> Result<String, io::Error> {
   is_safe_name(name)?;
-
-  let container_directory = format!("{DATA_DIR}/containers/{name}");
-  DirBuilder::new().recursive(true).create(&container_directory)?;
-  Ok(container_directory)
+  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  DirBuilder::new().recursive(true).create(&container_dir)?;
+  Ok(container_dir)
 }
-
-fn prepare_blob(name: &str, digest: &str) -> Result<(String, String), io::Error> {
+fn blob_dir(digest: &str) -> Result<String, io::Error> {
   is_safe_digest(digest)?;
-
-  let digest = digest.replace("sha256:", "");
   let prefix = digest.chars().take(2).collect::<String>();
-  let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
-  DirBuilder::new().recursive(true).create(&blob_directory)?;
-
-  let container_directory = prepare_container(name)?;
-
-  Ok((container_directory, blob_directory))
+  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
+  DirBuilder::new().recursive(true).create(&blob_dir)?;
+  Ok(blob_dir)
 }
-
 fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io::Error> {
   is_safe_reference(reference)?;
-
-  let container_directory = prepare_container(name)?;
-
+  let container_directory = container_dir(name)?;
   let file_name = match reference.starts_with("sha256:") {
-    true => {
-      let digest = reference.replace("sha256:", "sha256@");
-      format!("{}.json", digest)
-    }
-    false => {
-      format!("{}.json", reference)
-    }
+    true => format!("{}.json", reference.replace("sha256:", "sha256@")),
+    false => format!("{}.json", reference),
   };
-
   Ok((container_directory, file_name))
 }
 
-fn prepare_hunk(name: &str, reference: &str) -> Result<String, io::Error> {
-  is_safe_reference(reference)?;
-
-  let container_directory = prepare_container(name)?;
-
-  let file_name = format!("{reference}.hunk");
-  let file_path = format!("{container_directory}/{file_name}");
-
-  Ok(file_path)
-}
-
-pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
-  let (container_directory, blob_directory) = prepare_blob(name, digest)?;
+pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
+  let blob_dir = blob_dir(digest)?;
+  let container_dir = container_dir(name)?;
 
   let file_path = format!(
-    "{blob_directory}/{}.blob",
+    "{blob_dir}/{}.blob",
     digest.replace("sha256:", "").chars().skip(2).collect::<String>()
   );
-  let file = File::create(&file_path)?;
+  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
 
-  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  // If the file already exists, create a symlink to it, and return an
+  // AlreadyExists error.
+  if File::open(&file_path).is_ok() {
+    utils::create_relative_symlink(&symlink_path, &file_path)?;
+    return Err(io::Error::new(
+      io::ErrorKind::AlreadyExists,
+      format!("Blob already exists: {}", digest),
+    ));
+  }
+
+  let file = OpenOptions::new().create_new(true).write(true).open(&file_path)?;
   utils::create_relative_symlink(&symlink_path, &file_path)?;
-
   Ok(file)
 }
 
@@ -106,44 +87,42 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   let file = File::open(&file_path)?;
   drop(file);
 
-  let container_directory = prepare_container(name)?;
-
+  let container_directory = container_dir(name)?;
   let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
   utils::create_relative_symlink(&symlink_path, &file_path)?;
-
   Ok(())
 }
 
-pub fn delete_blob_file(name: &str, digest: &str) -> Result<(), io::Error> {
-  let container_directory = prepare_container(name)?;
-
+pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
+  is_safe_digest(digest)?;
+  let container_directory = container_dir(name)?;
   let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
   std::fs::remove_file(&symlink_path)?;
-
   Ok(())
 }
 
-pub fn get_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
-  let container_directory = prepare_container(name)?;
-
-  let symlink =
-    File::open(format!("{container_directory}/{}.blob", digest.replace("sha256:", "")))?;
+pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
+  is_safe_digest(digest)?;
+  let container_directory = container_dir(name)?;
+  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  let symlink = File::open(symlink_path)?;
   Ok(symlink)
 }
 
-pub fn create_manifest_file(name: &str, reference: &str) -> Result<File, io::Error> {
+pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
-  let file = File::create(format!("{directory}/{file_name}"))?;
+  let file_path = format!("{directory}/{file_name}");
+  let file = OpenOptions::new().create_new(true).write(true).open(file_path)?;
   Ok(file)
 }
 
-pub fn delete_manifest_file(name: &str, reference: &str) -> Result<(), io::Error> {
+pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   std::fs::remove_file(format!("{directory}/{file_name}"))?;
   Ok(())
 }
 
-pub fn get_manifest_file(name: &str, reference: &str) -> Result<File, io::Error> {
+pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   let file = File::open(format!("{directory}/{file_name}"))?;
   Ok(file)
@@ -165,32 +144,36 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   Ok(tags)
 }
 
-/// Opens a file in write-only mode. This function will create a file if it
-/// does not exist, and will truncate it if it does.
-pub fn create_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
-  println!("get_hunk_file, name: {}, reference: {}", name, reference);
-  let file_path = prepare_hunk(name, reference)?;
-  let file = File::create(file_path)?;
+pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_path = format!("{container_dir}/{reference}.hunk");
+  let file = OpenOptions::new().create_new(true).write(true).open(file_path)?;
   Ok(file)
 }
 
-pub fn append_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
-  let file_path = prepare_hunk(name, reference)?;
+pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_path = format!("{container_dir}/{reference}.hunk");
   let file = OpenOptions::new().append(true).open(file_path)?;
   Ok(file)
 }
 
-/// Opens a file in read-only mode.
-pub fn open_hunk_file(name: &str, reference: &str) -> Result<File, io::Error> {
-  let file_path = prepare_hunk(name, reference)?;
-
+pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
+  is_safe_reference(reference)?;
+  let container_dir = container_dir(name)?;
+  let file_path = format!("{container_dir}/{reference}.hunk");
   let file = File::open(file_path)?;
   Ok(file)
 }
 
 pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
-  let hunk_path = prepare_hunk(name, reference)?;
+  is_safe_reference(reference)?;
+  is_safe_digest(digest)?;
 
+  let container_dir = container_dir(name)?;
+  let hunk_path = format!("{container_dir}/{reference}.hunk");
   let mut file = File::open(&hunk_path)?;
   let mut buf = Vec::new();
   file.read_to_end(&mut buf)?;
@@ -202,15 +185,14 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
     ));
   }
 
-  let (container_directory, blob_directory) = prepare_blob(name, digest)?;
-
+  let blob_dir = blob_dir(digest)?;
   let blob_path = format!(
-    "{blob_directory}/{}.blob",
+    "{blob_dir}/{}.blob",
     digest.replace("sha256:", "").chars().skip(2).collect::<String>()
   );
   std::fs::rename(&hunk_path, &blob_path)?;
 
-  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   utils::create_relative_symlink(&symlink_path, &blob_path)?;
 
   Ok(())
