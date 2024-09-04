@@ -156,6 +156,7 @@ struct PostBlobParameters {
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#mounting-a-blob-from-another-repository>
 async fn post_blob_upload(
   path: web::Path<String>,
@@ -165,6 +166,7 @@ async fn post_blob_upload(
   let name = path.into_inner();
   if let Some(mount) = &query.mount {
     // end-11
+    // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#mounting-a-blob-from-another-repository>
 
     // If a necessary blob exists already in another repository within the same
     // registry, it can be mounted into a different repository.
@@ -193,13 +195,13 @@ async fn post_blob_upload(
   match &query.digest {
     None => {
       // end-4a
+      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
+      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 
       // If the digest parameter is not provided, we are in the "POST then PUT"
       // or chunked upload flow (PATCH). We return the `location` header, which
       // points to an endpoint that accepts PUT <location>?digest=<digest>
       // (end-6) and PATCH <location> (end-5).
-      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
-      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-a-blob-in-chunks>
 
       // MUST contain a UUID representing a unique session ID
       let reference = Uuid::new_v4().to_string();
@@ -213,6 +215,7 @@ async fn post_blob_upload(
     }
     Some(digest) => {
       // end-4b
+      // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
       if verify_blob(&data, digest.as_str()).is_err() {
         return HttpResponse::BadRequest().finish();
       }
@@ -233,7 +236,8 @@ async fn post_blob_upload(
 
       let location = format!("/v2/{name}/blobs/{digest}");
 
-      // Successful completion of the request MUST return a 201 Created status code.
+      // Successful completion of the request MUST return a 201 Created status
+      // code.
       HttpResponse::Created().insert_header(("Location", location)).finish()
     }
   }

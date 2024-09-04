@@ -48,6 +48,8 @@ fn prepare_manifest(name: &str, reference: &str) -> Result<(String, String), io:
   Ok((container_directory, file_name))
 }
 
+/// Creates a blob file, and retuns it in write-only mode. If the file already
+/// exists, an error is returned.
 pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   let blob_dir = blob_dir(digest)?;
   let container_dir = container_dir(name)?;
@@ -73,6 +75,7 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+/// Mounts a blob file. If the file does not exist, an error is returned.
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
 
@@ -93,6 +96,7 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   Ok(())
 }
 
+/// Deletes a blob file. If the file does not exist, an error is returned.
 pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
   let container_directory = container_dir(name)?;
@@ -101,6 +105,8 @@ pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   Ok(())
 }
 
+/// Opens a blob file in read-only mode. If the file does not exist, an error is
+/// returned.
 pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   is_safe_digest(digest)?;
   let container_directory = container_dir(name)?;
@@ -109,6 +115,8 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   Ok(symlink)
 }
 
+/// Creates a manifest file, and retuns it in write-only mode. If the file
+/// already exists, an error is returned.
 pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   let file_path = format!("{directory}/{file_name}");
@@ -116,18 +124,22 @@ pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+/// Deletes a manifest file. If the file does not exist, an error is returned.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   std::fs::remove_file(format!("{directory}/{file_name}"))?;
   Ok(())
 }
 
+/// Opens a manifest file in read-only mode. If the file does not exist, an error
+/// is returned.
 pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   let (directory, file_name) = prepare_manifest(name, reference)?;
   let file = File::open(format!("{directory}/{file_name}"))?;
   Ok(file)
 }
 
+/// Lists all the tags in a given namespace.
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   is_safe_name(name)?;
 
@@ -144,6 +156,8 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   Ok(tags)
 }
 
+/// Opens a file in write-only mode. If the file already exist, an error is
+/// returned.
 pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   is_safe_reference(reference)?;
   let container_dir = container_dir(name)?;
@@ -152,6 +166,8 @@ pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+/// Opens a file in append-only mode. If the file does not exist, an error is
+/// returned.
 pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   is_safe_reference(reference)?;
   let container_dir = container_dir(name)?;
@@ -160,6 +176,8 @@ pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+/// Opens a file in read-only mode. If the file does not exist, an error is
+/// returned.
 pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   is_safe_reference(reference)?;
   let container_dir = container_dir(name)?;
@@ -168,6 +186,7 @@ pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+/// Verifies that a hunk is complete, and converts it into a blob.
 pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_reference(reference)?;
   is_safe_digest(digest)?;
