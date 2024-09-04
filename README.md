@@ -28,7 +28,7 @@ The endpoints defined by the spec, and the project's current progress is the fol
 | end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<integer>`            | 200     | 404         |      |
 | end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | 202     | 404/400/405 | X    |
 | end-10  | DELETE   | `/v2/<name>/blobs/<digest>`                                  | 202     | 404/405     | X    |
-| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         |      |
+| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         | X    |
 | end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | 200     | 404/400     |      |
 | end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | 200     | 404/400     |      |
 | end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         | X    |

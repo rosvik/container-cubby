@@ -140,8 +140,12 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 #[derive(Deserialize)]
 struct PostBlobParameters {
   digest: Option<String>,
+  mount: Option<String>,
+  #[allow(dead_code)]
+  from: Option<String>,
 }
 /// end-4: `POST /v2/<name>/blobs/uploads/?digest=<digest>` => 201/202 / 404/400
+/// end-11: `POST /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` => 201 / 404
 ///
 /// REQUEST
 /// - Content-Length: {length}          (must match the blob's actual content length)
@@ -152,12 +156,40 @@ struct PostBlobParameters {
 /// - Location: {blob-location}         (a pullable blob URL)
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#mounting-a-blob-from-another-repository>
 async fn post_blob_upload(
   path: web::Path<String>,
   query: web::Query<PostBlobParameters>,
   data: web::Bytes,
 ) -> impl Responder {
   let name = path.into_inner();
+  if let Some(mount) = &query.mount {
+    // end-11
+
+    // If a necessary blob exists already in another repository within the same
+    // registry, it can be mounted into a different repository.
+    //
+    // - <name> is the namespace to which the blob will be mounted.
+    // - <mount> is the digest of the blob to mount.
+    // - <from> is the namespace from which the blob should be mounted.
+    //
+    // The registry MAY treat the from parameter as optional, and it MAY cross-
+    // mount the blob if it can be found.
+    match storage::mount_blob(&name, mount) {
+      Ok(_) => (),
+      Err(e) => {
+        println!("Error: Could not mount blob: {:?}", e);
+        return HttpResponse::NotFound().finish();
+      }
+    }
+
+    // The response to a successful mount MUST be 201 Created, and MUST contain
+    // the following header: `Location: <blob-location>`
+    let location = format!("/v2/{}/blobs/uploads/{}", name, mount);
+
+    return HttpResponse::Created().append_header(("Location", location)).finish();
+  }
+
   match &query.digest {
     None => {
       // end-4a

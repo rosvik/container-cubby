@@ -84,6 +84,30 @@ pub fn create_blob_file(name: &str, digest: &str) -> Result<File, io::Error> {
   Ok(file)
 }
 
+pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
+  if !utils::is_safe_digest(digest) {
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest)));
+  }
+
+  let prefix = digest.chars().take(2).collect::<String>();
+  let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
+  let file_path = format!(
+    "{blob_directory}/{}.blob",
+    digest.replace("sha256:", "").chars().skip(2).collect::<String>()
+  );
+
+  // If the file does not exist, return an error.
+  let file = File::open(&file_path)?;
+  drop(file);
+
+  let container_directory = prepare_container(name)?;
+
+  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  utils::create_relative_symlink(&symlink_path, &file_path)?;
+
+  Ok(())
+}
+
 pub fn delete_blob_file(name: &str, digest: &str) -> Result<(), io::Error> {
   let container_directory = prepare_container(name)?;
 
