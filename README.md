@@ -41,6 +41,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 - [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
   - [1.1 Release notes](https://opencontainers.org/posts/blog/2024-03-13-image-and-distribution-1-1/)
+- [CNCF Token Authentication Specification](https://distribution.github.io/distribution/spec/auth/token/)
 
 ## Related projects
 
@@ -48,6 +49,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 - [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
 - [CNCF Distribution Reference](https://distribution.github.io/distribution/spec/)
 - [skopeo](https://github.com/containers/skopeo)
+- [Cloudflare Container Registry in Workers](https://github.com/cloudflare/serverless-registry)
 
 ### Rust Implementations
 
