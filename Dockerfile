@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.70 as builder
+FROM rust:1.80 as builder
 WORKDIR /app
 ADD . /app
 RUN cargo build --release
