@@ -16,7 +16,7 @@ use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
 const PROTOCOL: &str = "http";
-const HOST: &str = "localhost";
+const DEFAULT_HOST: &str = "localhost";
 const DEFAULT_PORT: u16 = 8602;
 const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,17 +25,16 @@ const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
   let port = env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT);
-  let addr = format!("{}:{}", HOST, port);
+  let host = env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
 
-  dotenv().ok();
   if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
     // TODO: Add test for read-only mode
     println!(
       "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
     );
   };
+  println!("Listening on \x1b[1;4m{PROTOCOL}://{host}:{port}/\x1b[0m");
 
-  println!("Listening on \x1b[1;4m{PROTOCOL}://{addr}/\x1b[0m");
   HttpServer::new(|| {
     let auth = middleware::basic_auth::BasicAuth;
     App::new()
@@ -71,7 +70,7 @@ async fn main() -> std::io::Result<()> {
         web::get().to(get_blob_upload).wrap(auth.clone()),
       )
   })
-  .bind((HOST, port))?
+  .bind((host, port))?
   .run()
   .await
 }
