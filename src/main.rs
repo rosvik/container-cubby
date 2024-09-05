@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
     let auth = middleware::basic_auth::BasicAuth;
     App::new()
       .wrap(middleware::log_requests::LogRequests)
+      .app_data(web::PayloadConfig::new(1024 * 1024 * 1024)) // 1GB
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
