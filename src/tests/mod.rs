@@ -16,7 +16,8 @@ async fn test_create_blob() {
   let blob = "testblob".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
 
-  let app = App::new().service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload));
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload));
   let service = test::init_service(app).await;
 
   let uri = format!("/v2/{}/blobs/uploads/?digest={}", name, digest);
@@ -42,8 +43,8 @@ async fn test_post_then_put() {
   let digest = digestor::get_sha256_digest(&blob.to_vec());
 
   let app = App::new()
-    .service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload))
-    .service(web::resource("/v2/{name}/blobs/uploads/{reference}").put(put_blob_upload));
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/{reference}").put(put_blob_upload));
   let service = test::init_service(app).await;
 
   // POST to get reference
@@ -81,8 +82,8 @@ async fn test_get_blob() {
   let digest = digestor::get_sha256_digest(&blob.to_vec());
 
   let app = App::new()
-    .service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload))
-    .service(web::resource("/v2/{name}/blobs/{digest}").get(get_blob));
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/{digest}").get(get_blob));
   let service = test::init_service(app).await;
 
   // POST to get reference
@@ -120,7 +121,8 @@ async fn test_put_manifest() {
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/manifest.json");
 
-  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").put(put_manifest));
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
   let service = test::init_service(app).await;
 
   let uri = format!("/v2/{}/manifests/latest", name);
@@ -151,7 +153,8 @@ async fn test_get_manifest() {
   let manifest = include_str!("./fixtures/manifest.json");
   let manifest_source = serde_json::from_str::<Manifest>(manifest).unwrap();
 
-  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").put(put_manifest));
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
   let service = test::init_service(app).await;
 
   // PUT manifest
@@ -168,7 +171,8 @@ async fn test_get_manifest() {
   // GET manifest
   // TODO: Figure out how to use the same service for PUT and GET when the path
   //       is the same.
-  let app = App::new().service(web::resource("/v2/{name}/manifests/{reference}").get(get_manifest));
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
   let service = test::init_service(app).await;
 
   let uri = format!("/v2/{}/manifests/latest", name);
@@ -192,8 +196,8 @@ async fn test_push_as_hunks() {
   let digest = digestor::get_sha256_digest(&blob.to_vec());
 
   let app = App::new()
-    .service(web::resource("/v2/{name}/blobs/uploads/").post(post_blob_upload))
-    .service(web::resource("/v2/{name}/blobs/uploads/{reference}").patch(patch_blob_upload));
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/{reference}").patch(patch_blob_upload));
   let service = test::init_service(app).await;
 
   // POST to get reference
@@ -237,8 +241,8 @@ async fn test_push_as_hunks() {
   // TODO: Figure out how to use the same service for PUT and GET when the path
   //       is the same.
   let app = App::new()
-    .service(web::resource("/v2/{name}/blobs/uploads/{reference}").put(put_blob_upload))
-    .service(web::resource("/v2/{name}/blobs/{digest}").get(get_blob));
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/{reference}").put(put_blob_upload))
+    .service(web::resource("/v2/{name:[^{}]+}/blobs/{digest}").get(get_blob));
   let service = test::init_service(app).await;
 
   let uri = format!("/v2/{}/blobs/uploads/{}?digest={}", name, reference, digest);

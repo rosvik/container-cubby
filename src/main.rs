@@ -42,26 +42,32 @@ async fn main() -> std::io::Result<()> {
       .wrap(middleware::log_requests::LogRequests)
       .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
-      .route("/v2/{name}/blobs/{digest}", web::get().to(get_blob))
-      .route("/v2/{name}/manifests/{reference}", web::get().to(get_manifest))
-      .route("/v2/{name}/blobs/uploads/", web::post().to(post_blob_upload).wrap(auth.clone()))
+      .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
+      .route("/v2/{name:[^{}]+}/manifests/{reference}", web::get().to(get_manifest))
       .route(
-        "/v2/{name}/blobs/uploads/{reference}",
+        "/v2/{name:[^{}]+}/blobs/uploads/",
+        web::post().to(post_blob_upload).wrap(auth.clone()),
+      )
+      .route(
+        "/v2/{name:[^{}]+}/blobs/uploads/{reference}",
         web::put().to(put_blob_upload).wrap(auth.clone()),
       )
       .route(
-        "/v2/{name}/blobs/uploads/{reference}",
+        "/v2/{name:[^{}]+}/blobs/uploads/{reference}",
         web::patch().to(patch_blob_upload).wrap(auth.clone()),
       )
-      .route("/v2/{name}/manifests/{reference}", web::put().to(put_manifest).wrap(auth.clone()))
-      .route("/v2/{name}/tags/list", web::get().to(get_tags_list))
       .route(
-        "/v2/{name}/manifests/{reference}",
+        "/v2/{name:[^{}]+}/manifests/{reference}",
+        web::put().to(put_manifest).wrap(auth.clone()),
+      )
+      .route("/v2/{name:[^{}]+}/tags/list", web::get().to(get_tags_list))
+      .route(
+        "/v2/{name:[^{}]+}/manifests/{reference}",
         web::delete().to(delete_manifest).wrap(auth.clone()),
       )
-      .route("/v2/{name}/blobs/{digest}", web::delete().to(delete_blob).wrap(auth.clone()))
+      .route("/v2/{name:[^{}]+}/blobs/{digest}", web::delete().to(delete_blob).wrap(auth.clone()))
       .route(
-        "/v2/{name}/blobs/uploads/{reference}",
+        "/v2/{name:[^{}]+}/blobs/uploads/{reference}",
         web::get().to(get_blob_upload).wrap(auth.clone()),
       )
   })
