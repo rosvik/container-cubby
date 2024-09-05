@@ -57,7 +57,9 @@ where
     if let Some(credentials) = credentials {
       let auth_success = basic_auth(req.headers().get("Authorization"), credentials);
       if !auth_success {
-        let http_res = HttpResponse::Unauthorized().finish();
+        let http_res = HttpResponse::Unauthorized()
+          .insert_header(("WWW-Authenticate", "Basic realm=\"\", charset=\"UTF-8\""))
+          .finish();
         let (http_req, _) = req.into_parts();
         let res = ServiceResponse::new(http_req, http_res);
 
