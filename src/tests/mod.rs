@@ -192,7 +192,7 @@ async fn test_get_manifest() {
 #[test]
 async fn test_push_as_hunks() {
   let name: String = get_random_namespace();
-  let blob = "AAAABBBB".as_bytes();
+  let blob = "AAAABBBBCCCC".as_bytes();
   let digest = digestor::get_sha256_digest(&blob.to_vec());
 
   let app = App::new()
@@ -247,9 +247,8 @@ async fn test_push_as_hunks() {
 
   let uri = format!("/v2/{}/blobs/uploads/{}?digest={}", name, reference, digest);
   let req = test::TestRequest::with_uri(uri.as_str())
-    // TODO: Test with final part of the blob
-    // .set_payload(blob)
-    .insert_header(("Content-Length", "0"))
+    .set_payload("CCCC")
+    .insert_header(("Content-Length", "4"))
     .method(Method::PUT)
     .to_request();
   let res = service.call(req).await.unwrap();
@@ -301,10 +300,12 @@ async fn test_no_auth() {
     .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
   let service = test::init_service(app).await;
 
+  // GET /v2/ should require authentication
   let req = test::TestRequest::with_uri("/v2/").to_request();
   let res = service.call(req).await;
   assert_eq!(res.unwrap().status(), StatusCode::UNAUTHORIZED);
 
+  // GET /v2/test/manifests/latest should not require authentication
   let req = test::TestRequest::with_uri("/v2/test/manifests/latest").to_request();
   let res = service.call(req).await;
   // StatisCode::NOT_FOUND means authentication was not required
