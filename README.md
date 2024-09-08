@@ -2,6 +2,14 @@
 
 This is (an attempt at creating) a minimal implementation of a container registry, that closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The project is still a work in progress, but the goal is to create a no-fuss single-tenant container registry in rust.
 
+## TODO
+
+- [x] ~Use postgres~
+- [ ] Add testcontainers for bootstraping and testing
+- [ ] Implement the endpoints
+- [x] Use a proper blob storage backend
+  - Files on disk
+
 ## Endpoints
 
 The endpoints defined by the spec, and the project's current progress is the following:
@@ -16,11 +24,11 @@ The endpoints defined by the spec, and the project's current progress is the fol
 | end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | 202     | 404/416     | X    |
 | end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | 201     | 404/400     | X    |
 | end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | 201     | 404         | X    |
-| end-8a  | GET      | `/v2/<name>/tags/list`                                       | 200     | 404         | -    |
-| end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<integer>`            | 200     | 404         | -    |
+| end-8a  | GET      | `/v2/<name>/tags/list`                                       | 200     | 404         | X    |
+| end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<tagname>`            | 200     | 404         | X    |
 | end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | 202     | 404/400/405 | X    |
 | end-10  | DELETE   | `/v2/<name>/blobs/<digest>`                                  | 202     | 404/405     | X    |
-| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         |      |
+| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         | X    |
 | end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | 200     | 404/400     |      |
 | end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | 200     | 404/400     |      |
 | end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         | X    |
@@ -33,6 +41,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 - [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
   - [1.1 Release notes](https://opencontainers.org/posts/blog/2024-03-13-image-and-distribution-1-1/)
+- [CNCF Token Authentication Specification](https://distribution.github.io/distribution/spec/auth/token/)
 
 ## Related projects
 
@@ -40,6 +49,7 @@ https://specs.opencontainers.org/distribution-spec/#endpoints
 - [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
 - [CNCF Distribution Reference](https://distribution.github.io/distribution/spec/)
 - [skopeo](https://github.com/containers/skopeo)
+- [Cloudflare Container Registry in Workers](https://github.com/cloudflare/serverless-registry)
 
 ### Rust Implementations
 

@@ -6,20 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.7.4"
+actix-web = "4.9.0"
 base64 = "0.22.0"
 dotenv = "0.15.0"
+futures-util = "0.3.30"
 regex-lite = "0.1.5"
 serde = {version = "1.0.195", features = ["derive"]}
 serde_json = "1.0.116"
+serde_with = "3.9.0"
 sha2 = "0.9.9"
 tokio = {version = "1.35.1", features = ["rt-multi-thread"]}
 tower = "0.4.13"
 uuid = {version = "1.7.0", features = ["v4"]}
-
-[dependencies.rusqlite]
-version = "0.30.0"
-features = ["bundled"]
 
 [dev-dependencies]
 fastrand = "2.0.1"
