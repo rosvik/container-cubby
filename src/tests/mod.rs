@@ -293,3 +293,20 @@ async fn test_basic_auth() {
   let res = service.call(req).await;
   assert_eq!(res.unwrap().status(), StatusCode::OK);
 }
+
+#[test]
+async fn test_no_auth() {
+  let app = App::new()
+    .service(web::resource("/v2/").get(|| async { "Authenticated" }).wrap(BasicAuth))
+    .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
+  let service = test::init_service(app).await;
+
+  let req = test::TestRequest::with_uri("/v2/").to_request();
+  let res = service.call(req).await;
+  assert_eq!(res.unwrap().status(), StatusCode::UNAUTHORIZED);
+
+  let req = test::TestRequest::with_uri("/v2/test/manifests/latest").to_request();
+  let res = service.call(req).await;
+  // StatisCode::NOT_FOUND means authentication was not required
+  assert_eq!(res.unwrap().status(), StatusCode::NOT_FOUND);
+}

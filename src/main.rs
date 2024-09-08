@@ -28,7 +28,6 @@ async fn main() -> std::io::Result<()> {
   let host = env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
 
   if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
-    // TODO: Add test for read-only mode
     println!(
       "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
     );
