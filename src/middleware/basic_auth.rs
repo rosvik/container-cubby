@@ -49,22 +49,19 @@ where
   forward_ready!(service);
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
-    let credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
-      (Ok(username), Ok(password)) => Some(format!("{}:{}", username, password)),
-      _ => None,
+    let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
+      (Ok(username), Ok(password)) => format!("{}:{}", username, password),
+      _ => {
+        // If server credentials are not set, return 401 Unauthorized.
+        let response = into_unauthorized(req);
+        return (async move { Ok(response.map_into_right_body()) }).boxed_local();
+      }
     };
 
-    if let Some(credentials) = credentials {
-      let auth_success = basic_auth(req.headers().get("Authorization"), credentials);
-      if !auth_success {
-        let http_res = HttpResponse::Unauthorized()
-          .insert_header(("WWW-Authenticate", "Basic realm=\"\", charset=\"UTF-8\""))
-          .finish();
-        let (http_req, _) = req.into_parts();
-        let res = ServiceResponse::new(http_req, http_res);
-
-        return (async move { Ok(res.map_into_right_body()) }).boxed_local();
-      }
+    let auth_success = basic_auth(req.headers().get("Authorization"), server_credentials);
+    if !auth_success {
+      let response = into_auth_challenge(req);
+      return (async move { Ok(response.map_into_right_body()) }).boxed_local();
     }
 
     let service = Rc::clone(&self.service);
@@ -85,8 +82,25 @@ fn basic_auth(auth_header: Option<&HeaderValue>, server_credentials: String) -> 
   if auth.len() != 2 {
     return false;
   }
+  if auth[0] != "Basic" {
+    return false;
+  }
   let auth = auth[1];
   let request_credentials = decode_base64(auth.to_string()).unwrap_or_default();
 
   request_credentials == server_credentials
+}
+
+fn into_auth_challenge(req: ServiceRequest) -> ServiceResponse {
+  let http_res = HttpResponse::Unauthorized()
+    .insert_header(("WWW-Authenticate", "Basic realm=\"\", charset=\"UTF-8\""))
+    .finish();
+  let (http_req, _) = req.into_parts();
+  ServiceResponse::new(http_req, http_res)
+}
+
+fn into_unauthorized(req: ServiceRequest) -> ServiceResponse {
+  let http_res = HttpResponse::Unauthorized().finish();
+  let (http_req, _) = req.into_parts();
+  ServiceResponse::new(http_req, http_res)
 }
