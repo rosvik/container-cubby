@@ -127,7 +127,19 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     return HttpResponse::BadRequest().finish();
   }
 
-  let mut file = storage::get_manifest(&name, &reference).unwrap();
+  let mut file = match storage::get_manifest(&name, &reference) {
+    Ok(file) => file,
+    Err(e) => match e.kind() {
+      std::io::ErrorKind::NotFound => {
+        println!("Error: Manifest not found: name='{}' reference='{}'", name, reference);
+        return HttpResponse::NotFound().finish();
+      }
+      _ => {
+        println!("Error getting manifest: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+      }
+    },
+  };
   let mut data = Vec::new();
   file.read_to_end(&mut data).unwrap();
 
