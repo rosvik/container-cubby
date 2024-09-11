@@ -80,14 +80,14 @@ pub enum Reference<'a> {
   Sha256(&'a str),
   Tag(&'a str),
 }
-pub fn verify_reference(tag: &str) -> Result<Reference, ()> {
-  match tag.starts_with("sha256:") {
-    true => match is_safe_digest(tag) {
-      true => Ok(Reference::Sha256(tag)),
+pub fn verify_reference(reference: &str) -> Result<Reference, ()> {
+  match reference.starts_with("sha256:") {
+    true => match is_safe_digest(reference) {
+      true => Ok(Reference::Sha256(reference)),
       false => Err(()),
     },
-    false => match is_safe_reference(tag) {
-      true => Ok(Reference::Tag(tag)),
+    false => match is_safe_reference(reference) {
+      true => Ok(Reference::Tag(reference)),
       false => Err(()),
     },
   }
