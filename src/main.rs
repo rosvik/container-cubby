@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     App::new()
       .wrap(middleware::log_requests::LogRequests)
       .app_data(web::PayloadConfig::new(1024 * 1024 * 1024)) // 1GB
-      .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
+      .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}\n") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
       .route("/v2/{name:[^{}]+}/manifests/{reference}", web::get().to(get_manifest))
