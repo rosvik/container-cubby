@@ -39,10 +39,12 @@ async fn main() -> std::io::Result<()> {
     App::new()
       .wrap(middleware::log_requests::LogRequests)
       .app_data(web::PayloadConfig::new(1024 * 1024 * 1024)) // 1GB
-      .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}") }))
+      .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}\n") }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
+      .route("/v2/{name:[^{}]+}/blobs/{digest}", web::head().to(head_blob))
       .route("/v2/{name:[^{}]+}/manifests/{reference}", web::get().to(get_manifest))
+      .route("/v2/{name:[^{}]+}/manifests/{reference}", web::head().to(head_manifest))
       .route(
         "/v2/{name:[^{}]+}/blobs/uploads/",
         web::post().to(post_blob_upload).wrap(auth.clone()),
@@ -78,7 +80,7 @@ async fn main() -> std::io::Result<()> {
 /// end-2: `GET /v2/<name>/blobs/<digest>` => 200 / 404
 ///
 /// RESPONSE:
-/// - Docker-Content-Digest: {the blob's digest}
+/// - Docker-Content-Digest: {blob digest}
 /// - Body: {blob data}
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs>
@@ -104,6 +106,40 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   // A GET request to an existing blob URL MUST provide the expected blob, with
   // a response code that MUST be 200 OK.
   HttpResponse::Ok().insert_header(("Docker-Content-Digest", digest)).body(buf)
+}
+
+/// end-2: `HEAD /v2/<name>/blobs/<digest>` => 200 / 404
+///
+/// RESPONSE:
+/// - Docker-Content-Digest: {blob digest}
+/// - Content-Length: {blob size in bytes}
+///
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#checking-if-content-exists-in-the-registry>
+async fn head_blob(path: web::Path<(String, String)>) -> impl Responder {
+  let (name, digest) = path.into_inner();
+
+  let file = storage::get_blob(&name, &digest);
+  let file = match file {
+    Ok(file) => file,
+    Err(e) => {
+      println!("Error getting blob: {:?}", e);
+      // If the blob or manifest is not found in the registry, the response code
+      // MUST be `404 Not Found`.
+      return HttpResponse::NotFound().finish();
+    }
+  };
+  let metadata = file.metadata().unwrap();
+  let content_length = metadata.len();
+
+  // - A HEAD request to an existing blob or manifest URL MUST return `200 OK`.
+  // - A successful response SHOULD contain the digest of the uploaded blob in
+  //   the header `Docker-Content-Digest`.
+  // - A successful response SHOULD contain the size in bytes of the uploaded
+  //   blob in the header `Content-Length`.
+  HttpResponse::Ok()
+    .insert_header(("Docker-Content-Digest", digest))
+    .insert_header(("Content-Length", content_length.to_string()))
+    .finish()
 }
 
 /// end-3: `GET /v2/<name>/manifests/<reference>` => 200 / 404
@@ -152,6 +188,38 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     .insert_header(("Docker-Content-Digest", digest))
     .content_type(content_type)
     .body(data)
+}
+
+/// end-3: `HEAD /v2/<name>/manifests/<reference>` => 200 / 404
+///
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#checking-if-content-exists-in-the-registry>
+async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
+  let (name, reference) = path.into_inner();
+
+  if verify_reference(&reference).is_err() {
+    // NOTE: The spec doesn't mention what to do if the reference is invalid.
+    println!("Error: Invalid reference: {:?}", reference);
+    return HttpResponse::BadRequest().finish();
+  }
+
+  let _ = match storage::get_manifest(&name, &reference) {
+    Ok(file) => file,
+    Err(e) => match e.kind() {
+      std::io::ErrorKind::NotFound => {
+        println!("Error: Manifest not found: name='{}' reference='{}'", name, reference);
+        // If the blob or manifest is not found in the registry, the response
+        // code MUST be `404 Not Found`.
+        return HttpResponse::NotFound().finish();
+      }
+      _ => {
+        println!("Error getting manifest: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+      }
+    },
+  };
+
+  // A HEAD request to an existing blob or manifest URL MUST return `200 OK`.
+  HttpResponse::Ok().finish()
 }
 
 #[derive(Deserialize)]
