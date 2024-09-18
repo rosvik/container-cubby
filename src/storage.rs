@@ -177,7 +177,15 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   std::fs::rename(&hunk_path, &blob_path)?;
 
   let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
-  utils::create_relative_symlink(&symlink_path, &blob_path)?;
+  match utils::create_relative_symlink(&symlink_path, &blob_path) {
+    Ok(_) => (),
+    Err(e) => match e.kind() {
+      // If the symlink already exists, we can ignore the error and continue.
+      io::ErrorKind::AlreadyExists => (),
+      _ => return Err(e),
+    },
+  }
+
   Ok(())
 }
 
