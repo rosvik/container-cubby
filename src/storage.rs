@@ -194,9 +194,9 @@ fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
   }
 }
 fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
-  match utils::is_safe_reference(reference) {
-    true => Ok(()),
-    false => {
+  match utils::verify_reference(reference) {
+    Ok(_) => Ok(()),
+    Err(_) => {
       Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
     }
   }
