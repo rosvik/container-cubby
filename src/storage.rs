@@ -84,7 +84,10 @@ pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
 
 /// Deletes a manifest file. If the file does not exist, an error is returned.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
-  is_safe_reference(reference)?;
+  match utils::verify_reference(reference) {
+    Ok(_) => (),
+    Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
+  }
   let container_dir = container_dir(name)?;
   let file_name = manifest_file_name(reference);
   std::fs::remove_file(format!("{container_dir}/{file_name}"))?;
