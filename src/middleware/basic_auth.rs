@@ -49,19 +49,22 @@ where
   forward_ready!(service);
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
-    let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
-      (Ok(username), Ok(password)) => format!("{}:{}", username, password),
-      _ => {
-        // If server credentials are not set, return 401 Unauthorized.
-        let response = into_unauthorized(req);
+    let auth_enabled = env::var("AUTH_ENABLED").unwrap_or("true".to_string());
+    if auth_enabled != "false" {
+      let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
+        (Ok(username), Ok(password)) => format!("{}:{}", username, password),
+        _ => {
+          // If server credentials are not set, return 401 Unauthorized.
+          let response = into_unauthorized(req);
+          return (async move { Ok(response.map_into_right_body()) }).boxed_local();
+        }
+      };
+
+      let auth_success = basic_auth(req.headers().get("Authorization"), server_credentials);
+      if !auth_success {
+        let response = into_auth_challenge(req);
         return (async move { Ok(response.map_into_right_body()) }).boxed_local();
       }
-    };
-
-    let auth_success = basic_auth(req.headers().get("Authorization"), server_credentials);
-    if !auth_success {
-      let response = into_auth_challenge(req);
-      return (async move { Ok(response.map_into_right_body()) }).boxed_local();
     }
 
     let service = Rc::clone(&self.service);
