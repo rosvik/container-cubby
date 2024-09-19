@@ -265,6 +265,12 @@ async fn post_blob_upload(
     match storage::mount_blob(&name, mount) {
       Ok(_) => (),
       Err(e) => {
+        // TODO: Conformance test "Cross-mounting of a blob without the from
+        // argument should yield session id" fails because we don't response
+        // with 202 here when the `from` parameter is not provided. However, the
+        // spec doesn't specify what to do when treating the `from` parameter as
+        // optional.
+
         println!("Error: Could not mount blob: {:?}", e);
         return HttpResponse::NotFound().finish();
       }
