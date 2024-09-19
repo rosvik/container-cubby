@@ -689,7 +689,7 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
 
   // The <end-of-range> value is the position of the last uploaded byte.
   let size_in_bytes = hunk.metadata().unwrap().len();
-  let range = format!("0-{}", size_in_bytes);
+  let range = format!("0-{}", size_in_bytes - 1);
 
   // The response to an active upload <location> MUST be a 204 No Content
   // response code
