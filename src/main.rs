@@ -523,7 +523,21 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     }
   };
 
-  let mut file = storage::create_manifest(&name, &reference).unwrap();
+  let digest = digestor::get_sha256_digest(&data.to_vec());
+  if reference.starts_with("sha256:") && reference != digest {
+    println!(
+      "Error: sha256 reference does not match digest: reference='{}' digest='{}'",
+      reference, digest
+    );
+    return HttpResponse::BadRequest().finish();
+  }
+
+  let tag = match reference.starts_with("sha256:") {
+    true => None,
+    false => Some(reference.as_str()),
+  };
+
+  let mut file = storage::create_manifest(&name, &digest, tag).unwrap();
   file.write_all(&data).unwrap();
 
   let location = format!("/v2/{name}/manifests/{reference}");

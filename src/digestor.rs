@@ -80,4 +80,11 @@ mod tests {
     let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
     assert_eq!(example_digest, get_sha256_digest(&example_bytes));
   }
+
+  #[test]
+  fn test_mainifest_fixture_digest() {
+    let manifest = include_str!("./tests/fixtures/manifest.json").as_bytes().to_vec();
+    let manifest_sha = "sha256:edee272db7445c0aedfa7892df3f734fa6117221e37389063e65648ba47f7b00";
+    assert_eq!(manifest_sha, get_sha256_digest(&manifest));
+  }
 }

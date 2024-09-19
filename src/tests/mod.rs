@@ -187,6 +187,17 @@ async fn test_get_manifest() {
   let bytes = test::read_body(res).await;
   let manifest_result = serde_json::from_slice::<Manifest>(&bytes).unwrap();
   assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
+
+  // GET manifest based on it's digest
+  let manifest_digest = "sha256:edee272db7445c0aedfa7892df3f734fa6117221e37389063e65648ba47f7b00";
+  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::GET)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
 }
 
 #[test]

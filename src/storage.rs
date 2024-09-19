@@ -73,12 +73,25 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 
 /// Creates a manifest file, and retuns it in write-only mode. If the file
 /// already exists, an error is returned.
-pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
+pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
+  is_safe_digest(digest)?;
+  if let Some(tag) = tag {
+    if !utils::is_safe_reference(tag) {
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid tag"));
+    }
+  }
+
   let container_dir = container_dir(name)?;
-  let file_name = manifest_file_name(reference);
-  let file =
-    OpenOptions::new().create_new(true).write(true).open(format!("{container_dir}/{file_name}"))?;
+  let data_file_name = manifest_file_name(digest);
+  let data_file_path = format!("{container_dir}/{data_file_name}");
+  let file = OpenOptions::new().create_new(true).write(true).open(&data_file_path)?;
+
+  if let Some(tag) = tag {
+    let tag_file_name = manifest_file_name(tag);
+    let tag_file_path = format!("{container_dir}/{tag_file_name}");
+    utils::create_relative_symlink(&tag_file_path, &data_file_path)?;
+  }
+
   Ok(file)
 }
 
