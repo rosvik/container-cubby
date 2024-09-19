@@ -75,7 +75,7 @@ pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
   Ok(())
 }
 
-#[allow(dead_code)] // TODO: Remove this once fields are used in logs
+#[allow(dead_code)]
 pub enum Reference<'a> {
   Sha256(&'a str),
   Tag(&'a str),
@@ -125,6 +125,25 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
   let dir_levels = from.split("/").count() - 1;
   let link = format!("{}{to}", "../".repeat(dir_levels));
   std::os::unix::fs::symlink(link, from)
+}
+
+pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
+  for entry in std::fs::read_dir(dir)? {
+    let file_name = entry?.file_name().into_string().unwrap();
+    if file_name.ends_with(".json") && !file_name.starts_with("sha256@") {
+      let link_path = format!("{dir}/{file_name}");
+      if let Err(error) = std::fs::canonicalize(&link_path) {
+        if error.kind() == std::io::ErrorKind::NotFound {
+          std::fs::remove_file(&link_path)?;
+          let tag_name = &file_name[..file_name.len() - 5];
+          println!("Deleted tag: {}", tag_name);
+        } else {
+          return Err(error);
+        }
+      };
+    }
+  }
+  Ok(())
 }
 
 pub fn get_tag_range(tags: Vec<String>, count: usize, last: Option<&str>) -> Vec<String> {

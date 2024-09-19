@@ -198,6 +198,20 @@ async fn test_get_manifest() {
 
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::OK);
+
+  // DELETE manifest based on it's digest
+  let app = App::new()
+    .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").delete(delete_manifest));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::DELETE)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::ACCEPTED);
 }
 
 #[test]

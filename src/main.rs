@@ -620,6 +620,7 @@ async fn get_tags_list(
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
 ///
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-tags>
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests>
 async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
