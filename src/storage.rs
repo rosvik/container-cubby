@@ -35,7 +35,7 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
 
-  let prefix = digest.chars().take(2).collect::<String>();
+  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
   let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
   let file_path = format!(
     "{blob_directory}/{}.blob",
