@@ -543,8 +543,16 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     false => Some(reference.as_str()),
   };
 
-  let mut file = storage::create_manifest(&name, &digest, tag).unwrap();
-  file.write_all(&data).unwrap();
+  match storage::create_manifest(&name, &digest, tag) {
+    Ok(mut file) => file.write_all(&data).unwrap(),
+    Err(e) => {
+      // Continue if the manifest already exists, otherwise return 500.
+      if e.kind() != std::io::ErrorKind::AlreadyExists {
+        println!("Error: Could not create manifest: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+      }
+    }
+  };
 
   let location = format!("/v2/{name}/manifests/{reference}");
   HttpResponse::Created().insert_header(("Location", location)).finish()

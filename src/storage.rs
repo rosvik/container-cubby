@@ -84,7 +84,16 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
   let container_dir = container_dir(name)?;
   let data_file_name = manifest_file_name(digest);
   let data_file_path = format!("{container_dir}/{data_file_name}");
-  let file = OpenOptions::new().create_new(true).write(true).open(&data_file_path)?;
+  let file = match OpenOptions::new().create_new(true).write(true).open(&data_file_path) {
+    Ok(f) => Ok(f),
+    Err(e) => match e.kind() {
+      // If the file already exists, we should still create the tag before we
+      // forward the error.
+      io::ErrorKind::AlreadyExists => Err(e),
+      // Otherwise error out.
+      _ => return Err(e),
+    },
+  };
 
   if let Some(tag) = tag {
     let tag_file_name = manifest_file_name(tag);
@@ -92,7 +101,7 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
     utils::create_relative_symlink(&tag_file_path, &data_file_path)?;
   }
 
-  Ok(file)
+  file
 }
 
 /// Deletes a manifest file and all tags that link to the manifest. If the file
