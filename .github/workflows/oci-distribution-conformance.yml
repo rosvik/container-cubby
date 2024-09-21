@@ -17,7 +17,7 @@ jobs:
       - name: Wait 5 seconds
         run: sleep 5
       - name: Run OCI Distribution Spec conformance tests
-        uses: opencontainers/distribution-spec@main
+        uses: rosvik/oci-distribution-spec@v1.0
         env:
           OCI_ROOT_URL: http://localhost:8602
           OCI_NAMESPACE: mytestorg/mytestrepo
