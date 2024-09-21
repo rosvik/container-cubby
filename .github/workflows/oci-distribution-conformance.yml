@@ -54,7 +54,7 @@ jobs:
           go test -c
           ./conformance.test
         env:
-          OCI_ROOT_URL: http://0.0.0.0:8602
+          OCI_ROOT_URL: http://localhost:8602
           OCI_NAMESPACE: mytestorg/mytestrepo
           OCI_TEST_PULL: 1
           OCI_TEST_PUSH: 1
