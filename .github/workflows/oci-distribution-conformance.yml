@@ -4,21 +4,48 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: rustup toolchain install stable --profile minimal
-      - name: Build
-        run: cargo build
-      - name: Start server
-        run: cargo run &
+      - name: Checkout tiny-registry
+        uses: actions/checkout@v3
+        with:
+          path: tiny-registry
+      - name: Setup Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Build tiny-registry
+        run: |
+          cd tiny-registry
+          cargo build
+          cd -
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+      - name: Checkout oci-distribution-spec
+        uses: actions/checkout@v3
+        with:
+          repository: rosvik/oci-distribution-spec
+          path: oci-distribution-spec
+          ref: v1.0
+
+      - name: Start tiny-registry
+        run: |
+          cd tiny-registry
+          cargo run &
+          cd -
         env:
-          HOST: 0.0.0.0
           USERNAME: mytestuser
           PASSWORD: mytestpassword
           AUTH_ENABLED: false
+
       - name: Wait 5 seconds
         run: sleep 5
-      - name: Run OCI Distribution Spec conformance tests
-        uses: rosvik/oci-distribution-spec@v1.0
+
+      - name: Run conformance tests
+        continue-on-error: true
+        run: |
+          cd oci-distribution-spec/conformance
+          go test -c
+          ./conformance.test
         env:
           OCI_ROOT_URL: http://0.0.0.0:8602
           OCI_NAMESPACE: mytestorg/mytestrepo
@@ -29,3 +56,9 @@ jobs:
           OCI_HIDE_SKIPPED_WORKFLOWS: 0
           OCI_DEBUG: 0
           OCI_DELETE_MANIFEST_BEFORE_BLOBS: 0
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Report
+          path: oci-distribution-spec/conformance/report.html
