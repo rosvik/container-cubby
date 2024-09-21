@@ -12,6 +12,8 @@ jobs:
         run: rustup toolchain install stable --profile minimal
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tiny-registry
       - name: Build tiny-registry
         run: |
           cd tiny-registry
