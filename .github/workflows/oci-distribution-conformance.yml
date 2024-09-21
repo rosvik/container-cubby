@@ -11,6 +11,7 @@ jobs:
       - name: Start server
         run: cargo run &
         env:
+          HOST: 0.0.0.0
           USERNAME: mytestuser
           PASSWORD: mytestpassword
           AUTH_ENABLED: false
