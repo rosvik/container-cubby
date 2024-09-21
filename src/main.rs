@@ -277,8 +277,9 @@ async fn post_blob_upload(
     }
 
     // The response to a successful mount MUST be 201 Created, and MUST contain
-    // the following header: `Location: <blob-location>`
-    let location = format!("/v2/{}/blobs/uploads/{}", name, mount);
+    // the following header: `Location: <blob-location>`. The Location header
+    // will contain the registry URL to access the accepted layer file.
+    let location = format!("/v2/{}/blobs/{}", name, mount);
 
     return HttpResponse::Created().append_header(("Location", location)).finish();
   }
