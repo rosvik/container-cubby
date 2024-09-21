@@ -1,7 +1,7 @@
-name: oci-distribution-conformance
+name: OCI Distribution conformance tests
 on: push
 jobs:
-  run:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tiny-registry
