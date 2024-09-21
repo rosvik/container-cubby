@@ -21,7 +21,7 @@ pub struct Manifest {
   /// This property is reserved for use, to maintain compatibility. When used,
   /// this field contains the media type of this document, which differs from
   /// the descriptor use of mediaType.
-  pub media_type: String,
+  pub media_type: Option<String>,
 
   /// This REQUIRED property references a configuration object for a container,
   /// by digest.

@@ -265,14 +265,21 @@ async fn post_blob_upload(
     match storage::mount_blob(&name, mount) {
       Ok(_) => (),
       Err(e) => {
+        // TODO: Conformance test "Cross-mounting of a blob without the from
+        // argument should yield session id" fails because we don't response
+        // with 202 here when the `from` parameter is not provided. However, the
+        // spec doesn't specify what to do when treating the `from` parameter as
+        // optional.
+
         println!("Error: Could not mount blob: {:?}", e);
         return HttpResponse::NotFound().finish();
       }
     }
 
     // The response to a successful mount MUST be 201 Created, and MUST contain
-    // the following header: `Location: <blob-location>`
-    let location = format!("/v2/{}/blobs/uploads/{}", name, mount);
+    // the following header: `Location: <blob-location>`. The Location header
+    // will contain the registry URL to access the accepted layer file.
+    let location = format!("/v2/{}/blobs/{}", name, mount);
 
     return HttpResponse::Created().append_header(("Location", location)).finish();
   }
@@ -523,8 +530,30 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     }
   };
 
-  let mut file = storage::create_manifest(&name, &reference).unwrap();
-  file.write_all(&data).unwrap();
+  let digest = digestor::get_sha256_digest(&data.to_vec());
+  if reference.starts_with("sha256:") && reference != digest {
+    println!(
+      "Error: sha256 reference does not match digest: reference='{}' digest='{}'",
+      reference, digest
+    );
+    return HttpResponse::BadRequest().finish();
+  }
+
+  let tag = match reference.starts_with("sha256:") {
+    true => None,
+    false => Some(reference.as_str()),
+  };
+
+  match storage::create_manifest(&name, &digest, tag) {
+    Ok(mut file) => file.write_all(&data).unwrap(),
+    Err(e) => {
+      // Continue if the manifest already exists, otherwise return 500.
+      if e.kind() != std::io::ErrorKind::AlreadyExists {
+        println!("Error: Could not create manifest: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+      }
+    }
+  };
 
   let location = format!("/v2/{name}/manifests/{reference}");
   HttpResponse::Created().insert_header(("Location", location)).finish()
@@ -606,6 +635,7 @@ async fn get_tags_list(
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
 ///
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-tags>
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-manifests>
 async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
@@ -668,7 +698,7 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
 
   // The <end-of-range> value is the position of the last uploaded byte.
   let size_in_bytes = hunk.metadata().unwrap().len();
-  let range = format!("0-{}", size_in_bytes);
+  let range = format!("0-{}", size_in_bytes - 1);
 
   // The response to an active upload <location> MUST be a 204 No Content
   // response code

@@ -35,7 +35,7 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
 
-  let prefix = digest.chars().take(2).collect::<String>();
+  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
   let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
   let file_path = format!(
     "{blob_directory}/{}.blob",
@@ -73,24 +73,57 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 
 /// Creates a manifest file, and retuns it in write-only mode. If the file
 /// already exists, an error is returned.
-pub fn create_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
+pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
+  is_safe_digest(digest)?;
+  if let Some(tag) = tag {
+    if !utils::is_safe_reference(tag) {
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid tag"));
+    }
+  }
+
   let container_dir = container_dir(name)?;
-  let file_name = manifest_file_name(reference);
-  let file =
-    OpenOptions::new().create_new(true).write(true).open(format!("{container_dir}/{file_name}"))?;
-  Ok(file)
+  let data_file_name = manifest_file_name(digest);
+  let data_file_path = format!("{container_dir}/{data_file_name}");
+  let file = match OpenOptions::new().create_new(true).write(true).open(&data_file_path) {
+    Ok(f) => Ok(f),
+    Err(e) => match e.kind() {
+      // If the file already exists, we should still create the tag before we
+      // forward the error.
+      io::ErrorKind::AlreadyExists => Err(e),
+      // Otherwise error out.
+      _ => return Err(e),
+    },
+  };
+
+  // TODO: Should have a create_tag helper instead.
+  if let Some(tag) = tag {
+    let tag_file_name = manifest_file_name(tag);
+    let tag_file_path = format!("{container_dir}/{tag_file_name}");
+    utils::create_relative_symlink(&tag_file_path, &data_file_path)?;
+  }
+
+  file
 }
 
-/// Deletes a manifest file. If the file does not exist, an error is returned.
+/// Deletes a manifest file and all tags that link to the manifest. If the file
+/// does not exist, an error is returned.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
-  match utils::verify_reference(reference) {
-    Ok(_) => (),
+  let reference_type = match utils::verify_reference(reference) {
+    Ok(r) => r,
     Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
-  }
+  };
   let container_dir = container_dir(name)?;
   let file_name = manifest_file_name(reference);
   std::fs::remove_file(format!("{container_dir}/{file_name}"))?;
+
+  match reference_type {
+    utils::Reference::Tag(_) => {}
+    utils::Reference::Sha256(_) => {
+      // Delete tags that point to the deleted manifest
+      utils::clean_broken_symlinks_in(container_dir.as_str())?;
+    }
+  }
+
   Ok(())
 }
 
