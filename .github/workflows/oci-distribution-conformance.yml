@@ -4,19 +4,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout tiny-registry
+      - name: Checkout container-cubby
         uses: actions/checkout@v3
         with:
-          path: tiny-registry
+          path: container-cubby
       - name: Setup rust
         run: rustup toolchain install stable --profile minimal
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: tiny-registry
-      - name: Build tiny-registry
+          workspaces: container-cubby
+      - name: Build container-cubby
         run: |
-          cd tiny-registry
+          cd container-cubby
           cargo build
           cd -
 
@@ -35,9 +35,9 @@ jobs:
               **/go.sum
               **/go.mod
 
-      - name: Start tiny-registry
+      - name: Start container-cubby
         run: |
-          cd tiny-registry
+          cd container-cubby
           cargo run &
           cd -
         env:

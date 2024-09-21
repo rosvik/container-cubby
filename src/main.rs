@@ -566,7 +566,7 @@ struct GetTagsListParameters {
 }
 /// end-8: `GET /v2/<name>/tags/list` => 200 / 404
 ///
-/// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/tiny-registry`)
+/// RESPONSE: (`skopeo list-tags docker://docker.io/rosvik/container-cubby`)
 /// - Content-Type: `application/json`
 /// - Link: {RFC5988 with rel="next"}                   (if there are more tags)
 /// - Body:

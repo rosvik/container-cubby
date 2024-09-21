@@ -6,8 +6,8 @@ RUN cargo build --release
 
 # Prod stage
 FROM gcr.io/distroless/cc
-COPY --from=builder /app/target/release/tiny-registry /
+COPY --from=builder /app/target/release/container-cubby /
 
 EXPOSE 8602
 
-CMD ["./tiny-registry"]
+CMD ["./container-cubby"]

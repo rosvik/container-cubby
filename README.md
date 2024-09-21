@@ -1,4 +1,4 @@
-# tiny-registry
+# Container Cubby
 
 This is (an attempt at creating) a minimal implementation of a container registry, that closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The project is still a work in progress, but the goal is to create a no-fuss single-tenant container registry in rust.
 
