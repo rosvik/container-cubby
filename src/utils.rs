@@ -124,6 +124,14 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
 
   let dir_levels = from.split("/").count() - 1;
   let link = format!("{}{to}", "../".repeat(dir_levels));
+
+  // If there already exists a symlink, remove it first.
+  if let Ok(metadata) = std::fs::symlink_metadata(from) {
+    if metadata.file_type().is_symlink() {
+      std::fs::remove_file(from)?;
+    }
+  }
+
   std::os::unix::fs::symlink(link, from)
 }
 

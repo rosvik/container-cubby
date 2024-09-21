@@ -95,6 +95,7 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
     },
   };
 
+  // TODO: Should have a create_tag helper instead.
   if let Some(tag) = tag {
     let tag_file_name = manifest_file_name(tag);
     let tag_file_path = format!("{container_dir}/{tag_file_name}");
