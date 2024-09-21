@@ -7,7 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -15,6 +15,6 @@ jobs:
     - name: Cache
       uses: Swatinem/rust-cache@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test
