@@ -1,0 +1,72 @@
+name: OCI Distribution conformance tests
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tiny-registry
+        uses: actions/checkout@v3
+        with:
+          path: tiny-registry
+      - name: Setup rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tiny-registry
+      - name: Build tiny-registry
+        run: |
+          cd tiny-registry
+          cargo build
+          cd -
+
+      - name: Checkout oci-distribution-spec
+        uses: actions/checkout@v3
+        with:
+          repository: rosvik/oci-distribution-spec
+          path: oci-distribution-spec
+          ref: v1.0
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: true
+          cache-dependency-path: |
+              **/go.sum
+              **/go.mod
+
+      - name: Start tiny-registry
+        run: |
+          cd tiny-registry
+          cargo run &
+          cd -
+        env:
+          USERNAME: mytestuser
+          PASSWORD: mytestpassword
+          AUTH_ENABLED: false
+
+      - name: Wait 5 seconds
+        run: sleep 5
+
+      - name: Run conformance tests
+        run: |
+          cd oci-distribution-spec/conformance
+          go test -c
+          ./conformance.test
+        env:
+          OCI_ROOT_URL: http://localhost:8602
+          OCI_NAMESPACE: mytestorg/mytestrepo
+          OCI_TEST_PULL: 1
+          OCI_TEST_PUSH: 1
+          OCI_TEST_CONTENT_DISCOVERY: 1
+          OCI_TEST_CONTENT_MANAGEMENT: 1
+          OCI_HIDE_SKIPPED_WORKFLOWS: 0
+          OCI_DEBUG: 0
+          OCI_DELETE_MANIFEST_BEFORE_BLOBS: 0
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: report.html
+          path: oci-distribution-spec/conformance/report.html
