@@ -20,8 +20,8 @@ jobs:
 
       # Podman Login action (https://github.com/redhat-actions/podman-login) also be used to log in,
       # in which case 'username' and 'password' can be omitted.
-      - name: Push To quay.io
-        id: push-to-quay
+      - name: Push To cubby.no
+        id: push-to-cubby
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build-image.outputs.image }}
@@ -31,4 +31,4 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Print image url
-        run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
+        run: echo "Image pushed to ${{ steps.push-to-cubby.outputs.registry-paths }}"
