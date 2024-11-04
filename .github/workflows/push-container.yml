@@ -12,7 +12,7 @@ jobs:
       - name: Authenticate
         uses: docker/login-action@v3
         with:
-          registry: registry.248.no
+          registry: cubby.no
           username: ${{ vars.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: Build and push
@@ -21,4 +21,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            registry.248.no/rosvik/tiny-registry:latest
+            cubby.no/rosvik/tiny-registry:main
