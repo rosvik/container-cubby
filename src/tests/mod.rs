@@ -291,10 +291,10 @@ async fn test_push_as_hunks() {
 
 #[test]
 async fn test_basic_auth() {
-  env::set_var("USERNAME", "admin");
-  env::set_var("PASSWORD", "hunter2");
-  let user = env::var("USERNAME").unwrap();
-  let pass = env::var("PASSWORD").unwrap();
+  std::env::set_var("USERNAME", "admin");
+  std::env::set_var("PASSWORD", "hunter2");
+  let user = std::env::var("USERNAME").unwrap();
+  let pass = std::env::var("PASSWORD").unwrap();
 
   let app =
     App::new().service(web::resource("/v2/").get(|| async { "Authenticated" })).wrap(BasicAuth);
