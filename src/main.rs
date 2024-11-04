@@ -1,4 +1,5 @@
 mod digestor;
+mod env;
 mod manifest;
 mod middleware;
 mod storage;
@@ -8,10 +9,7 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use manifest::Manifest;
 use serde::Deserialize;
-use std::{
-  env,
-  io::{Read, Write},
-};
+use std::io::{Read, Write};
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
@@ -24,14 +22,10 @@ const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
-  let port = env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT);
-  let host = env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
+  env::print_env_info();
 
-  if env::var("USERNAME").is_err() || env::var("PASSWORD").is_err() {
-    println!(
-      "\x1b[1;33mINFO: Username/password was not provided. Registry is in read-only mode.\x1b[0m"
-    );
-  };
+  let port = std::env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT);
+  let host = std::env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
   println!("Listening on \x1b[1;4m{PROTOCOL}://{host}:{port}/\x1b[0m");
 
   HttpServer::new(|| {
