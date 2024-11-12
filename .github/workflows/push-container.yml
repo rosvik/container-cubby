@@ -1,12 +1,13 @@
 name: Push Container To Registry
 on:
   push:
+    branches:
+      - main
 jobs:
   podman-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Build Image
         id: build-image
         uses: redhat-actions/buildah-build@v2
@@ -17,9 +18,6 @@ jobs:
           layers: true
           containerfiles: |
             Containerfile
-
-      # Podman Login action (https://github.com/redhat-actions/podman-login) also be used to log in,
-      # in which case 'username' and 'password' can be omitted.
       - name: Push To cubby.no
         id: push-to-cubby
         uses: redhat-actions/push-to-registry@v2
@@ -29,6 +27,5 @@ jobs:
           registry: cubby.no/rosvik
           username: ${{ vars.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-
       - name: Print image url
         run: echo "Image pushed to ${{ steps.push-to-cubby.outputs.registry-paths }}"
