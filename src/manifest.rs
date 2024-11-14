@@ -51,7 +51,6 @@ pub struct Descriptor {
   /// its section 4.2.
   ///
   /// <https://datatracker.ietf.org/doc/html/rfc6838#section-4.2>
-  #[serde(rename = "mediaType")]
   pub media_type: String,
 
   /// This REQUIRED property is the digest of the targeted content, conforming
