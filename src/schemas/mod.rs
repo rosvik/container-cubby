@@ -15,9 +15,10 @@ pub struct BaseManifest {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ManifestVariant {
-  ImageManifest(ImageManifest),
-  BaseManifest(BaseManifest),
+  ImageManifest(Box<ImageManifest>),
+  BaseManifest(Box<BaseManifest>),
 }
 
 pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
@@ -33,13 +34,13 @@ pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
   match base.media_type.as_str() {
     "application/vnd.oci.image.manifest.v1+json" => parse_image_manifest(&data),
     "application/vnd.docker.distribution.manifest.v2+json" => parse_image_manifest(&data),
-    _ => Ok(ManifestVariant::BaseManifest(base)),
+    _ => Ok(ManifestVariant::BaseManifest(Box::new(base))),
   }
 }
 
 fn parse_image_manifest(data: &[u8]) -> Result<ManifestVariant> {
   match serde_json::from_slice::<image_manifest::ImageManifest>(data) {
-    Ok(manifest) => Ok(ManifestVariant::ImageManifest(manifest)),
+    Ok(manifest) => Ok(ManifestVariant::ImageManifest(Box::new(manifest))),
     Err(e) => Err(e),
   }
 }
