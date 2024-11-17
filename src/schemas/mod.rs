@@ -12,20 +12,20 @@ pub use image_manifest::ImageManifest;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
-pub struct UnknownManifest {
+pub struct UnknownSchema {
   pub media_type: String,
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub enum ManifestVariant {
+pub enum SchemaVariant {
   ImageManifest(Box<ImageManifest>),
   ImageIndex(Box<ImageIndex>),
-  UnknownManifest(Box<UnknownManifest>),
+  Unknown(Box<UnknownSchema>),
 }
 
-pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
-  let unknown = match serde_json::from_slice::<UnknownManifest>(&data) {
+pub fn validate_manifest_data(data: Vec<u8>) -> Result<SchemaVariant> {
+  let unknown = match serde_json::from_slice::<UnknownSchema>(&data) {
     Ok(base) => base,
     Err(e) => return Err(e),
   };
@@ -42,20 +42,20 @@ pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
     "application/vnd.docker.distribution.manifest.v2+json" => parse_image_manifest(&data),
     "application/vnd.oci.image.index.v1+json" => parse_image_index(&data),
     "application/vnd.docker.distribution.manifest.list.v2+json" => parse_image_index(&data),
-    _ => Ok(ManifestVariant::UnknownManifest(Box::new(unknown))),
+    _ => Ok(SchemaVariant::Unknown(Box::new(unknown))),
   }
 }
 
-fn parse_image_manifest(data: &[u8]) -> Result<ManifestVariant> {
+fn parse_image_manifest(data: &[u8]) -> Result<SchemaVariant> {
   match serde_json::from_slice::<image_manifest::ImageManifest>(data) {
-    Ok(manifest) => Ok(ManifestVariant::ImageManifest(Box::new(manifest))),
+    Ok(manifest) => Ok(SchemaVariant::ImageManifest(Box::new(manifest))),
     Err(e) => Err(e),
   }
 }
 
-fn parse_image_index(data: &[u8]) -> Result<ManifestVariant> {
+fn parse_image_index(data: &[u8]) -> Result<SchemaVariant> {
   match serde_json::from_slice::<image_index::ImageIndex>(data) {
-    Ok(index) => Ok(ManifestVariant::ImageIndex(Box::new(index))),
+    Ok(index) => Ok(SchemaVariant::ImageIndex(Box::new(index))),
     Err(e) => Err(e),
   }
 }
@@ -70,7 +70,7 @@ mod test {
       "{\"mediaType\": \"application/vnd.oci.unknown.v1+json\", \"test\": 2}".as_bytes().to_vec(),
     );
     match data.unwrap() {
-      ManifestVariant::UnknownManifest(base) => {
+      SchemaVariant::Unknown(base) => {
         assert_eq!(base.media_type, "application/vnd.oci.unknown.v1+json".to_string());
       }
       _ => panic!("Expected BaseManifest variant"),
@@ -82,7 +82,7 @@ mod test {
     let manifest_json = include_str!("../tests/fixtures/manifest.json");
     let manifest_variant = parse_image_manifest(manifest_json.as_bytes()).unwrap();
     match manifest_variant {
-      ManifestVariant::ImageManifest(manifest) => {
+      SchemaVariant::ImageManifest(manifest) => {
         assert_eq!(
           manifest.media_type,
           Some("application/vnd.docker.distribution.manifest.v2+json".to_string())
@@ -97,7 +97,7 @@ mod test {
     let index_json = include_str!("../tests/fixtures/image_index.json");
     let index_variant = parse_image_index(index_json.as_bytes()).unwrap();
     match index_variant {
-      ManifestVariant::ImageIndex(index) => {
+      SchemaVariant::ImageIndex(index) => {
         assert_eq!(index.media_type, Some("application/vnd.oci.image.index.v1+json".to_string()));
       }
       _ => panic!("Expected ImageIndex variant"),

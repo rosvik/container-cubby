@@ -7,7 +7,7 @@ mod utils;
 
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use schemas::ManifestVariant;
+use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
 use utils::{verify_blob, verify_reference};
@@ -525,9 +525,9 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
   };
 
   match manifest_variant {
-    ManifestVariant::ImageManifest(manifest) => ManifestVariant::ImageManifest(manifest),
-    ManifestVariant::ImageIndex(index) => ManifestVariant::ImageIndex(index),
-    ManifestVariant::UnknownManifest(base) => {
+    SchemaVariant::ImageManifest(manifest) => SchemaVariant::ImageManifest(manifest),
+    SchemaVariant::ImageIndex(index) => SchemaVariant::ImageIndex(index),
+    SchemaVariant::Unknown(base) => {
       println!("Error: Unknown manifest media type: {}", base.media_type);
       return HttpResponse::BadRequest().finish();
     }
