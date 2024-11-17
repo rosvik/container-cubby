@@ -10,7 +10,7 @@ pub use image_manifest::ImageManifest;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
-pub struct BaseManifest {
+pub struct UnknownManifest {
   pub media_type: String,
 }
 
@@ -18,11 +18,11 @@ pub struct BaseManifest {
 #[allow(dead_code)]
 pub enum ManifestVariant {
   ImageManifest(Box<ImageManifest>),
-  BaseManifest(Box<BaseManifest>),
+  UnknownManifest(Box<UnknownManifest>),
 }
 
 pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
-  let base = match serde_json::from_slice::<BaseManifest>(&data) {
+  let unknown = match serde_json::from_slice::<UnknownManifest>(&data) {
     Ok(base) => base,
     Err(e) => return Err(e),
   };
@@ -31,10 +31,10 @@ pub fn validate_manifest_data(data: Vec<u8>) -> Result<ManifestVariant> {
   // - application/vnd.oci.image.manifest.v1+json
   // - application/vnd.docker.distribution.manifest.v2+json
   // https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
-  match base.media_type.as_str() {
+  match unknown.media_type.as_str() {
     "application/vnd.oci.image.manifest.v1+json" => parse_image_manifest(&data),
     "application/vnd.docker.distribution.manifest.v2+json" => parse_image_manifest(&data),
-    _ => Ok(ManifestVariant::BaseManifest(Box::new(base))),
+    _ => Ok(ManifestVariant::UnknownManifest(Box::new(unknown))),
   }
 }
 
@@ -54,7 +54,7 @@ mod test {
       "{\"mediaType\": \"application/vnd.oci.unknown.v1+json\", \"test\": 2}".as_bytes().to_vec(),
     );
     match data.unwrap() {
-      ManifestVariant::BaseManifest(base) => {
+      ManifestVariant::UnknownManifest(base) => {
         assert_eq!(base.media_type, "application/vnd.oci.unknown.v1+json".to_string());
       }
       _ => panic!("Expected BaseManifest variant"),
