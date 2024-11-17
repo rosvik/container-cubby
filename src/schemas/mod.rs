@@ -79,7 +79,7 @@ mod test {
 
   #[test]
   fn test_parse_image_manifest() {
-    let manifest_json = include_str!("../tests/fixtures/manifest.json");
+    let manifest_json = include_str!("../tests/fixtures/image_manifest.json");
     let manifest_variant = parse_image_manifest(manifest_json.as_bytes()).unwrap();
     match manifest_variant {
       SchemaVariant::ImageManifest(manifest) => {

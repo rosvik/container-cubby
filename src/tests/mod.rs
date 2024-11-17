@@ -119,7 +119,7 @@ async fn test_get_blob() {
 #[test]
 async fn test_put_manifest() {
   let name: String = get_random_namespace();
-  let manifest = include_str!("./fixtures/manifest.json");
+  let manifest = include_str!("./fixtures/image_manifest.json");
 
   let app =
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
@@ -150,7 +150,7 @@ async fn test_put_manifest() {
 #[test]
 async fn test_get_manifest() {
   let name: String = get_random_namespace();
-  let manifest = include_str!("./fixtures/manifest.json");
+  let manifest = include_str!("./fixtures/image_manifest.json");
   let manifest_source = serde_json::from_str::<schemas::ImageManifest>(manifest).unwrap();
 
   let app =
