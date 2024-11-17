@@ -38,6 +38,13 @@ pub fn get_content_length(content_length: Option<&HeaderValue>) -> Option<usize>
   Some(length)
 }
 
+pub fn get_content_type(content_type: Option<&HeaderValue>) -> Option<String> {
+  let content_type = content_type?.to_str().ok()?;
+  // The registry SHOULD ignore parameters on the Content-Type header.
+  let content_type = content_type.split(';').next()?;
+  Some(content_type.to_string())
+}
+
 use base64::{engine::general_purpose, Engine as _};
 pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>> {
   let bytes = general_purpose::STANDARD.decode(input)?;
@@ -200,6 +207,23 @@ mod tests {
 
     let content_range = &HeaderValue::from_str("").unwrap();
     assert_eq!(get_content_range(Some(content_range)), None);
+  }
+
+  #[test]
+  fn test_get_content_type() {
+    let content_type =
+      &HeaderValue::from_str("application/vnd.oci.image.manifest.v1+json").unwrap();
+    assert_eq!(
+      get_content_type(Some(content_type)),
+      Some("application/vnd.oci.image.manifest.v1+json".to_string())
+    );
+
+    let content_type =
+      &HeaderValue::from_str("application/vnd.oci.image.manifest.v1+json; param=value").unwrap();
+    assert_eq!(
+      get_content_type(Some(content_type)),
+      Some("application/vnd.oci.image.manifest.v1+json".to_string())
+    );
   }
 
   #[test]

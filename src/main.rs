@@ -176,7 +176,14 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
-  let content_type = "application/vnd.oci.image.manifest.v1+json";
+  //
+  // NOTE: The registry is expected to return the media type of the manifest
+  //       even when it is not part of the stored document. This should probably
+  //       be solved by storing the media type provided by the client on upload,
+  //       but for now we use the media type from the stored document if
+  //       available, and default to `application/json`.
+  let content_type =
+    schemas::get_manifest_media_type(&data).unwrap_or(String::from("application/json"));
 
   HttpResponse::Ok()
     .insert_header(("Docker-Content-Digest", digest))
@@ -508,7 +515,11 @@ async fn put_blob_upload(
 /// - Location: {manifest-location}                    (a pullable manifest URL)
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests>
-async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> impl Responder {
+async fn put_manifest(
+  path: web::Path<(String, String)>,
+  req: HttpRequest,
+  data: web::Bytes,
+) -> impl Responder {
   let (name, reference) = path.into_inner();
   if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
@@ -516,7 +527,10 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     return HttpResponse::BadRequest().finish();
   }
 
-  let manifest_variant = match schemas::validate_manifest_data(data.to_vec()) {
+  // Clients SHOULD set the Content-Type header to the type of the manifest
+  // being pushed.
+  let content_type = utils::get_content_type(req.headers().get("Content-Type"));
+  let manifest_variant = match schemas::validate_manifest_data(data.to_vec(), content_type) {
     Ok(manifest_variant) => manifest_variant,
     Err(e) => {
       println!("Error: Invalid manifest: {:?}", e);
@@ -528,7 +542,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     SchemaVariant::ImageManifest(manifest) => SchemaVariant::ImageManifest(manifest),
     SchemaVariant::ImageIndex(index) => SchemaVariant::ImageIndex(index),
     SchemaVariant::Unknown(base) => {
-      println!("Error: Unknown manifest media type: {}", base.media_type);
+      println!("Error: Unknown manifest: {:?}", base);
       return HttpResponse::BadRequest().finish();
     }
   };
@@ -548,6 +562,8 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
   };
 
   match storage::create_manifest(&name, &digest, tag) {
+    // The registry MUST store the manifest in the exact byte representation
+    // provided by the client.
     Ok(mut file) => file.write_all(&data).unwrap(),
     Err(e) => {
       // Continue if the manifest already exists, otherwise return 500.

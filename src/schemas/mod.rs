@@ -1,5 +1,5 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 
 mod image_index;
 mod image_manifest;
@@ -13,7 +13,7 @@ pub use image_manifest::ImageManifest;
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
 pub struct UnknownSchema {
-  pub media_type: String,
+  pub media_type: Option<String>,
 }
 
 #[derive(Debug)]
@@ -24,10 +24,35 @@ pub enum SchemaVariant {
   Unknown(Box<UnknownSchema>),
 }
 
-pub fn validate_manifest_data(data: Vec<u8>) -> Result<SchemaVariant> {
+pub fn validate_manifest_data(
+  data: Vec<u8>,
+  content_type: Option<String>,
+) -> Result<SchemaVariant> {
   let unknown = match serde_json::from_slice::<UnknownSchema>(&data) {
-    Ok(base) => base,
-    Err(e) => return Err(e),
+    Ok(unknown) => unknown,
+    Err(e) => return Err(anyhow::anyhow!("Invalid manifest data: {:?}", e)),
+  };
+
+  let media_type = match unknown.media_type.clone() {
+    Some(media_type) => {
+      if let Some(content_type) = content_type {
+        // If a manifest includes a mediaType field, clients MUST set the
+        // Content-Type header to the value specified by the mediaType field.
+        if content_type != media_type {
+          return Err(anyhow::anyhow!(
+            "Content type mismatch: Was '{media_type}' internally, got '{content_type}'",
+          ));
+        }
+      }
+      media_type
+    }
+    None => {
+      if let Some(content_type) = content_type {
+        content_type
+      } else {
+        return Err(anyhow::anyhow!("No media type provided"));
+      }
+    }
   };
 
   // Image manifest
@@ -37,7 +62,7 @@ pub fn validate_manifest_data(data: Vec<u8>) -> Result<SchemaVariant> {
   // - application/vnd.oci.image.index.v1+json
   // - application/vnd.docker.distribution.manifest.list.v2+json
   // https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
-  match unknown.media_type.as_str() {
+  match media_type.as_str() {
     "application/vnd.oci.image.manifest.v1+json" => parse_image_manifest(&data),
     "application/vnd.docker.distribution.manifest.v2+json" => parse_image_manifest(&data),
     "application/vnd.oci.image.index.v1+json" => parse_image_index(&data),
@@ -49,14 +74,22 @@ pub fn validate_manifest_data(data: Vec<u8>) -> Result<SchemaVariant> {
 fn parse_image_manifest(data: &[u8]) -> Result<SchemaVariant> {
   match serde_json::from_slice::<image_manifest::ImageManifest>(data) {
     Ok(manifest) => Ok(SchemaVariant::ImageManifest(Box::new(manifest))),
-    Err(e) => Err(e),
+    Err(e) => Err(anyhow::anyhow!("Invalid manifest data: {:?}", e)),
   }
 }
 
 fn parse_image_index(data: &[u8]) -> Result<SchemaVariant> {
   match serde_json::from_slice::<image_index::ImageIndex>(data) {
     Ok(index) => Ok(SchemaVariant::ImageIndex(Box::new(index))),
-    Err(e) => Err(e),
+    Err(e) => Err(anyhow::anyhow!("Invalid manifest data: {:?}", e)),
+  }
+}
+
+pub fn get_manifest_media_type(data: &[u8]) -> Option<String> {
+  let manifest = validate_manifest_data(data.to_vec(), None);
+  match manifest {
+    Ok(SchemaVariant::ImageManifest(manifest)) => manifest.media_type,
+    _ => None,
   }
 }
 
@@ -68,13 +101,44 @@ mod test {
   fn test_validate_manifest_data() {
     let data = validate_manifest_data(
       "{\"mediaType\": \"application/vnd.oci.unknown.v1+json\", \"test\": 2}".as_bytes().to_vec(),
+      None,
     );
     match data.unwrap() {
       SchemaVariant::Unknown(base) => {
-        assert_eq!(base.media_type, "application/vnd.oci.unknown.v1+json".to_string());
+        assert_eq!(base.media_type, Some("application/vnd.oci.unknown.v1+json".to_string()));
       }
       _ => panic!("Expected BaseManifest variant"),
     }
+
+    let manifest_json = include_str!("../tests/fixtures/image_manifest.json");
+    let data = validate_manifest_data(manifest_json.as_bytes().to_vec(), None);
+    match data.unwrap() {
+      SchemaVariant::ImageManifest(manifest) => {
+        assert_eq!(
+          manifest.media_type,
+          Some("application/vnd.docker.distribution.manifest.v2+json".to_string())
+        );
+      }
+      _ => panic!("Expected ImageManifest variant"),
+    }
+
+    let index_json = include_str!("../tests/fixtures/image_index.json");
+    let data = validate_manifest_data(
+      index_json.as_bytes().to_vec(),
+      Some("application/vnd.oci.image.index.v1+json".to_string()),
+    );
+    match data.unwrap() {
+      SchemaVariant::ImageIndex(index) => {
+        assert_eq!(index.media_type, Some("application/vnd.oci.image.index.v1+json".to_string()));
+      }
+      _ => panic!("Expected ImageIndex variant"),
+    }
+
+    let data = validate_manifest_data(
+      index_json.as_bytes().to_vec(),
+      Some("application/unsupported.media.type+json".to_string()),
+    );
+    assert!(data.is_err());
   }
 
   #[test]
