@@ -526,6 +526,7 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
 
   match manifest_variant {
     ManifestVariant::ImageManifest(manifest) => ManifestVariant::ImageManifest(manifest),
+    ManifestVariant::ImageIndex(index) => ManifestVariant::ImageIndex(index),
     ManifestVariant::UnknownManifest(base) => {
       println!("Error: Unknown manifest media type: {}", base.media_type);
       return HttpResponse::BadRequest().finish();
