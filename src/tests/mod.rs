@@ -151,7 +151,7 @@ async fn test_put_manifest() {
 async fn test_get_manifest() {
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/manifest.json");
-  let manifest_source = serde_json::from_str::<Manifest>(manifest).unwrap();
+  let manifest_source = serde_json::from_str::<schemas::ImageManifest>(manifest).unwrap();
 
   let app =
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
@@ -185,7 +185,7 @@ async fn test_get_manifest() {
   assert_eq!(res.status(), StatusCode::OK);
 
   let bytes = test::read_body(res).await;
-  let manifest_result = serde_json::from_slice::<Manifest>(&bytes).unwrap();
+  let manifest_result = serde_json::from_slice::<schemas::ImageManifest>(&bytes).unwrap();
   assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
 
   // GET manifest based on it's digest

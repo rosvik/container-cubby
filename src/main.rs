@@ -1,13 +1,12 @@
 mod digestor;
 mod env;
-mod manifest;
 mod middleware;
+mod schemas;
 mod storage;
 mod utils;
 
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use manifest::Manifest;
 use serde::Deserialize;
 use std::io::{Read, Write};
 use utils::{verify_blob, verify_reference};
@@ -516,10 +515,18 @@ async fn put_manifest(path: web::Path<(String, String)>, data: web::Bytes) -> im
     return HttpResponse::BadRequest().finish();
   }
 
-  match serde_json::from_slice::<Manifest>(&data) {
-    Ok(manifest) => manifest,
+  let manifest_variant = match schemas::validate_manifest_data(data.to_vec()) {
+    Ok(manifest_variant) => manifest_variant,
     Err(e) => {
       println!("Error: Invalid manifest: {:?}", e);
+      return HttpResponse::BadRequest().finish();
+    }
+  };
+
+  match manifest_variant {
+    schemas::ManifestVariant::ImageManifest(manifest) => manifest,
+    _ => {
+      println!("Error: Invalid manifest: {:?}", manifest_variant);
       return HttpResponse::BadRequest().finish();
     }
   };

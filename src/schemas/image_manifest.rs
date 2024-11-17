@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
-pub struct Manifest {
+pub struct ImageManifest {
   /// This REQUIRED property specifies the image manifest schema version. For
   /// this version of the specification, this MUST be 2 to ensure backward
   /// compatibility with older versions of Docker. The value of this field will
