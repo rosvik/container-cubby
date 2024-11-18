@@ -12,6 +12,7 @@ use serde::Deserialize;
 use std::io::{Read, Write};
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
+use xattr::FileExt;
 
 const PROTOCOL: &str = "http";
 const DEFAULT_HOST: &str = "localhost";
@@ -176,14 +177,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
-  //
-  // NOTE: The registry is expected to return the media type of the manifest
-  //       even when it is not part of the stored document. This should probably
-  //       be solved by storing the media type provided by the client on upload,
-  //       but for now we use the media type from the stored document if
-  //       available, and default to `application/json`.
-  let content_type =
-    schemas::get_manifest_media_type(&data).unwrap_or(String::from("application/json"));
+  let content_type = storage::get_media_type(file).unwrap_or(String::from("application/json"));
 
   HttpResponse::Ok()
     .insert_header(("Docker-Content-Digest", digest))
@@ -530,7 +524,8 @@ async fn put_manifest(
   // Clients SHOULD set the Content-Type header to the type of the manifest
   // being pushed.
   let content_type = utils::get_content_type(req.headers().get("Content-Type"));
-  let manifest_variant = match schemas::validate_manifest_data(data.to_vec(), content_type) {
+  let manifest_variant = match schemas::validate_manifest_data(data.to_vec(), content_type.clone())
+  {
     Ok(manifest_variant) => manifest_variant,
     Err(e) => {
       println!("Error: Invalid manifest: {:?}", e);
@@ -564,7 +559,12 @@ async fn put_manifest(
   match storage::create_manifest(&name, &digest, tag) {
     // The registry MUST store the manifest in the exact byte representation
     // provided by the client.
-    Ok(mut file) => file.write_all(&data).unwrap(),
+    Ok(mut file) => {
+      file.write_all(&data).unwrap();
+      if let Some(content_type) = content_type {
+        file.set_xattr("mediatype", content_type.as_bytes()).unwrap();
+      }
+    }
     Err(e) => {
       // Continue if the manifest already exists, otherwise return 500.
       if e.kind() != std::io::ErrorKind::AlreadyExists {
