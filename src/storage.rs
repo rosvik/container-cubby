@@ -1,3 +1,5 @@
+use xattr::FileExt;
+
 use crate::utils;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{self, Read};
@@ -261,4 +263,19 @@ fn manifest_file_name(reference: &str) -> String {
     true => format!("{}.json", reference.replace("sha256:", "sha256@")),
     false => format!("{}.json", reference),
   }
+}
+
+/// Gets the media type of a file, by reading the `mediatype` extended attribute.
+pub fn get_media_type(file: File) -> Option<String> {
+  let bytes = match file.get_xattr("mediatype") {
+    Ok(bytes) => match bytes {
+      Some(bytes) => bytes,
+      None => return None,
+    },
+    Err(e) => {
+      println!("Failed to get media type: {:?}", e);
+      return None;
+    }
+  };
+  String::from_utf8(bytes).ok()
 }
