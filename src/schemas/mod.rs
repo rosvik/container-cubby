@@ -85,14 +85,6 @@ fn parse_image_index(data: &[u8]) -> Result<SchemaVariant> {
   }
 }
 
-pub fn get_manifest_media_type(data: &[u8]) -> Option<String> {
-  let manifest = validate_manifest_data(data.to_vec(), None);
-  match manifest {
-    Ok(SchemaVariant::ImageManifest(manifest)) => manifest.media_type,
-    _ => None,
-  }
-}
-
 #[cfg(test)]
 mod test {
   use super::*;
