@@ -1,14 +1,34 @@
 # Container Cubby
 
-This is (an attempt at creating) a minimal implementation of a container registry, that closely follows the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). The project is still a work in progress, but the goal is to create a no-fuss single-tenant container registry in rust.
+Container Cubby is a minimal implementation of a container registry, based on the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). It is single-tenant, and stores all container data in a local directory. Although it does work and implements most of the spec, there are no guarantees about the stability or security, and there might still be frequent breaking changes.
 
-## TODO
+## Storage
 
-- [x] ~Use postgres~
-- [ ] Add testcontainers for bootstraping and testing
-- [ ] Implement the endpoints
-- [x] Use a proper blob storage backend
-  - Files on disk
+Container Cubby stores all container data in a local directory. The layout is as follows:
+
+```
+<data_dir>/
+├── containers/
+│   └── <name>/
+│       ├── <tag>.json
+│       ├── sha256@<manifest hash>.json
+│       └── <blob symlink>
+└── blobs/
+    └── <prefix>/
+        └── sha256@<blob hash>.blob
+```
+
+As an example, if the image `foo/bar:latest` has a manifest with a blob reference to `sha256@abc123`, then the following four files will be created:
+
+1. `<data_dir>/containers/foo/bar/latest.json`
+2. `<data_dir>/containers/foo/bar/sha256@<manifest hash>.json`
+3. `<data_dir>/containers/foo/bar/sha256@abc123.json`
+4. `<data_dir>/blobs/ab/c123.blob`
+
+
+Where `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
+
+<!-- TODO: Add notes on xattrs, symlinks, and blob storage -->
 
 ## Endpoints
 
