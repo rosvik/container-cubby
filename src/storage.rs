@@ -1,8 +1,7 @@
-use xattr::FileExt;
-
 use crate::utils;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{self, Read};
+use xattr::FileExt;
 
 const DATA_DIR: &str = "data";
 
@@ -265,8 +264,8 @@ fn manifest_file_name(reference: &str) -> String {
   }
 }
 
-/// Gets the media type of a file, by reading the `mediatype` extended attribute.
-pub fn get_media_type(file: File) -> Option<String> {
+/// Gets the media type of a file by reading the `mediatype` extended attribute.
+pub fn get_xattr_media_type(file: File) -> Option<String> {
   let bytes = match file.get_xattr("mediatype") {
     Ok(bytes) => match bytes {
       Some(bytes) => bytes,
@@ -278,4 +277,9 @@ pub fn get_media_type(file: File) -> Option<String> {
     }
   };
   String::from_utf8(bytes).ok()
+}
+
+/// Sets the media type of a file by setting the `mediatype` extended attribute.
+pub fn set_xattr_media_type(file: File, media_type: &str) -> Result<(), io::Error> {
+  file.set_xattr("mediatype", media_type.as_bytes())
 }
