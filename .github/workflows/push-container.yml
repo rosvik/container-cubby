@@ -3,21 +3,31 @@ on:
   push:
     branches:
       - main
+
 jobs:
   podman-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Setup for multi architecture build
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+
       - name: Build Image
         id: build-image
         uses: redhat-actions/buildah-build@v2
         with:
           image: container-cubby
           tags: main ${{ github.sha }}
+          platforms: linux/amd64, linux/arm64
           oci: true
           layers: true
           containerfiles: |
             Containerfile
+
       - name: Push To cubby.no
         id: push-to-cubby
         uses: redhat-actions/push-to-registry@v2
