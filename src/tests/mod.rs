@@ -215,6 +215,61 @@ async fn test_get_manifest() {
 }
 
 #[test]
+async fn test_manifest_media_type() {
+  let manifest = include_str!("./fixtures/image_manifest_no_media_type.json");
+  let manifest_digest = digestor::get_sha256_digest(&manifest.as_bytes().to_vec());
+  let name: String = get_random_namespace();
+
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
+  let service = test::init_service(app).await;
+
+  // PUT manifest
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // GET manifest
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
+  let service = test::init_service(app).await;
+
+  // Based on tag
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::GET)
+    .to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+  let response_media_type = res.headers().get("Content-Type").unwrap();
+  assert_eq!(
+    response_media_type.to_str().unwrap(),
+    "application/vnd.docker.distribution.manifest.v2+json"
+  );
+
+  // Based on digest
+  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::GET)
+    .to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+  let response_media_type = res.headers().get("Content-Type").unwrap();
+  assert_eq!(
+    response_media_type.to_str().unwrap(),
+    "application/vnd.docker.distribution.manifest.v2+json"
+  );
+}
+
+#[test]
 async fn test_push_as_hunks() {
   let name: String = get_random_namespace();
   let blob = "AAAABBBBCCCC".as_bytes();
