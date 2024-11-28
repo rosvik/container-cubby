@@ -188,7 +188,7 @@ async fn test_get_manifest() {
   let manifest_result = serde_json::from_slice::<schemas::ImageManifest>(&bytes).unwrap();
   assert_eq!(manifest_result.config.digest, manifest_source.config.digest);
 
-  // GET manifest based on it's digest
+  // GET manifest based on its digest
   let manifest_digest = "sha256:edee272db7445c0aedfa7892df3f734fa6117221e37389063e65648ba47f7b00";
   let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
   let req = test::TestRequest::with_uri(uri.as_str())
@@ -199,7 +199,7 @@ async fn test_get_manifest() {
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::OK);
 
-  // DELETE manifest based on it's digest
+  // DELETE manifest based on its digest
   let app = App::new()
     .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").delete(delete_manifest));
   let service = test::init_service(app).await;
