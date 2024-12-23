@@ -729,4 +729,23 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
 }
 
 #[cfg(test)]
+mod tests2 {
+  use super::*;
+  use std::{fs::File, io::Write};
+  use storage::get_xattr_media_type;
+
+  #[test]
+  fn test_xattr_2() {
+    let mut file = File::create("test2.txt").unwrap();
+    // Write dummy data to the file
+    file.write_all("dummy".as_bytes()).unwrap();
+    set_xattr_media_type(file, "application/vnd.docker.distribution.manifest.v2+json").unwrap();
+
+    let file = File::open("test2.txt").unwrap();
+    let media_type = get_xattr_media_type(file).unwrap();
+    assert_eq!(media_type, "application/vnd.docker.distribution.manifest.v2+json");
+  }
+}
+
+#[cfg(test)]
 mod tests;
