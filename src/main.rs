@@ -178,7 +178,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
   let content_type =
-    storage::get_xattr_media_type(file).unwrap_or(String::from("application/json"));
+    storage::get_xattr_media_type(&file).unwrap_or(String::from("application/json"));
 
   HttpResponse::Ok()
     .insert_header(("Docker-Content-Digest", digest))
@@ -563,7 +563,7 @@ async fn put_manifest(
     Ok(mut file) => {
       file.write_all(&data).unwrap();
       if let Some(content_type) = content_type {
-        set_xattr_media_type(file, &content_type).unwrap();
+        set_xattr_media_type(&file, &content_type).unwrap();
       }
     }
     Err(e) => {
