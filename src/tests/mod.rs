@@ -397,8 +397,11 @@ async fn test_no_auth() {
 
 #[test]
 async fn test_xattr() {
-  let file = File::create("test.txt").unwrap();
+  let mut file = File::create("test.txt").unwrap();
+  // Write dummy data to the file
+  file.write_all("dummy".as_bytes()).unwrap();
   set_xattr_media_type(file, "application/vnd.docker.distribution.manifest.v2+json").unwrap();
+
   let file = File::open("test.txt").unwrap();
   let media_type = get_xattr_media_type(file).unwrap();
   assert_eq!(media_type, "application/vnd.docker.distribution.manifest.v2+json");
