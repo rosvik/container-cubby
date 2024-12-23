@@ -1,5 +1,7 @@
 mod utils;
 
+use std::fs::File;
+
 use super::*;
 use crate::utils::encode_base64;
 use actix_web::{
@@ -8,6 +10,7 @@ use actix_web::{
   test, App,
 };
 use middleware::basic_auth::BasicAuth;
+use storage::get_xattr_media_type;
 use utils::*;
 
 #[test]
@@ -390,4 +393,13 @@ async fn test_no_auth() {
   let res = service.call(req).await;
   // StatisCode::NOT_FOUND means authentication was not required
   assert_eq!(res.unwrap().status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
+async fn test_xattr() {
+  let file = File::create("test.txt").unwrap();
+  set_xattr_media_type(file, "application/vnd.docker.distribution.manifest.v2+json").unwrap();
+  let file = File::open("test.txt").unwrap();
+  let media_type = get_xattr_media_type(file).unwrap();
+  assert_eq!(media_type, "application/vnd.docker.distribution.manifest.v2+json");
 }
