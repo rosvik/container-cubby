@@ -267,7 +267,7 @@ fn manifest_file_name(reference: &str) -> String {
 
 /// Gets the media type of a file by reading the `mediatype` extended attribute.
 pub fn get_xattr_media_type(file: File) -> Option<String> {
-  let bytes = match file.get_xattr("mediatype") {
+  let bytes = match file.get_xattr("user.mime_type") {
     Ok(bytes) => match bytes {
       Some(bytes) => bytes,
       None => return None,
@@ -283,5 +283,5 @@ pub fn get_xattr_media_type(file: File) -> Option<String> {
 /// Sets the media type of a file by setting the `mediatype` extended attribute.
 pub fn set_xattr_media_type(file: File, media_type: &str) -> Result<(), io::Error> {
   println!("Setting media type: {:?} on file: {:?}", media_type, file);
-  file.set_xattr("mediatype", media_type.as_bytes())
+  file.set_xattr("user.mime_type", media_type.as_bytes())
 }
