@@ -283,3 +283,17 @@ pub fn get_xattr_media_type(file: &File) -> Option<String> {
 pub fn set_xattr_media_type(file: &File, media_type: &str) -> Result<(), io::Error> {
   file.set_xattr("user.mime_type", media_type.as_bytes())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_xattr() {
+    let file = tempfile::tempfile_in("/var/tmp").unwrap();
+    set_xattr_media_type(&file, "application/vnd.docker.distribution.manifest.v2+json").unwrap();
+
+    let media_type = get_xattr_media_type(&file).unwrap();
+    assert_eq!(media_type, "application/vnd.docker.distribution.manifest.v2+json");
+  }
+}
