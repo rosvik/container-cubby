@@ -85,6 +85,7 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
   let container_dir = container_dir(name)?;
   let data_file_name = manifest_file_name(digest);
   let data_file_path = format!("{container_dir}/{data_file_name}");
+  println!("Creating manifest file: {:?}", data_file_path);
   let file = match OpenOptions::new().create_new(true).write(true).open(&data_file_path) {
     Ok(f) => Ok(f),
     Err(e) => match e.kind() {
@@ -281,5 +282,6 @@ pub fn get_xattr_media_type(file: File) -> Option<String> {
 
 /// Sets the media type of a file by setting the `mediatype` extended attribute.
 pub fn set_xattr_media_type(file: File, media_type: &str) -> Result<(), io::Error> {
+  println!("Setting media type: {:?} on file: {:?}", media_type, file);
   file.set_xattr("mediatype", media_type.as_bytes())
 }
