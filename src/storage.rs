@@ -37,9 +37,9 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
 
   let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
-  let blob_directory = format!("{DATA_DIR}/blobs/{prefix}");
+  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
   let file_path = format!(
-    "{blob_directory}/{}.blob",
+    "{blob_dir}/{}.blob",
     digest.replace("sha256:", "").chars().skip(2).collect::<String>()
   );
 
@@ -47,8 +47,8 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   let file = File::open(&file_path)?;
   drop(file);
 
-  let container_directory = container_dir(name)?;
-  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  let container_dir = container_dir(name)?;
+  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   utils::create_relative_symlink(&symlink_path, &file_path)?;
   Ok(())
 }
@@ -56,8 +56,8 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
 /// Deletes a blob file. If the file does not exist, an error is returned.
 pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   is_safe_digest(digest)?;
-  let container_directory = container_dir(name)?;
-  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  let container_dir = container_dir(name)?;
+  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   std::fs::remove_file(&symlink_path)?;
   Ok(())
 }
@@ -66,8 +66,8 @@ pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
 /// returned.
 pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   is_safe_digest(digest)?;
-  let container_directory = container_dir(name)?;
-  let symlink_path = format!("{container_directory}/{}.blob", digest.replace("sha256:", ""));
+  let container_dir = container_dir(name)?;
+  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   let symlink = File::open(symlink_path)?;
   Ok(symlink)
 }
@@ -142,8 +142,8 @@ pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   is_safe_name(name)?;
 
-  let container_directory = format!("{DATA_DIR}/containers/{name}");
-  let entries = std::fs::read_dir(container_directory)?;
+  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  let entries = std::fs::read_dir(container_dir)?;
 
   let mut tags = Vec::new();
   for entry in entries {
