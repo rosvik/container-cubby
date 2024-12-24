@@ -14,27 +14,21 @@ use storage::set_xattr_media_type;
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
-const PROTOCOL: &str = "http";
-const DEFAULT_HOST: &str = "localhost";
-const DEFAULT_PORT: u16 = 8602;
-const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
-const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
   env::print_env_info();
 
-  let port = std::env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT);
-  let host = std::env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
-  println!("Listening on \x1b[1;4m{PROTOCOL}://{host}:{port}/\x1b[0m");
+  let port = env::port();
+  let host = env::host();
+  println!("Listening on \x1b[1;4m{}://{host}:{port}/\x1b[0m", env::PROTOCOL);
 
   HttpServer::new(|| {
     let auth = middleware::basic_auth::BasicAuth;
     App::new()
       .wrap(middleware::log_requests::LogRequests)
       .app_data(web::PayloadConfig::new(1024 * 1024 * 1024)) // 1GB
-      .route("/", web::get().to(|| async { format!("{CRATE_NAME} v{CRATE_VERSION}\n") }))
+      .route("/", web::get().to(|| async { env::crate_info() }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }).wrap(auth.clone()))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::head().to(head_blob))

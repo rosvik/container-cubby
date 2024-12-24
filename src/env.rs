@@ -1,5 +1,21 @@
 use std::env;
 
+pub const PROTOCOL: &str = "http";
+const DEFAULT_HOST: &str = "localhost";
+const DEFAULT_PORT: u16 = 8602;
+pub fn host() -> String {
+  std::env::var("HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string())
+}
+pub fn port() -> u16 {
+  std::env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT)
+}
+
+pub const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
+pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub fn crate_info() -> String {
+  format!("{CRATE_NAME} v{CRATE_VERSION}")
+}
+
 pub fn print_env_info() {
   let username = env::var("USERNAME");
   let password = env::var("PASSWORD");
