@@ -18,6 +18,9 @@ pub fn crate_info() -> String {
 
 pub const DEFAULT_DATA_DIR: &str = "data";
 pub fn data_dir() -> String {
+  if cfg!(test) {
+    return "test-data".to_string();
+  }
   std::env::var("DATA_DIR").unwrap_or_else(|_| DEFAULT_DATA_DIR.to_string())
 }
 
