@@ -1,9 +1,8 @@
+use crate::env;
 use crate::utils;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{self, Read};
 use xattr::FileExt;
-
-const DATA_DIR: &str = "data";
 
 /// Creates a blob file, and retuns it in write-only mode. If the file already
 /// exists, an error is returned.
@@ -249,14 +248,16 @@ fn get_path(name: &str, reference: &str, file_type: FileType) -> Result<String, 
 }
 
 fn container_dir(name: &str) -> Result<String, io::Error> {
+  let data_dir = env::data_dir();
   is_safe_name(name)?;
-  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  let container_dir = format!("{data_dir}/containers/{name}");
   DirBuilder::new().recursive(true).create(&container_dir)?;
   Ok(container_dir)
 }
 fn blob_dir(digest: String) -> Result<String, io::Error> {
+  let data_dir = env::data_dir();
   let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
-  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
+  let blob_dir = format!("{data_dir}/blobs/{prefix}");
   DirBuilder::new().recursive(true).create(&blob_dir)?;
   Ok(blob_dir)
 }

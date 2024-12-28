@@ -16,6 +16,11 @@ pub fn crate_info() -> String {
   format!("{CRATE_NAME} v{CRATE_VERSION}")
 }
 
+pub const DEFAULT_DATA_DIR: &str = "data";
+pub fn data_dir() -> String {
+  std::env::var("DATA_DIR").unwrap_or_else(|_| DEFAULT_DATA_DIR.to_string())
+}
+
 pub fn print_env_info() {
   let username = env::var("USERNAME");
   let password = env::var("PASSWORD");
