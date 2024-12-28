@@ -8,56 +8,40 @@ const DATA_DIR: &str = "data";
 /// Creates a blob file, and retuns it in write-only mode. If the file already
 /// exists, an error is returned.
 pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
-  let blob_dir = blob_dir(digest)?;
-  let container_dir = container_dir(name)?;
-
-  let file_path = format!(
-    "{blob_dir}/{}.blob",
-    digest.replace("sha256:", "").chars().skip(2).collect::<String>()
-  );
-  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
+  let blob_path = get_path(name, digest, FileType::Blob)?;
+  let symlink_path = get_path(name, digest, FileType::BlobLink)?;
 
   // If the file already exists, create a symlink to it, and return an
   // AlreadyExists error.
-  if File::open(&file_path).is_ok() {
-    utils::create_relative_symlink(&symlink_path, &file_path)?;
+  if File::open(&blob_path).is_ok() {
+    utils::create_relative_symlink(&symlink_path, &blob_path)?;
     return Err(io::Error::new(
       io::ErrorKind::AlreadyExists,
       format!("Blob already exists: {}", digest),
     ));
   }
 
-  let file = OpenOptions::new().create_new(true).write(true).open(&file_path)?;
-  utils::create_relative_symlink(&symlink_path, &file_path)?;
+  let file = OpenOptions::new().create_new(true).write(true).open(&blob_path)?;
+  utils::create_relative_symlink(&symlink_path, &blob_path)?;
   Ok(file)
 }
 
 /// Mounts a blob file. If the file does not exist, an error is returned.
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
-  is_safe_digest(digest)?;
-
-  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
-  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
-  let file_path = format!(
-    "{blob_dir}/{}.blob",
-    digest.replace("sha256:", "").chars().skip(2).collect::<String>()
-  );
+  let blob_path = get_path(name, digest, FileType::Blob)?;
+  let symlink_path = get_path(name, digest, FileType::BlobLink)?;
 
   // If the file does not exist, return an error.
-  let file = File::open(&file_path)?;
+  let file = File::open(&blob_path)?;
   drop(file);
 
-  let container_dir = container_dir(name)?;
-  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
-  utils::create_relative_symlink(&symlink_path, &file_path)?;
+  utils::create_relative_symlink(&symlink_path, &blob_path)?;
   Ok(())
 }
 
 /// Deletes a blob file. If the file does not exist, an error is returned.
 pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
-  is_safe_digest(digest)?;
-  let container_dir = container_dir(name)?;
-  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
+  let symlink_path = get_path(name, digest, FileType::BlobLink)?;
   std::fs::remove_file(&symlink_path)?;
   Ok(())
 }
@@ -65,9 +49,7 @@ pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
 /// Opens a blob file in read-only mode. If the file does not exist, an error is
 /// returned.
 pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
-  is_safe_digest(digest)?;
-  let container_dir = container_dir(name)?;
-  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
+  let symlink_path = get_path(name, digest, FileType::BlobLink)?;
   let symlink = File::open(symlink_path)?;
   Ok(symlink)
 }
@@ -75,17 +57,13 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 /// Creates a manifest file, and retuns it in write-only mode. If the file
 /// already exists, an error is returned.
 pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
-  is_safe_digest(digest)?;
-  if let Some(tag) = tag {
-    if !utils::is_safe_reference(tag) {
-      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid tag"));
-    }
-  }
+  let file_path = get_path(name, digest, FileType::Manifest)?;
+  let tag_file_path = match tag {
+    Some(tag) => Some(get_path(name, tag, FileType::Tag)?),
+    None => None,
+  };
 
-  let container_dir = container_dir(name)?;
-  let data_file_name = manifest_file_name(digest);
-  let data_file_path = format!("{container_dir}/{data_file_name}");
-  let file = match OpenOptions::new().create_new(true).write(true).open(&data_file_path) {
+  let file = match OpenOptions::new().create_new(true).write(true).open(&file_path) {
     Ok(f) => Ok(f),
     Err(e) => match e.kind() {
       // If the file already exists, we should still create the tag before we
@@ -96,11 +74,8 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
     },
   };
 
-  // TODO: Should have a create_tag helper instead.
-  if let Some(tag) = tag {
-    let tag_file_name = manifest_file_name(tag);
-    let tag_file_path = format!("{container_dir}/{tag_file_name}");
-    utils::create_relative_symlink(&tag_file_path, &data_file_path)?;
+  if let Some(tag_file_path) = tag_file_path {
+    utils::create_relative_symlink(&tag_file_path, &file_path)?;
   }
 
   file
@@ -113,15 +88,19 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
     Ok(r) => r,
     Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
   };
-  let container_dir = container_dir(name)?;
-  let file_name = manifest_file_name(reference);
-  std::fs::remove_file(format!("{container_dir}/{file_name}"))?;
+
+  let file_path = match reference_type {
+    utils::Reference::Tag(_) => get_path(name, reference, FileType::Tag)?,
+    utils::Reference::Sha256(_) => get_path(name, reference, FileType::Manifest)?,
+  };
+  std::fs::remove_file(file_path)?;
 
   match reference_type {
     utils::Reference::Tag(_) => {}
     utils::Reference::Sha256(_) => {
       // Delete tags that point to the deleted manifest
-      utils::clean_broken_symlinks_in(container_dir.as_str())?;
+      let container_dir = container_dir(name)?;
+      utils::clean_broken_symlinks_in(&container_dir)?;
     }
   }
 
@@ -131,18 +110,24 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
 /// Opens a manifest file in read-only mode. If the file does not exist, an error
 /// is returned.
 pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
-  let container_dir = container_dir(name)?;
-  let file_name = manifest_file_name(reference);
-  let file = File::open(format!("{container_dir}/{file_name}"))?;
+  let reference_type = match utils::verify_reference(reference) {
+    Ok(r) => r,
+    Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
+  };
+
+  let file_path = match reference_type {
+    utils::Reference::Tag(_) => get_path(name, reference, FileType::Tag)?,
+    utils::Reference::Sha256(_) => get_path(name, reference, FileType::Manifest)?,
+  };
+
+  let file = File::open(file_path)?;
   Ok(file)
 }
 
 /// Lists all the tags in a given namespace.
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   is_safe_name(name)?;
-
-  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  let container_dir = container_dir(name)?;
   let entries = std::fs::read_dir(container_dir)?;
 
   let mut tags = Vec::new();
@@ -158,9 +143,7 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
 /// Opens a file in write-only mode. If the file already exist, an error is
 /// returned.
 pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
-  let container_dir = container_dir(name)?;
-  let file_path = format!("{container_dir}/{reference}.hunk");
+  let file_path = get_path(name, reference, FileType::Hunk)?;
   let file = OpenOptions::new().create_new(true).write(true).open(file_path)?;
   Ok(file)
 }
@@ -168,9 +151,7 @@ pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 /// Opens a file in append-only mode. If the file does not exist, an error is
 /// returned.
 pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
-  let container_dir = container_dir(name)?;
-  let file_path = format!("{container_dir}/{reference}.hunk");
+  let file_path = get_path(name, reference, FileType::Hunk)?;
   let file = OpenOptions::new().append(true).open(file_path)?;
   Ok(file)
 }
@@ -178,20 +159,17 @@ pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 /// Opens a file in read-only mode. If the file does not exist, an error is
 /// returned.
 pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
-  is_safe_reference(reference)?;
-  let container_dir = container_dir(name)?;
-  let file_path = format!("{container_dir}/{reference}.hunk");
+  let file_path = get_path(name, reference, FileType::Hunk)?;
   let file = File::open(file_path)?;
   Ok(file)
 }
 
 /// Verifies that a hunk is complete, and converts it into a blob.
 pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
-  is_safe_reference(reference)?;
-  is_safe_digest(digest)?;
+  let hunk_path = get_path(name, reference, FileType::Hunk)?;
+  let blob_path = get_path(name, digest, FileType::Blob)?;
+  let symlink_path = get_path(name, digest, FileType::BlobLink)?;
 
-  let container_dir = container_dir(name)?;
-  let hunk_path = format!("{container_dir}/{reference}.hunk");
   let mut file = File::open(&hunk_path)?;
   let mut buf = Vec::new();
   file.read_to_end(&mut buf)?;
@@ -203,14 +181,8 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
     ));
   }
 
-  let blob_dir = blob_dir(digest)?;
-  let blob_path = format!(
-    "{blob_dir}/{}.blob",
-    digest.replace("sha256:", "").chars().skip(2).collect::<String>()
-  );
   std::fs::rename(&hunk_path, &blob_path)?;
 
-  let symlink_path = format!("{container_dir}/{}.blob", digest.replace("sha256:", ""));
   match utils::create_relative_symlink(&symlink_path, &blob_path) {
     Ok(_) => (),
     Err(e) => match e.kind() {
@@ -221,6 +193,72 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   }
 
   Ok(())
+}
+
+/// Gets the media type of a file by reading the `mediatype` extended attribute.
+pub fn get_xattr_media_type(file: &File) -> Option<String> {
+  let bytes = match file.get_xattr("user.mime_type") {
+    Ok(bytes) => match bytes {
+      Some(bytes) => bytes,
+      None => return None,
+    },
+    Err(e) => {
+      println!("Failed to get media type: {:?}", e);
+      return None;
+    }
+  };
+  String::from_utf8(bytes).ok()
+}
+
+/// Sets the media type of a file by setting the `mediatype` extended attribute.
+pub fn set_xattr_media_type(file: &File, media_type: &str) -> Result<(), io::Error> {
+  file.set_xattr("user.mime_type", media_type.as_bytes())
+}
+
+enum FileType {
+  Blob,     // .blob
+  BlobLink, // Symlink to Blob
+  Hunk,     // .hunk
+  Manifest, // .json
+  Tag,      // Symlink to Manifest
+}
+fn get_path(name: &str, reference: &str, file_type: FileType) -> Result<String, io::Error> {
+  match file_type {
+    FileType::Blob => is_safe_digest(reference)?,
+    FileType::BlobLink => is_safe_digest(reference)?,
+    FileType::Hunk => is_safe_reference(reference)?,
+    FileType::Manifest => is_safe_digest(reference)?,
+    FileType::Tag => is_safe_reference(reference)?,
+  }
+
+  let reference = match reference.starts_with("sha256:") {
+    true => reference.to_string().replace("sha256:", "sha256@"),
+    false => reference.to_string(),
+  };
+
+  match file_type {
+    FileType::Blob => {
+      let file_name = reference.replace("sha256@", "").chars().skip(2).collect::<String>();
+      Ok(format!("{}/{file_name}.blob", blob_dir(reference)?))
+    }
+    FileType::BlobLink => Ok(format!("{}/{reference}.blob", container_dir(name)?)),
+    FileType::Hunk => Ok(format!("{}/{reference}.hunk", container_dir(name)?)),
+    FileType::Manifest => Ok(format!("{}/{reference}.json", container_dir(name)?)),
+    FileType::Tag => Ok(format!("{}/{reference}.json", container_dir(name)?)),
+  }
+}
+
+fn container_dir(name: &str) -> Result<String, io::Error> {
+  is_safe_name(name)?;
+  let container_dir = format!("{DATA_DIR}/containers/{name}");
+  DirBuilder::new().recursive(true).create(&container_dir)?;
+  Ok(container_dir)
+}
+fn blob_dir(digest: String) -> Result<String, io::Error> {
+  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
+  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
+  DirBuilder::new().recursive(true).create(&blob_dir)?;
+  Ok(blob_dir)
 }
 
 fn is_safe_name(name: &str) -> Result<(), io::Error> {
@@ -242,46 +280,6 @@ fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
       Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
     }
   }
-}
-
-fn container_dir(name: &str) -> Result<String, io::Error> {
-  is_safe_name(name)?;
-  let container_dir = format!("{DATA_DIR}/containers/{name}");
-  DirBuilder::new().recursive(true).create(&container_dir)?;
-  Ok(container_dir)
-}
-fn blob_dir(digest: &str) -> Result<String, io::Error> {
-  is_safe_digest(digest)?;
-  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
-  let blob_dir = format!("{DATA_DIR}/blobs/{prefix}");
-  DirBuilder::new().recursive(true).create(&blob_dir)?;
-  Ok(blob_dir)
-}
-fn manifest_file_name(reference: &str) -> String {
-  match reference.starts_with("sha256:") {
-    true => format!("{}.json", reference.replace("sha256:", "sha256@")),
-    false => format!("{}.json", reference),
-  }
-}
-
-/// Gets the media type of a file by reading the `mediatype` extended attribute.
-pub fn get_xattr_media_type(file: &File) -> Option<String> {
-  let bytes = match file.get_xattr("user.mime_type") {
-    Ok(bytes) => match bytes {
-      Some(bytes) => bytes,
-      None => return None,
-    },
-    Err(e) => {
-      println!("Failed to get media type: {:?}", e);
-      return None;
-    }
-  };
-  String::from_utf8(bytes).ok()
-}
-
-/// Sets the media type of a file by setting the `mediatype` extended attribute.
-pub fn set_xattr_media_type(file: &File, media_type: &str) -> Result<(), io::Error> {
-  file.set_xattr("user.mime_type", media_type.as_bytes())
 }
 
 #[cfg(test)]
