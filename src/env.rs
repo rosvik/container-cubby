@@ -1,5 +1,3 @@
-use std::env;
-
 pub const PROTOCOL: &str = "http";
 const DEFAULT_HOST: &str = "localhost";
 const DEFAULT_PORT: u16 = 8602;
@@ -25,9 +23,9 @@ pub fn data_dir() -> String {
 }
 
 pub fn print_env_info() {
-  let username = env::var("USERNAME");
-  let password = env::var("PASSWORD");
-  let auth_enabled = env::var("AUTH_ENABLED");
+  let username = std::env::var("USERNAME");
+  let password = std::env::var("PASSWORD");
+  let auth_enabled = std::env::var("AUTH_ENABLED");
 
   if auth_enabled.is_ok_and(|x| x == "false") {
     println!("\x1b[1;33mWARNING: With AUTH_ENABLED=false, adding and deleting data from this registry can be done without authentication.\x1b[0m");
