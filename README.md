@@ -4,31 +4,32 @@ Container Cubby is a minimal implementation of a container registry, based on th
 
 ## Storage
 
-Container Cubby stores all container data in a local directory. The layout is as follows:
+Container Cubby doesn't use a traditional database, but stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
+
+The layout is as follows:
 
 ```
-<data_dir>/
+<DATA_DIR>/
 ├── containers/
 │   └── <name>/
-│       ├── <tag>.json
+│       ├── <tag>.json [SYMLINK]
 │       ├── sha256@<manifest hash>.json
-│       └── <blob symlink>
+│       └── sha256@<blob hash>.blob [SYMLINK]
 └── blobs/
-    └── <prefix>/
-        └── sha256@<blob hash>.blob
+    └── <blob hash prefix>/
+        └── <remaining blob hash>.blob
 ```
 
-As an example, if the image `foo/bar:latest` has a manifest with a blob reference to `sha256@abc123`, then the following four files will be created:
+As an example, if the image `foo/bar:latest` is created with a manifest and one blob with hash `sha256@abc123`, then the following four files will be created:
 
 1. `<data_dir>/containers/foo/bar/latest.json`
 2. `<data_dir>/containers/foo/bar/sha256@<manifest hash>.json`
-3. `<data_dir>/containers/foo/bar/sha256@abc123.json`
+3. `<data_dir>/containers/foo/bar/sha256@abc123.blob`
 4. `<data_dir>/blobs/ab/c123.blob`
-
 
 Where `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
 
-<!-- TODO: Add notes on xattrs, symlinks, and blob storage -->
+<!-- TODO: Add notes on xattrs -->
 
 ## Endpoints
 
