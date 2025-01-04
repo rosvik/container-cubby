@@ -53,8 +53,9 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   Ok(symlink)
 }
 
-/// Creates a manifest file, and retuns it in write-only mode. If the file
-/// already exists, an error is returned.
+/// Creates a manifest file and optionally a tag symlink, and returns the
+/// manifest file in write-only mode. If the manifest file already exists, an
+/// error is returned. If the tag symlink already exists, it is overwritten.
 pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
   let file_path = get_path(name, digest, FileType::Manifest)?;
   let tag_file_path = match tag {

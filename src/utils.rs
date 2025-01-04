@@ -115,7 +115,7 @@ pub fn is_safe_digest(digest: &str) -> bool {
 }
 
 /// Create a symlink using relative paths, so the containing directory can be
-/// moved without breaking the symlink.
+/// moved without breaking the symlink. Will overwrite existing symlinks.
 /// - `from` is the path to the symlink file
 /// - `to` is the path to the target (original) file
 pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Error> {

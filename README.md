@@ -11,7 +11,7 @@ Container Cubby is a minimal implementation of a container registry, based on th
 
 While the most common way for an API to store data is trough a traditional database using SQL and a blob storage for larger files, Container Cubby uses a different approach. Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
 
-This is done by using
+This is implemented using
 - directories to represent namespaces.
   - E.g. containers under the `rosvik/container-cubby` namespace are stored in `<DATA_DIR>/containers/rosvik/container-cubby/`.
 - files to store manifest and blob data.
