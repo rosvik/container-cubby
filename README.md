@@ -4,32 +4,41 @@ Container Cubby is a minimal implementation of a container registry, based on th
 
 ## Storage
 
-Container Cubby doesn't use a traditional database, but stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
+> [!NOTE]
+> Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
+>
+> Feel free to [open an issue](https://github.com/rosvik/container-cubby/issues/new) if you find that your OS is not supported.
 
-The layout is as follows:
+While the most common way for an API to store data is trough a traditional database using SQL and a blob storage for larger files, Container Cubby uses a different approach. Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
+
+This is done by using
+- directories to represent namespaces.
+  - E.g. containers under the `rosvik/container-cubby` namespace are stored in `<DATA_DIR>/containers/rosvik/container-cubby/`.
+- files to store manifest and blob data.
+  - Manifests are stored as `sha256@<manifest hash>.json` in namespace folders.
+  - Blobs are stored in the `<DATA_DIR>/blobs` folder.
+- symbolic links to represent relations between files.
+  - Tags are represented as symlinks to manifest files.
+  - Instead of storing blobs per namespace, namespace directories has symlinks to the blob directory. This way, if two namespaces point to the same blob hash, the same blob file is used.
+- [extended attributes](https://wiki.archlinux.org/title/Extended_attributes) to store file metadata.
+  - The `user.mime_type` extended attribute is used to store the media type of manifests.
+
+As an example, if the image `foo/bar:latest` is created with a manifest and one blob with hash `sha256@abc123`, then the following four files will be created:
 
 ```
 <DATA_DIR>/
 ├── containers/
-│   └── <name>/
-│       ├── <tag>.json [SYMLINK]
-│       ├── sha256@<manifest hash>.json
-│       └── sha256@<blob hash>.blob [SYMLINK]
+│   └── foo/
+│       └── bar/
+│           ├── latest.json                      [SYMLINK]
+│           ├── sha256@<manifest hash>.json
+│           └── sha256@abc123.blob               [SYMLINK]
 └── blobs/
-    └── <blob hash prefix>/
-        └── <remaining blob hash>.blob
+    └── ab/
+        └── c123.blob
 ```
 
-As an example, if the image `foo/bar:latest` is created with a manifest and one blob with hash `sha256@abc123`, then the following four files will be created:
-
-1. `<data_dir>/containers/foo/bar/latest.json`
-2. `<data_dir>/containers/foo/bar/sha256@<manifest hash>.json`
-3. `<data_dir>/containers/foo/bar/sha256@abc123.blob`
-4. `<data_dir>/blobs/ab/c123.blob`
-
 Where `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
-
-<!-- TODO: Add notes on xattrs -->
 
 ## Endpoints
 
