@@ -19,17 +19,17 @@ This is done by using
   - Blobs are stored in the `<DATA_DIR>/blobs` folder.
 - symbolic links to represent relations between files.
   - Tags are represented as symlinks to manifest files.
-  - Instead of storing blobs per namespace, namespace directories has symlinks to the blob directory. This way, if two namespaces point to the same blob hash, the same blob file is used.
+  - Instead of storing blobs per namespace, the namespace directories contains symlinks to the blob directory. This way, when two namespaces refers to blobs with the same hash, only one blob file is stored.
 - [extended attributes](https://wiki.archlinux.org/title/Extended_attributes) to store file metadata.
   - The `user.mime_type` extended attribute is used to store the media type of manifests.
 
-As an example, if the image `foo/bar:latest` is created with a manifest and one blob with hash `sha256@abc123`, then the following four files will be created:
+As an example, if the image `rosvik/container-cubby:latest` is created as one manifest and one blob with hash `sha256@abc123`, then the following files will be created:
 
 ```
 <DATA_DIR>/
 ├── containers/
-│   └── foo/
-│       └── bar/
+│   └── rosvik/
+│       └── container-cubby/
 │           ├── latest.json                      [SYMLINK]
 │           ├── sha256@<manifest hash>.json
 │           └── sha256@abc123.blob               [SYMLINK]
@@ -38,7 +38,7 @@ As an example, if the image `foo/bar:latest` is created with a manifest and one 
         └── c123.blob
 ```
 
-Where `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
+Here, `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
 
 ## Endpoints
 
