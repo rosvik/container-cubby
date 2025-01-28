@@ -257,7 +257,7 @@ fn container_dir(name: &str) -> Result<String, io::Error> {
 }
 fn blob_dir(digest: String) -> Result<String, io::Error> {
   let data_dir = env::data_dir();
-  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
+  let prefix = digest.replace("sha256@", "").chars().take(2).collect::<String>();
   let blob_dir = format!("{data_dir}/blobs/{prefix}");
   DirBuilder::new().recursive(true).create(&blob_dir)?;
   Ok(blob_dir)
