@@ -197,7 +197,7 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   Ok(())
 }
 
-/// Gets the media type of a file by reading the `mediatype` extended attribute.
+/// Gets the media type of a file by reading the `user.mime_type` extended attribute.
 pub fn get_xattr_media_type(file: &File) -> Option<String> {
   let bytes = match file.get_xattr("user.mime_type") {
     Ok(bytes) => match bytes {
@@ -212,7 +212,7 @@ pub fn get_xattr_media_type(file: &File) -> Option<String> {
   String::from_utf8(bytes).ok()
 }
 
-/// Sets the media type of a file by setting the `mediatype` extended attribute.
+/// Sets the media type of a file by setting the `user.mime_type` extended attribute.
 pub fn set_xattr_media_type(file: &File, media_type: &str) -> Result<(), io::Error> {
   file.set_xattr("user.mime_type", media_type.as_bytes())
 }
