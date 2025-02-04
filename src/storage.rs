@@ -126,7 +126,9 @@ pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
 
 /// Lists all the tags in a given namespace.
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
-  is_safe_name(name)?;
+  if !utils::is_safe_name(name) {
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
+  }
   let container_dir = container_dir(name)?;
   let entries = std::fs::read_dir(container_dir)?;
 
@@ -223,12 +225,18 @@ enum FileType {
   Tag,      // Symlink to Manifest
 }
 fn get_path(name: &str, reference: &str, file_type: FileType) -> Result<String, io::Error> {
-  match file_type {
-    FileType::Blob => is_safe_digest(reference)?,
-    FileType::BlobLink => is_safe_digest(reference)?,
-    FileType::Hunk => is_safe_reference(reference)?,
-    FileType::Manifest => is_safe_digest(reference)?,
-    FileType::Tag => is_safe_reference(reference)?,
+  let is_safe = match file_type {
+    FileType::Blob => utils::is_safe_digest(reference),
+    FileType::BlobLink => utils::is_safe_digest(reference),
+    FileType::Hunk => utils::is_safe_hunk(reference),
+    FileType::Manifest => utils::is_safe_digest(reference),
+    FileType::Tag => utils::is_safe_reference(reference),
+  };
+  if !is_safe {
+    return Err(io::Error::new(
+      io::ErrorKind::InvalidInput,
+      format!("Unsafe reference: {}", reference),
+    ));
   }
 
   let reference = match reference.starts_with("sha256:") {
@@ -250,7 +258,9 @@ fn get_path(name: &str, reference: &str, file_type: FileType) -> Result<String, 
 
 fn container_dir(name: &str) -> Result<String, io::Error> {
   let data_dir = env::data_dir();
-  is_safe_name(name)?;
+  if !utils::is_safe_name(name) {
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
+  }
   let container_dir = format!("{data_dir}/containers/{name}");
   DirBuilder::new().recursive(true).create(&container_dir)?;
   Ok(container_dir)
@@ -261,27 +271,6 @@ fn blob_dir(digest: String) -> Result<String, io::Error> {
   let blob_dir = format!("{data_dir}/blobs/{prefix}");
   DirBuilder::new().recursive(true).create(&blob_dir)?;
   Ok(blob_dir)
-}
-
-fn is_safe_name(name: &str) -> Result<(), io::Error> {
-  match utils::is_safe_name(name) {
-    true => Ok(()),
-    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name))),
-  }
-}
-fn is_safe_digest(digest: &str) -> Result<(), io::Error> {
-  match utils::is_safe_digest(digest) {
-    true => Ok(()),
-    false => Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe digest: {}", digest))),
-  }
-}
-fn is_safe_reference(reference: &str) -> Result<(), io::Error> {
-  match utils::verify_reference(reference) {
-    Ok(_) => Ok(()),
-    Err(_) => {
-      Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe reference: {}", reference)))
-    }
-  }
 }
 
 #[cfg(test)]

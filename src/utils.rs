@@ -113,6 +113,9 @@ pub fn is_safe_digest(digest: &str) -> bool {
   let re = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
   re.is_match(digest)
 }
+pub fn is_safe_hunk(hunk: &str) -> bool {
+  is_safe_reference(hunk)
+}
 
 /// Create a symlink using relative paths, so the containing directory can be
 /// moved without breaking the symlink. Will overwrite existing symlinks.
