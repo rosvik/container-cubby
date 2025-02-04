@@ -280,4 +280,49 @@ mod tests {
     let media_type = get_xattr_media_type(&file).unwrap();
     assert_eq!(media_type, "application/vnd.docker.distribution.manifest.v2+json");
   }
+
+  #[test]
+  fn test_blob_dir() {
+    let digest = "sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7";
+    let blob_dir = blob_dir(digest).unwrap();
+    assert_eq!(blob_dir, "test-data/blobs/f5");
+  }
+
+  #[test]
+  fn test_container_dir() {
+    let name = "foo/bar";
+    let container_dir = container_dir(name).unwrap();
+    assert_eq!(container_dir, "test-data/containers/foo/bar");
+  }
+
+  #[test]
+  fn test_get_path() {
+    let name = "foo/bar";
+    let digest = "sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7";
+    let tag = "latest";
+    let hunk = "35003fde-9a27-4b01-a296-1337deadbeef";
+
+    // Blob
+    let blob_path = get_path(name, digest, FileType::Blob).unwrap();
+    assert_eq!(
+      blob_path,
+      "test-data/blobs/f5/2fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.blob"
+    );
+
+    // BlobLink
+    let blob_link_path = get_path(name, digest, FileType::BlobLink).unwrap();
+    assert_eq!(blob_link_path, "test-data/containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.blob");
+
+    // Hunk
+    let hunk_path = get_path(name, hunk, FileType::Hunk).unwrap();
+    assert_eq!(hunk_path, "test-data/containers/foo/bar/35003fde-9a27-4b01-a296-1337deadbeef.hunk");
+
+    // Manifest
+    let manifest_path = get_path(name, digest, FileType::Manifest).unwrap();
+    assert_eq!(manifest_path, "test-data/containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.json");
+
+    // Tag
+    let tag_path = get_path(name, tag, FileType::Tag).unwrap();
+    assert_eq!(tag_path, "test-data/containers/foo/bar/latest.json");
+  }
 }
