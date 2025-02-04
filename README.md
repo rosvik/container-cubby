@@ -15,7 +15,7 @@ This is implemented using
 - directories to represent namespaces.
   - E.g. containers under the `rosvik/container-cubby` namespace are stored in `<DATA_DIR>/containers/rosvik/container-cubby/`.
 - files to store manifest and blob data.
-  - Manifests are stored as `sha256@<manifest hash>.json` in namespace folders.
+  - Manifests are stored as `sha256:<manifest hash>.json` in namespace folders.
   - Blobs are stored in the `<DATA_DIR>/blobs` folder.
 - symbolic links to represent relations between files.
   - Tags are represented as symlinks to manifest files.
@@ -23,7 +23,7 @@ This is implemented using
 - [extended attributes](https://wiki.archlinux.org/title/Extended_attributes) to store file metadata.
   - The `user.mime_type` extended attribute is used to store the media type of manifests.
 
-As an example, if the image `rosvik/container-cubby:latest` is created as one manifest and one blob with hash `sha256@abc123`, then the following files will be created:
+As an example, if the image `rosvik/container-cubby:latest` is created as one manifest and one blob with hash `sha256:abc123`, then the following files will be created:
 
 ```
 <DATA_DIR>/
@@ -31,14 +31,14 @@ As an example, if the image `rosvik/container-cubby:latest` is created as one ma
 │   └── rosvik/
 │       └── container-cubby/
 │           ├── latest.json                      [SYMLINK]
-│           ├── sha256@<manifest hash>.json
-│           └── sha256@abc123.blob               [SYMLINK]
+│           ├── sha256:<manifest hash>.json
+│           └── sha256:abc123.blob               [SYMLINK]
 └── blobs/
     └── ab/
         └── c123.blob
 ```
 
-Here, `latest.json` is a symlink to `sha256@<manifest hash>.json`, and `sha256@abc123.blob` is a symlink to `blobs/ab/c123.blob`.
+Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:abc123.blob` is a symlink to `blobs/ab/c123.blob`.
 
 ## Endpoints
 

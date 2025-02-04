@@ -148,7 +148,7 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
 pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
   for entry in std::fs::read_dir(dir)? {
     let file_name = entry?.file_name().into_string().unwrap();
-    if file_name.ends_with(".json") && !file_name.starts_with("sha256@") {
+    if file_name.ends_with(".json") && !file_name.starts_with("sha256:") {
       let link_path = format!("{dir}/{file_name}");
       if let Err(error) = std::fs::canonicalize(&link_path) {
         if error.kind() == std::io::ErrorKind::NotFound {

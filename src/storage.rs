@@ -135,7 +135,7 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   let mut tags = Vec::new();
   for entry in entries {
     let file_name = entry?.file_name().into_string().unwrap();
-    if file_name.ends_with(".json") && !file_name.starts_with("sha256@") {
+    if file_name.ends_with(".json") && !file_name.starts_with("sha256:") {
       tags.push(file_name.chars().take(file_name.len() - 5).collect::<String>());
     }
   }
@@ -239,14 +239,9 @@ fn get_path(name: &str, reference: &str, file_type: FileType) -> Result<String, 
     ));
   }
 
-  let reference = match reference.starts_with("sha256:") {
-    true => reference.to_string().replace("sha256:", "sha256@"),
-    false => reference.to_string(),
-  };
-
   match file_type {
     FileType::Blob => {
-      let file_name = reference.replace("sha256@", "").chars().skip(2).collect::<String>();
+      let file_name = reference.replace("sha256:", "").chars().skip(2).collect::<String>();
       Ok(format!("{}/{file_name}.blob", blob_dir(reference)?))
     }
     FileType::BlobLink => Ok(format!("{}/{reference}.blob", container_dir(name)?)),
@@ -265,9 +260,9 @@ fn container_dir(name: &str) -> Result<String, io::Error> {
   DirBuilder::new().recursive(true).create(&container_dir)?;
   Ok(container_dir)
 }
-fn blob_dir(digest: String) -> Result<String, io::Error> {
+fn blob_dir(digest: &str) -> Result<String, io::Error> {
   let data_dir = env::data_dir();
-  let prefix = digest.replace("sha256@", "").chars().take(2).collect::<String>();
+  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
   let blob_dir = format!("{data_dir}/blobs/{prefix}");
   DirBuilder::new().recursive(true).create(&blob_dir)?;
   Ok(blob_dir)
