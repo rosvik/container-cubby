@@ -10,7 +10,7 @@ use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
-use storage::set_xattr_media_type;
+use storage::xattr::set_xattr_media_type;
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
@@ -172,7 +172,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
   let content_type =
-    storage::get_xattr_media_type(&file).unwrap_or(String::from("application/json"));
+    storage::xattr::get_xattr_media_type(&file).unwrap_or(String::from("application/json"));
 
   HttpResponse::Ok()
     .insert_header(("Docker-Content-Digest", digest))
