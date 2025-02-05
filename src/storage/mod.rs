@@ -1,20 +1,19 @@
+mod file;
 mod path;
 mod symlink;
 pub mod xattr;
 
 use crate::utils;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, Read};
 
-/// Creates a blob file, and retuns it in write-only mode. If the file already
-/// exists, an error is returned.
+/// Creates a blob file, and returns it in write-only mode.
 pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
 
-  // If the file already exists, create a symlink to it, and return an
-  // AlreadyExists error.
-  if File::open(&blob_path).is_ok() {
+  // If the file already exists, create a symlink to it, and return an error.
+  if file::try_read(&blob_path).is_ok() {
     symlink::create_relative_symlink(&symlink_path, &blob_path)?;
     return Err(io::Error::new(
       io::ErrorKind::AlreadyExists,
@@ -22,42 +21,40 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
     ));
   }
 
-  let file = OpenOptions::new().create_new(true).write(true).open(&blob_path)?;
+  let file = file::try_create(&blob_path)?;
   symlink::create_relative_symlink(&symlink_path, &blob_path)?;
   Ok(file)
 }
 
-/// Mounts a blob file. If the file does not exist, an error is returned.
+/// Mounts a blob file.
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
 
   // If the file does not exist, return an error.
-  let file = File::open(&blob_path)?;
+  let file = file::try_read(&blob_path)?;
   drop(file);
 
   symlink::create_relative_symlink(&symlink_path, &blob_path)?;
   Ok(())
 }
 
-/// Deletes a blob file. If the file does not exist, an error is returned.
+/// Deletes a blob file.
 pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
   std::fs::remove_file(&symlink_path)?;
   Ok(())
 }
 
-/// Opens a blob file in read-only mode. If the file does not exist, an error is
-/// returned.
+/// Opens a blob file in read-only mode.
 pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-  let symlink = File::open(symlink_path)?;
+  let symlink = file::try_read(&symlink_path)?;
   Ok(symlink)
 }
 
 /// Creates a manifest file and optionally a tag symlink, and returns the
-/// manifest file in write-only mode. If the manifest file already exists, an
-/// error is returned. If the tag symlink already exists, it is overwritten.
+/// manifest file with write access. If the tag exists, it is overwritten.
 pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
   let file_path = path::get(name, digest, path::FileType::Manifest)?;
   let tag_file_path = match tag {
@@ -65,7 +62,7 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
     None => None,
   };
 
-  let file = match OpenOptions::new().create_new(true).write(true).open(&file_path) {
+  let file = match file::try_create(&file_path) {
     Ok(f) => Ok(f),
     Err(e) => match e.kind() {
       // If the file already exists, we should still create the tag before we
@@ -83,8 +80,7 @@ pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<Fi
   file
 }
 
-/// Deletes a manifest file and all tags that link to the manifest. If the file
-/// does not exist, an error is returned.
+/// Deletes a manifest file and all tags that link to it.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
   let reference_type = match utils::verify_reference(reference) {
     Ok(r) => r,
@@ -97,20 +93,15 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
   };
   std::fs::remove_file(file_path)?;
 
-  match reference_type {
-    utils::Reference::Tag(_) => {}
-    utils::Reference::Sha256(_) => {
-      // Delete tags that point to the deleted manifest
-      let container_dir = path::container_dir(name)?;
-      symlink::clean_broken_symlinks_in(&container_dir)?;
-    }
+  if let utils::Reference::Sha256(_) = reference_type {
+    // Delete tags that point to the deleted manifest
+    let container_dir = path::container_dir(name)?;
+    symlink::clean_broken_symlinks_in(&container_dir)?;
   }
-
   Ok(())
 }
 
-/// Opens a manifest file in read-only mode. If the file does not exist, an error
-/// is returned.
+/// Opens a manifest file in read-only mode.
 pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
   let reference_type = match utils::verify_reference(reference) {
     Ok(r) => r,
@@ -122,7 +113,7 @@ pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
     utils::Reference::Sha256(_) => path::get(name, reference, path::FileType::Manifest)?,
   };
 
-  let file = File::open(file_path)?;
+  let file = file::try_read(&file_path)?;
   Ok(file)
 }
 
@@ -144,27 +135,24 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   Ok(tags)
 }
 
-/// Opens a file in write-only mode. If the file already exist, an error is
-/// returned.
+/// Opens a file in write-only mode.
 pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
-  let file = OpenOptions::new().create_new(true).write(true).open(file_path)?;
+  let file = file::try_create(&file_path)?;
   Ok(file)
 }
 
-/// Opens a file in append-only mode. If the file does not exist, an error is
-/// returned.
+/// Opens a file in append-only mode.
 pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
-  let file = OpenOptions::new().append(true).open(file_path)?;
+  let file = file::try_append(&file_path)?;
   Ok(file)
 }
 
-/// Opens a file in read-only mode. If the file does not exist, an error is
-/// returned.
+/// Opens a file in read-only mode.
 pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
-  let file = File::open(file_path)?;
+  let file = file::try_read(&file_path)?;
   Ok(file)
 }
 
@@ -174,7 +162,7 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
 
-  let mut file = File::open(&hunk_path)?;
+  let mut file = file::try_read(&hunk_path)?;
   let mut buf = Vec::new();
   file.read_to_end(&mut buf)?;
 
