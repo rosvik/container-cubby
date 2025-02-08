@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - rosvik/cargo-chef
 
 jobs:
   podman-build:
@@ -21,7 +22,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: container-cubby
-          tags: main ${{ github.sha }}
+          tags: latest ${{ github.sha }}
           platforms: linux/amd64, linux/arm64
           oci: true
           layers: true
