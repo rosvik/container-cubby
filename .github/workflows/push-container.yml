@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get potential cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/build-cache
+          key: ${{ runner.os }}-build-cache-${{ hashFiles('Cargo.lock') }}
+
       # Setup for multi architecture build
       - name: Install QEMU
         run: |
@@ -23,12 +29,14 @@ jobs:
         with:
           image: container-cubby
           tags: latest ${{ github.sha }}
-          platforms: linux/amd64, linux/arm64
+          platforms: linux/amd64
           oci: true
           layers: true
           containerfiles: |
             Containerfile
-
+          build-args: |
+            cache-to=type=local,dest=/tmp/build-cache
+            cache-from=type=local,src=/tmp/build-cache
       - name: Push To cubby.no
         id: push-to-cubby
         uses: redhat-actions/push-to-registry@v2
