@@ -145,7 +145,7 @@ pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 /// Opens a file in append-only mode.
 pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
-  let file = file::try_append(&file_path)?;
+  let file = file::append(&file_path)?;
   Ok(file)
 }
 
