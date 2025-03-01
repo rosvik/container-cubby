@@ -9,7 +9,10 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
-use std::io::{Read, Write};
+use std::{
+  fs::File,
+  io::{Read, Write},
+};
 use storage::xattr::set_xattr_media_type;
 use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
@@ -470,6 +473,9 @@ async fn put_blob_upload(
   // Content-Length header MUST match the actual number of bytes in the chunk.
   if req_length != data.len() {
     println!("Error: Invalid content length: Content-Length={}, data={}", req_length, data.len());
+    // dump data to file
+    let mut file = File::create("data.bin").unwrap();
+    file.write_all(&data).unwrap();
     return HttpResponse::BadRequest().finish();
   }
 
