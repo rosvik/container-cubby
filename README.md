@@ -1,5 +1,8 @@
 # Container Cubby
 
+> [!WARNING]
+> Container Cubby is currently in development, and may still be subject to frequent and unannounced breaking changes.
+
 Container Cubby is a minimal implementation of a container registry, based on the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). It is single-tenant, and stores all container data in a local directory. Although it does work and implements most of the spec, there are no guarantees about the stability or security, and there might still be frequent breaking changes.
 
 ## Storage
@@ -65,28 +68,6 @@ The endpoints defined by the spec, and the project's current progress is the fol
 
 https://specs.opencontainers.org/distribution-spec/#endpoints
 
-## Spec links
+## Contributing
 
-- [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
-- [OCI Runtime Specification](https://github.com/opencontainers/runtime-spec)
-- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
-  - [1.1 Release notes](https://opencontainers.org/posts/blog/2024-03-13-image-and-distribution-1-1/)
-- [CNCF Token Authentication Specification](https://distribution.github.io/distribution/spec/auth/token/)
-
-## Related projects
-
-- [Azure Container Registry Documentation](https://learn.microsoft.com/en-us/rest/api/containerregistry)
-- [google/go-containerregistry Documentation](https://github.com/google/go-containerregistry/blob/main/pkg/v1/remote/README.md)
-- [CNCF Distribution Reference](https://distribution.github.io/distribution/spec/)
-- [skopeo](https://github.com/containers/skopeo)
-- [Cloudflare Container Registry in Workers](https://github.com/cloudflare/serverless-registry)
-
-### Rust Implementations
-
-- [mcronce/oci-registry](https://github.com/mcronce/oci-registry)
-- [krustlet/oci-distribution](https://github.com/krustlet/oci-distribution)
-
-### Go Implementations
-
-- [distribution/distribution](https://github.com/distribution/distribution/)
-- [google/go-containerregistry/pkg/registry](https://github.com/google/go-containerregistry/blob/main/pkg/registry/README.md)
+Contributions are very welcome! If you notice any bugs, or have any suggestions, please feel free to open an issue or make a PR.
