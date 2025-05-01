@@ -4,10 +4,7 @@ use xattr::FileExt;
 /// Gets the media type of a file by reading the `user.mime_type` extended attribute.
 pub fn get_xattr_media_type(file: &File) -> Option<String> {
   let bytes = match file.get_xattr("user.mime_type") {
-    Ok(bytes) => match bytes {
-      Some(bytes) => bytes,
-      None => return None,
-    },
+    Ok(bytes) => bytes?,
     Err(e) => {
       println!("Failed to get media type: {:?}", e);
       return None;
