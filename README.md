@@ -7,11 +7,6 @@ Container Cubby is a minimal implementation of a container registry, based on th
 
 ## Storage
 
-> [!NOTE]
-> Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
->
-> Feel free to [open an issue](https://github.com/rosvik/container-cubby/issues/new) if you find that your OS is not supported.
-
 While the most common way for an API to store data is trough a traditional database using SQL and a blob storage for larger files, Container Cubby uses a different approach. Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
 
 This is implemented using
@@ -42,6 +37,11 @@ As an example, if the image `rosvik/container-cubby:latest` is created as one ma
 ```
 
 Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:abc123.blob` is a symlink to `blobs/ab/c123.blob`.
+
+> [!NOTE]
+> Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
+>
+> Feel free to [open an issue](https://github.com/rosvik/container-cubby/issues/new) if you find that your OS is not supported.
 
 ## Endpoints
 
