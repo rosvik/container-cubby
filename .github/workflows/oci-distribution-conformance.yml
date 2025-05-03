@@ -43,7 +43,7 @@ jobs:
         env:
           USERNAME: mytestuser
           PASSWORD: mytestpassword
-          AUTH_ENABLED: false
+          AUTH_MODE: none
 
       - name: Wait 5 seconds
         run: sleep 5
