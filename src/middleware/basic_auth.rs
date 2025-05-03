@@ -3,6 +3,7 @@ use actix_web::{
   body::EitherBody,
   dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
   http::header::HeaderValue,
+  http::Method,
   Error, HttpResponse,
 };
 use futures_util::{future::LocalBoxFuture, FutureExt};
@@ -11,6 +12,13 @@ use std::{
   future::{ready, Ready},
   rc::Rc,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AuthMode {
+  None,
+  ReadWrite,
+  WriteOnly,
+}
 
 #[derive(Clone)]
 pub struct BasicAuth;
@@ -49,8 +57,18 @@ where
   forward_ready!(service);
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
-    let auth_enabled = env::var("AUTH_ENABLED").unwrap_or("true".to_string());
-    if auth_enabled != "false" {
+    let auth_mode = get_auth_mode();
+    let requires_auth = if auth_mode == AuthMode::None {
+      false // Auth is completely disabled
+    } else if auth_mode == AuthMode::ReadWrite {
+      true // Require auth for all requests
+    } else if auth_mode == AuthMode::WriteOnly {
+      !matches!(*req.method(), Method::GET | Method::HEAD) // Allow read operations
+    } else {
+      panic!("Invalid state in basic_auth: MODE={:?}, METHOD={}", auth_mode, *req.method());
+    };
+
+    if requires_auth {
       let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
         (Ok(username), Ok(password)) => format!("{}:{}", username, password),
         _ => {
@@ -106,4 +124,13 @@ fn into_unauthorized(req: ServiceRequest) -> ServiceResponse {
   let http_res = HttpResponse::Unauthorized().finish();
   let (http_req, _) = req.into_parts();
   ServiceResponse::new(http_req, http_res)
+}
+
+fn get_auth_mode() -> AuthMode {
+  match env::var("AUTH_MODE").unwrap().as_str() {
+    "none" => AuthMode::None,
+    "read_write" => AuthMode::ReadWrite,
+    "write_only" => AuthMode::WriteOnly,
+    invalid => panic!("Invalid AUTH_MODE: {}", invalid),
+  }
 }

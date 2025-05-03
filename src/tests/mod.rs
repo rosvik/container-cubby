@@ -345,9 +345,10 @@ async fn test_push_as_hunks() {
 }
 
 #[test]
-async fn test_basic_auth() {
+async fn test_auth_read_write() {
   std::env::set_var("USERNAME", "admin");
   std::env::set_var("PASSWORD", "hunter2");
+  std::env::set_var("AUTH_MODE", "read_write");
   let user = std::env::var("USERNAME").unwrap();
   let pass = std::env::var("PASSWORD").unwrap();
 
