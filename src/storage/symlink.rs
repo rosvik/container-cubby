@@ -54,3 +54,71 @@ pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
   }
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::storage::{
+    self, ensure_container_dir_exists,
+    file::{self, try_read},
+  };
+  use crate::tests::utils::get_random_namespace;
+  use std::io::{Read, Write};
+
+  #[test]
+  fn test_relative_symlink() {
+    let name: String = get_random_namespace();
+    ensure_container_dir_exists(&name).unwrap();
+
+    let from_path =
+      crate::storage::path::get(&name, "latest", crate::storage::path::FileType::Tag).unwrap();
+    let to_path = crate::storage::path::get(
+      &name,
+      "sha256:315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+      crate::storage::path::FileType::Manifest,
+    )
+    .unwrap();
+
+    // Set up target file
+    let mut file = file::try_create(&to_path).unwrap();
+    file.write_all(b"Hello, world!").unwrap();
+
+    // Create the symlink
+    create_relative_symlink(&from_path, &to_path).unwrap();
+
+    // Verify that the symlink points to the correct file
+    let mut file = try_read(&from_path).unwrap();
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).unwrap();
+    assert_eq!(buf, b"Hello, world!");
+  }
+
+  #[test]
+  fn test_clean_broken_symlinks_in() {
+    let name: String = get_random_namespace();
+    ensure_container_dir_exists(&name).unwrap();
+
+    let from_path =
+      crate::storage::path::get(&name, "latest", crate::storage::path::FileType::Tag).unwrap();
+    let to_path = crate::storage::path::get(
+      &name,
+      "sha256:315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+      crate::storage::path::FileType::Manifest,
+    )
+    .unwrap();
+
+    // Create the symlink. Since the target file does not exist, the symlink
+    // should be removed in the next step.
+    create_relative_symlink(&from_path, &to_path).unwrap();
+
+    // Clean broken symlinks.
+    let container_dir = crate::storage::path::container_dir(&name).unwrap();
+    clean_broken_symlinks_in(&container_dir).unwrap();
+
+    // Verify that the symlink is gone.
+    assert_eq!(
+      storage::file::try_read(&from_path).unwrap_err().kind(),
+      std::io::ErrorKind::NotFound
+    );
+  }
+}
