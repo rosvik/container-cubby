@@ -20,7 +20,7 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
     ));
   }
 
-  let relative_path_to_target = get_relative_path_to_target(from, to);
+  let relative_path_to_target = get_short_relative_path(from, to);
   let full_path_to_link_file = format!("{}/{from}", env::data_dir());
 
   // If there already exists a symlink, remove it first.
@@ -33,9 +33,33 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
   std::os::unix::fs::symlink(relative_path_to_target, full_path_to_link_file)
 }
 
-fn get_relative_path_to_target(from: &str, to: &str) -> String {
-  let dir_levels = from.split("/").count() - 1;
-  format!("{}{to}", "../".repeat(dir_levels))
+/// Finds the relative path with the least amount of directory traversals from
+/// `from` to `to`, assuming both inputs are relative to the same directory.
+///
+/// Example:
+/// ```
+/// let path = get_short_relative_path(
+///   "foo/bar/latest.json",
+///   "foo/sha256:1234.json"
+/// );
+/// assert_eq!(path, "../sha256:1234.json");
+/// ```
+fn get_short_relative_path(from: &str, to: &str) -> String {
+  let mut from_parts = from.split("/").collect::<Vec<&str>>();
+  let mut to_parts = to.split("/").collect::<Vec<&str>>();
+
+  // If the first directory in from_path and to_path is the same, it can be
+  // ignored.
+  while from_parts[0] == to_parts[0] {
+    from_parts.remove(0);
+    to_parts.remove(0);
+  }
+
+  // The number of directory traversals needed is the number of remaining parts
+  // in from_parts, minus 1 to compensate for the file name.
+  let dir_levels = from_parts.len() - 1;
+  let to_path = to_parts.join("/");
+  format!("{}{to_path}", "../".repeat(dir_levels))
 }
 
 pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
@@ -99,16 +123,29 @@ mod tests {
   #[test]
   fn test_get_relative_path_to_target() {
     assert_eq!(
-      get_relative_path_to_target("foo/bar/latest.json", "foo/bar/sha256:1234.json"),
-      "../../foo/bar/sha256:1234.json"
+      get_short_relative_path("foo/bar/latest.json", "foo/bar/sha256:1234.json"),
+      "sha256:1234.json"
     );
     assert_eq!(
-      get_relative_path_to_target("foo/bar/latest.json", "sha256:1234.json"),
+      get_short_relative_path("foo/bar/latest.json", "sha256:1234.json"),
       "../../sha256:1234.json"
     );
     assert_eq!(
-      get_relative_path_to_target("latest.json", "foo/bar/sha256:1234.json"),
+      get_short_relative_path("foo/bar/latest.json", "foo/sha256:1234.json"),
+      "../sha256:1234.json"
+    );
+    assert_eq!(
+      get_short_relative_path("foo/latest.json", "foo/bar/sha256:1234.json"),
+      "bar/sha256:1234.json"
+    );
+    assert_eq!(
+      get_short_relative_path("latest.json", "foo/bar/sha256:1234.json"),
       "foo/bar/sha256:1234.json"
+    );
+
+    assert_eq!(
+      get_short_relative_path("foo/bar/latest.json", "foo/sha256:1234.json"),
+      "../sha256:1234.json"
     );
   }
 
