@@ -20,9 +20,7 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
     ));
   }
 
-  let dir_levels = from.split("/").count() - 1;
-  let relative_path_to_target = format!("{}{to}", "../".repeat(dir_levels));
-
+  let relative_path_to_target = get_relative_path_to_target(from, to);
   let full_path_to_link_file = format!("{}/{from}", env::data_dir());
 
   // If there already exists a symlink, remove it first.
@@ -33,6 +31,11 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
   }
 
   std::os::unix::fs::symlink(relative_path_to_target, full_path_to_link_file)
+}
+
+fn get_relative_path_to_target(from: &str, to: &str) -> String {
+  let dir_levels = from.split("/").count() - 1;
+  format!("{}{to}", "../".repeat(dir_levels))
 }
 
 pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
@@ -91,6 +94,22 @@ mod tests {
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).unwrap();
     assert_eq!(buf, b"Hello, world!");
+  }
+
+  #[test]
+  fn test_get_relative_path_to_target() {
+    assert_eq!(
+      get_relative_path_to_target("foo/bar/latest.json", "foo/bar/sha256:1234.json"),
+      "../../foo/bar/sha256:1234.json"
+    );
+    assert_eq!(
+      get_relative_path_to_target("foo/bar/latest.json", "sha256:1234.json"),
+      "../../sha256:1234.json"
+    );
+    assert_eq!(
+      get_relative_path_to_target("latest.json", "foo/bar/sha256:1234.json"),
+      "foo/bar/sha256:1234.json"
+    );
   }
 
   #[test]
