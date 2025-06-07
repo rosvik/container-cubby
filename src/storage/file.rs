@@ -74,8 +74,15 @@ mod tests {
     let relative_file_path = format!("{container_dir}/test.txt");
 
     let mut file = append(&relative_file_path).unwrap();
-    let result = file.write(b"Hello, world!");
-    assert!(result.is_ok());
+    let _ = file.write(b"Hello");
+
+    let mut file = append(&relative_file_path).unwrap();
+    let _ = file.write(b" world!");
+
+    let mut file = try_read(&relative_file_path).unwrap();
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).unwrap();
+    assert_eq!(buf, b"Hello world!");
   }
 
   #[test]
