@@ -9,6 +9,9 @@ use std::io::{self, Read};
 
 /// Creates a blob file, and returns it in write-only mode.
 pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
+  ensure_blob_dir_exists(digest)?;
+  ensure_container_dir_exists(name)?;
+
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
 
@@ -28,6 +31,9 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 
 /// Mounts a blob file.
 pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
+  ensure_blob_dir_exists(digest)?;
+  ensure_container_dir_exists(name)?;
+
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
 
@@ -56,6 +62,8 @@ pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
 /// Creates a manifest file and optionally a tag symlink, and returns the
 /// manifest file with write access. If the tag exists, it is overwritten.
 pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
+  ensure_container_dir_exists(name)?;
+
   let file_path = path::get(name, digest, path::FileType::Manifest)?;
   let tag_file_path = match tag {
     Some(tag) => Some(path::get(name, tag, path::FileType::Tag)?),
@@ -91,7 +99,7 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
     utils::Reference::Tag(_) => path::get(name, reference, path::FileType::Tag)?,
     utils::Reference::Sha256(_) => path::get(name, reference, path::FileType::Manifest)?,
   };
-  std::fs::remove_file(file_path)?;
+  file::delete(&file_path)?;
 
   if let utils::Reference::Sha256(_) = reference_type {
     // Delete tags that point to the deleted manifest
@@ -137,6 +145,8 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
 
 /// Opens a file in write-only mode.
 pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
+  ensure_container_dir_exists(name)?;
+
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
   let file = file::try_create(&file_path)?;
   Ok(file)
@@ -144,6 +154,8 @@ pub fn create_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 
 /// Opens a file in append-only mode.
 pub fn append_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
+  ensure_container_dir_exists(name)?;
+
   let file_path = path::get(name, reference, path::FileType::Hunk)?;
   let file = file::append(&file_path)?;
   Ok(file)
@@ -158,6 +170,9 @@ pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 
 /// Verifies that a hunk is complete, and converts it into a blob.
 pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
+  ensure_container_dir_exists(name)?;
+  ensure_blob_dir_exists(digest)?;
+
   let hunk_path = path::get(name, reference, path::FileType::Hunk)?;
   let blob_path = path::get(name, digest, path::FileType::Blob)?;
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
@@ -173,7 +188,7 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
     ));
   }
 
-  std::fs::rename(&hunk_path, &blob_path)?;
+  file::rename(&hunk_path, &blob_path)?;
 
   match symlink::create_relative_symlink(&symlink_path, &blob_path) {
     Ok(_) => (),
@@ -184,5 +199,19 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
     },
   }
 
+  Ok(())
+}
+
+/// Ensures that the directory where a blob should be stored exists.
+pub fn ensure_blob_dir_exists(digest: &str) -> Result<(), std::io::Error> {
+  let blob_dir = path::blob_dir(digest)?;
+  file::create_dir(&blob_dir)?;
+  Ok(())
+}
+
+/// Ensures that the directory where a container should be stored exists.
+pub fn ensure_container_dir_exists(name: &str) -> Result<(), std::io::Error> {
+  let container_dir = path::container_dir(name)?;
+  file::create_dir(&container_dir)?;
   Ok(())
 }

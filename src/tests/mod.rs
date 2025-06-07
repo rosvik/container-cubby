@@ -1,4 +1,4 @@
-mod utils;
+pub mod utils;
 
 use super::*;
 use crate::utils::encode_base64;

@@ -1,39 +1,64 @@
-use std::fs::{File, OpenOptions};
+use crate::env;
+use std::fs::{DirBuilder, File, OpenOptions};
 use std::io;
 
 /// Opens a file with read permissions. If the file does not exist, an error is
 /// returned.
-pub fn try_read(path: &str) -> Result<File, io::Error> {
-  let file = File::open(path)?;
+pub fn try_read(relative_path: &str) -> Result<File, io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  let file = File::open(absolute_path)?;
   Ok(file)
 }
 
 /// Creates and opens a file with write permissions. If the file already exists,
 /// an error is returned.
-pub fn try_create(path: &str) -> Result<File, io::Error> {
-  let file = OpenOptions::new().create_new(true).write(true).open(path)?;
+pub fn try_create(relative_path: &str) -> Result<File, io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  let file = OpenOptions::new().create_new(true).write(true).open(absolute_path)?;
   Ok(file)
 }
 
 /// Opens a file with append permissions.
-pub fn append(path: &str) -> Result<File, io::Error> {
-  let file = OpenOptions::new().append(true).create(true).open(path)?;
+pub fn append(relative_path: &str) -> Result<File, io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  let file = OpenOptions::new().append(true).create(true).open(absolute_path)?;
   Ok(file)
+}
+
+pub fn delete(relative_path: &str) -> Result<(), io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  std::fs::remove_file(absolute_path)?;
+  Ok(())
+}
+
+pub fn rename(relative_path_from: &str, relative_path_to: &str) -> Result<(), io::Error> {
+  let absolute_from = format!("{}/{relative_path_from}", env::data_dir());
+  let absolute_to = format!("{}/{relative_path_to}", env::data_dir());
+  std::fs::rename(absolute_from, absolute_to)?;
+  Ok(())
+}
+
+pub fn create_dir(relative_path: &str) -> Result<(), io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  DirBuilder::new().recursive(true).create(&absolute_path)?;
+  Ok(())
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::storage::ensure_container_dir_exists;
+  use crate::tests::utils::get_random_namespace;
   use std::io::{Read, Write};
-  use tempfile::tempdir;
 
   #[test]
   fn test_try_create() {
-    let tmp_dir = tempdir().unwrap();
-    let tmp_dir_path = String::from(tmp_dir.path().to_str().unwrap());
-    let file_path = format!("{}/test.txt", tmp_dir_path);
+    let name: String = get_random_namespace();
+    ensure_container_dir_exists(&name).unwrap();
+    let container_dir = crate::storage::path::container_dir(&name).unwrap();
+    let relative_file_path = format!("{container_dir}/test.txt");
 
-    let file = try_create(&file_path);
+    let file = try_create(&relative_file_path);
     assert!(file.is_ok());
 
     let mut file = file.unwrap();
@@ -43,24 +68,27 @@ mod tests {
 
   #[test]
   fn test_append() {
-    let tmp_dir = tempdir().unwrap();
-    let tmp_dir_path = String::from(tmp_dir.path().to_str().unwrap());
-    let file_path = format!("{}/test.txt", tmp_dir_path);
+    let name: String = get_random_namespace();
+    ensure_container_dir_exists(&name).unwrap();
+    let container_dir = crate::storage::path::container_dir(&name).unwrap();
+    let relative_file_path = format!("{container_dir}/test.txt");
 
-    let mut file = append(&file_path).unwrap();
+    let mut file = append(&relative_file_path).unwrap();
     let result = file.write(b"Hello, world!");
     assert!(result.is_ok());
   }
 
   #[test]
   fn test_try_read() {
-    let tmp_dir = tempdir().unwrap();
-    let tmp_dir_path = String::from(tmp_dir.path().to_str().unwrap());
-    let file_path = format!("{}/test.txt", tmp_dir_path);
-    let mut file = try_create(&file_path).unwrap();
+    let name: String = get_random_namespace();
+    ensure_container_dir_exists(&name).unwrap();
+    let container_dir = crate::storage::path::container_dir(&name).unwrap();
+    let relative_file_path = format!("{container_dir}/test.txt");
+
+    let mut file = try_create(&relative_file_path).unwrap();
     file.write_all(b"Hello, world!").unwrap();
 
-    let file = try_read(&file_path);
+    let file = try_read(&relative_file_path);
     assert!(file.is_ok());
 
     let mut buf = Vec::new();
