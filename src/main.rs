@@ -600,9 +600,7 @@ async fn get_tags_list(
   let tags = utils::get_tag_range(tags, count, query.last.as_deref());
 
   // <name> is the namespace of the repository. Assuming a repository is found,
-  // this request MUST return a 200 OK response code. The list of tags MAY be
-  // empty if there are no tags on the repository. If the list is not empty, the
-  // tags MUST be in lexical order (i.e. case-insensitive alphanumeric order).
+  // this request MUST return a 200 OK response code.
   let tags_list = serde_json::json!({
     "Repository": name,
     "Tags": tags
