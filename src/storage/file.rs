@@ -44,6 +44,11 @@ pub fn create_dir(relative_path: &str) -> Result<(), io::Error> {
   Ok(())
 }
 
+pub fn read_dir(relative_path: &str) -> Result<fs::ReadDir, io::Error> {
+  let absolute_path = format!("{}/{relative_path}", env::data_dir());
+  fs::read_dir(absolute_path)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

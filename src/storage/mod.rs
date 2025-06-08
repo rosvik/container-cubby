@@ -48,7 +48,7 @@ pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
 /// Deletes a blob file.
 pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-  std::fs::remove_file(&symlink_path)?;
+  file::delete(&symlink_path)?;
   Ok(())
 }
 
@@ -131,7 +131,7 @@ pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
     return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
   }
   let container_dir = path::container_dir(name)?;
-  let entries = std::fs::read_dir(container_dir)?;
+  let entries = file::read_dir(&container_dir)?;
 
   let mut tags = Vec::new();
   for entry in entries {
