@@ -598,6 +598,14 @@ async fn get_tags_list(
   // tags. <tagname> will not be included in the results, but up to <int> tags
   // after <tagname> will be returned.
   let tags = utils::get_tag_range(tags, count, query.last.as_deref());
+  let tag_count = tags.len();
+
+  let link = format!(
+    "</v2/{name}/tags/list?n={count}&last={last}>; rel=\"next\"",
+    name = name,
+    count = tag_count,
+    last = tags.last().unwrap()
+  );
 
   // <name> is the namespace of the repository. Assuming a repository is found,
   // this request MUST return a 200 OK response code.
@@ -606,25 +614,19 @@ async fn get_tags_list(
     "Tags": tags
   });
 
-  // The response MAY return fewer than n results, but only when the total
-  // number of tags attached to the repository is less than n or a Link header
-  // is provided.
-  if tags.len() > count {
-    let link = format!(
-      "</v2/{name}/tags/list?n={count}&last={last}>; rel=\"next\"",
-      name = name,
-      count = tags.len(),
-      last = tags.last().unwrap()
-    );
+  if tag_count > count {
+    // The response MAY return fewer than n results, but only when the total
+    // number of tags attached to the repository is less than n or a Link header
+    // is provided.
     HttpResponse::Ok()
       .insert_header(("Link", link))
       .content_type("application/json")
-      .body(serde_json::to_string(&tags_list).unwrap());
+      .body(serde_json::to_string(&tags_list).unwrap())
+  } else {
+    HttpResponse::Ok()
+      .content_type("application/json")
+      .body(serde_json::to_string(&tags_list).unwrap())
   }
-
-  HttpResponse::Ok()
-    .content_type("application/json")
-    .body(serde_json::to_string(&tags_list).unwrap())
 }
 
 /// end-9: `DELETE /v2/<name>/manifests/<reference>` => 202 / 404
