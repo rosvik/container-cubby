@@ -583,7 +583,17 @@ async fn get_tags_list(
   // fetched by providing the n query parameter.
   let count = query.n.unwrap_or(100).clamp(0, 100);
 
-  let mut tags = storage::get_tags(&name).unwrap();
+  let mut tags = match storage::get_tags(&name) {
+    Ok(tags) => tags,
+    Err(e) => {
+      if e.kind() == std::io::ErrorKind::NotFound {
+        return HttpResponse::NotFound().finish();
+      } else {
+        println!("Error: Could not get tags: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+      }
+    }
+  };
 
   // The list of tags MAY be empty if there are no tags on the repository.
   // If the list is not empty, the tags MUST be in lexical order (i.e.
