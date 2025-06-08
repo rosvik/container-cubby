@@ -1,46 +1,46 @@
 use crate::env;
-use std::fs::{DirBuilder, File, OpenOptions};
+use std::fs;
 use std::io;
 
 /// Opens a file with read permissions. If the file does not exist, an error is
 /// returned.
-pub fn try_read(relative_path: &str) -> Result<File, io::Error> {
+pub fn try_read(relative_path: &str) -> Result<fs::File, io::Error> {
   let absolute_path = format!("{}/{relative_path}", env::data_dir());
-  let file = File::open(absolute_path)?;
+  let file = fs::File::open(absolute_path)?;
   Ok(file)
 }
 
 /// Creates and opens a file with write permissions. If the file already exists,
 /// an error is returned.
-pub fn try_create(relative_path: &str) -> Result<File, io::Error> {
+pub fn try_create(relative_path: &str) -> Result<fs::File, io::Error> {
   let absolute_path = format!("{}/{relative_path}", env::data_dir());
-  let file = OpenOptions::new().create_new(true).write(true).open(absolute_path)?;
+  let file = fs::OpenOptions::new().create_new(true).write(true).open(absolute_path)?;
   Ok(file)
 }
 
 /// Opens a file with append permissions.
-pub fn append(relative_path: &str) -> Result<File, io::Error> {
+pub fn append(relative_path: &str) -> Result<fs::File, io::Error> {
   let absolute_path = format!("{}/{relative_path}", env::data_dir());
-  let file = OpenOptions::new().append(true).create(true).open(absolute_path)?;
+  let file = fs::OpenOptions::new().append(true).create(true).open(absolute_path)?;
   Ok(file)
 }
 
 pub fn delete(relative_path: &str) -> Result<(), io::Error> {
   let absolute_path = format!("{}/{relative_path}", env::data_dir());
-  std::fs::remove_file(absolute_path)?;
+  fs::remove_file(absolute_path)?;
   Ok(())
 }
 
 pub fn rename(relative_path_from: &str, relative_path_to: &str) -> Result<(), io::Error> {
   let absolute_from = format!("{}/{relative_path_from}", env::data_dir());
   let absolute_to = format!("{}/{relative_path_to}", env::data_dir());
-  std::fs::rename(absolute_from, absolute_to)?;
+  fs::rename(absolute_from, absolute_to)?;
   Ok(())
 }
 
 pub fn create_dir(relative_path: &str) -> Result<(), io::Error> {
   let absolute_path = format!("{}/{relative_path}", env::data_dir());
-  DirBuilder::new().recursive(true).create(&absolute_path)?;
+  fs::DirBuilder::new().recursive(true).create(&absolute_path)?;
   Ok(())
 }
 
