@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 mod image_index;
 mod image_manifest;
+mod tags_list;
 
 pub use image_index::ImageIndex;
 pub use image_manifest::ImageManifest;
+pub use tags_list::TagsList;
 
 /// Intermediate struct to validate the manifest data. The media type is used to
 /// determine the manifest variant that should be used for validation.

@@ -609,10 +609,7 @@ async fn get_tags_list(
 
   // <name> is the namespace of the repository. Assuming a repository is found,
   // this request MUST return a 200 OK response code.
-  let tags_list = serde_json::json!({
-    "Repository": name,
-    "Tags": tags
-  });
+  let tags_list = schemas::TagsList { name, tags };
 
   if tag_count > count {
     // The response MAY return fewer than n results, but only when the total
