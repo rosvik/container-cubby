@@ -39,9 +39,7 @@ As an example, if the image `rosvik/container-cubby:latest` is created as one ma
 Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:abc123.blob` is a symlink to `blobs/ab/c123.blob`.
 
 > [!NOTE]
-> Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
->
-> Feel free to [open an issue](https://github.com/rosvik/container-cubby/issues/new) if you find that your OS is not supported.
+> Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Debian, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
 
 ## Endpoints
 
