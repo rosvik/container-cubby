@@ -215,6 +215,45 @@ async fn test_get_manifest() {
 }
 
 #[test]
+async fn test_delete_manifest() {
+  let name: String = get_random_namespace();
+  let manifest = include_str!("./fixtures/image_manifest.json");
+  let digest = digestor::get_sha256_digest(&manifest.as_bytes().to_vec());
+
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
+  let service = test::init_service(app).await;
+
+  // PUT manifest
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // DELETE manifest by digest
+  let app = App::new()
+    .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").delete(delete_manifest));
+  let service = test::init_service(app).await;
+  let uri = format!("/v2/{}/manifests/{}", name, digest);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::DELETE).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::ACCEPTED);
+
+  // Try to GET manifest by tag name
+  let app =
+    App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
+  let service = test::init_service(app).await;
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
 async fn test_manifest_media_type() {
   let manifest = include_str!("./fixtures/image_manifest_no_media_type.json");
   let manifest_digest = digestor::get_sha256_digest(&manifest.as_bytes().to_vec());
