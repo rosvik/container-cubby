@@ -431,3 +431,39 @@ async fn test_no_auth() {
   // StatisCode::NOT_FOUND means authentication was not required
   assert_eq!(res.unwrap().status(), StatusCode::NOT_FOUND);
 }
+
+#[test]
+async fn test_get_tags_list() {
+  let name: String = get_random_namespace();
+  let manifest = include_str!("./fixtures/image_manifest.json");
+
+  let app = App::new()
+    .service(web::resource("/v2/{name:[^{}]+}/tags/list").get(get_tags_list))
+    .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{}/tags/list", name);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await;
+  assert_eq!(res.unwrap().status(), StatusCode::NOT_FOUND);
+
+  // PUT manifest
+  let uri = format!("/v2/{}/manifests/latest", name);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+  let res = service.call(req).await;
+  assert_eq!(res.unwrap().status(), StatusCode::CREATED);
+
+  // GET tags list
+  let uri = format!("/v2/{}/tags/list", name);
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+  let body = test::read_body(res).await;
+  let tags = serde_json::from_slice::<schemas::TagsList>(&body).unwrap();
+  assert_eq!(tags.tags, vec!["latest"]);
+  assert_eq!(tags.name, name);
+}
