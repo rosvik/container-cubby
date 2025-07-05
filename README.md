@@ -3,7 +3,42 @@
 > [!WARNING]
 > Container Cubby is currently in development, and may still be subject to frequent and unannounced breaking changes.
 
-Container Cubby is a minimal implementation of a container registry, based on the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). It is single-tenant, and stores all container data in a local directory. Although it does work and implements most of the spec, there are no guarantees about the stability or security, and there might still be frequent breaking changes.
+Container Cubby is a minimal implementation of a container registry, based on the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). It is single-tenant, and stores all container data in a local directory. Although it does work and implements most of the spec, there are no guarantees about the stability or security. There also might still be frequent breaking changes, so it's not recommended to use it in production just yet.
+
+## Running
+
+### As a container
+
+Pre-built images of Container Cubby are available from [cubby.no](https://cubby.no), which, of course, runs Container Cubby.
+
+```bash
+podman pull cubby.no/rosvik/container-cubby:main
+```
+
+```bash
+podman run -d --name container-cubby -p 8602:8602 \
+  -e HOST=0.0.0.0 \
+  -e AUTH_MODE=write_only \
+  -e USERNAME=admin \
+  -e PASSWORD=hunter2 \
+  cubby.no/rosvik/container-cubby:main
+```
+
+### Building from source
+
+To create a optimized binary, run:
+
+```bash
+cargo build --release
+```
+
+Then, run:
+
+```bash
+./target/release/container-cubby
+```
+
+Example env variables are found in [.env.example](.env.example).
 
 ## Storage
 
