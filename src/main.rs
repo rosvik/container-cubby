@@ -167,6 +167,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 /// RESPONSE:
 /// - Docker-Content-Digest: {manifest digest}
 /// - Content-Length: {manifest size in bytes}
+/// - Content-Type: {content type}           (see spec / content-negotiation.md)
 ///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#checking-if-content-exists-in-the-registry>
 async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
