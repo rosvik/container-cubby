@@ -58,10 +58,14 @@ where
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
     let auth_mode = get_auth_mode();
+
+    #[allow(clippy::if_same_then_else)]
     let requires_auth = if auth_mode == AuthMode::None {
       false // Auth is completely disabled
     } else if auth_mode == AuthMode::ReadWrite {
       true // Require auth for all requests
+    } else if auth_mode == AuthMode::WriteOnly && req.path().eq("/v2/") {
+      true // Issue auth challenge for root endpoint
     } else if auth_mode == AuthMode::WriteOnly {
       !matches!(*req.method(), Method::GET | Method::HEAD) // Allow read operations
     } else {
