@@ -164,6 +164,10 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 
 /// end-3: `HEAD /v2/<name>/manifests/<reference>` => 200 / 404
 ///
+/// RESPONSE:
+/// - Docker-Content-Digest: {manifest digest}
+/// - Content-Length: {manifest size in bytes}
+///
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#checking-if-content-exists-in-the-registry>
 async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
@@ -174,7 +178,7 @@ async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
     return HttpResponse::BadRequest().finish();
   }
 
-  let _ = match storage::get_manifest(&name, &reference) {
+  let mut file = match storage::get_manifest(&name, &reference) {
     Ok(file) => file,
     Err(e) => match e.kind() {
       std::io::ErrorKind::NotFound => {
@@ -190,8 +194,31 @@ async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
     },
   };
 
+  // NOTE: The spec says _blobs_ should have the `Docker-Content-Digest` and
+  // `Content-Length` headers, but does not mention manifests. It is however
+  // expected by Containerization, so they are included here in addition to the
+  // `Content-Type` header for compatibility.
+  // <https://github.com/apple/containerization/blob/28b97f2917a9e25dce4591ad9d44c72968c5392f/Sources/ContainerizationOCI/Client/RegistryClient%2BFetch.swift#L58>
+
+  // A successful response SHOULD contain the size in bytes of the uploaded blob
+  // in the header `Content-Length`.
+  let content_length = file.metadata().unwrap().len();
+
+  let content_type =
+    storage::xattr::get_xattr_media_type(&file).unwrap_or(String::from("application/json"));
+
+  // A successful response SHOULD contain the digest of the uploaded blob in the
+  // header `Docker-Content-Digest`.
+  let mut data = Vec::new();
+  file.read_to_end(&mut data).unwrap();
+  let digest = digestor::get_sha256_digest(&data);
+
   // A HEAD request to an existing blob or manifest URL MUST return `200 OK`.
-  HttpResponse::Ok().finish()
+  HttpResponse::Ok()
+    .insert_header(("Docker-Content-Digest", digest))
+    .insert_header(("Content-Length", content_length.to_string()))
+    .content_type(content_type)
+    .finish()
 }
 
 #[derive(Deserialize)]
