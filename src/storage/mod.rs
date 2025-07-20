@@ -1,5 +1,6 @@
 mod file;
 mod path;
+mod prune;
 mod symlink;
 pub mod xattr;
 
