@@ -9,7 +9,7 @@ pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String,
   // Range MUST match the regular expression `^[0-9]+-[0-9]+$`
   let re = Regex::new(r"^[0-9]+-[0-9]+$").ok()?;
   if !re.is_match(&range) {
-    println!("Error: Invalid range format: {:?}", range);
+    println!("Error: Invalid range format: {range:?}");
     return None;
   }
 
@@ -18,14 +18,14 @@ pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String,
   let start = match start.parse::<usize>() {
     Ok(start) => start,
     Err(e) => {
-      println!("Error: When parsing start={start}: {:?}", e);
+      println!("Error: When parsing start={start}: {e:?}");
       return None;
     }
   };
   let end = match end.parse::<usize>() {
     Ok(end) => end,
     Err(e) => {
-      println!("Error: When parsing end={end}: {:?}", e);
+      println!("Error: When parsing end={end}: {e:?}");
       return None;
     }
   };

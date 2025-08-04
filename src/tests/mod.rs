@@ -20,7 +20,7 @@ async fn test_create_blob() {
     App::new().service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/blobs/uploads/?digest={}", name, digest);
+  let uri = format!("/v2/{name}/blobs/uploads/?digest={digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(blob)
     .insert_header(("Content-Length", blob.len().to_string()))
@@ -48,7 +48,7 @@ async fn test_post_then_put() {
   let service = test::init_service(app).await;
 
   // POST to get reference
-  let uri = format!("/v2/{}/blobs/uploads/", name);
+  let uri = format!("/v2/{name}/blobs/uploads/");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Content-Length", blob.len().to_string()))
     .insert_header(("Content-Type", "application/octet-stream"))
@@ -60,10 +60,10 @@ async fn test_post_then_put() {
   assert_eq!(res.status(), StatusCode::ACCEPTED);
 
   let location = res.headers().get("Location").unwrap();
-  let reference = location.to_str().unwrap().split('/').last().unwrap();
+  let reference = location.to_str().unwrap().split('/').next_back().unwrap();
 
   // PUT entire blob
-  let uri = format!("/v2/{}/blobs/uploads/{}?digest={}", name, reference, digest);
+  let uri = format!("/v2/{name}/blobs/uploads/{reference}?digest={digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(blob)
     .insert_header(("Content-Length", blob.len().to_string()))
@@ -87,7 +87,7 @@ async fn test_get_blob() {
   let service = test::init_service(app).await;
 
   // POST to get reference
-  let uri = format!("/v2/{}/blobs/uploads/?digest={}", name, digest);
+  let uri = format!("/v2/{name}/blobs/uploads/?digest={digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(blob)
     .insert_header(("Content-Length", blob.len().to_string()))
@@ -100,7 +100,7 @@ async fn test_get_blob() {
   assert_eq!(res.status(), StatusCode::CREATED);
 
   // GET blob
-  let uri = format!("/v2/{}/blobs/{}", name, digest);
+  let uri = format!("/v2/{name}/blobs/{digest}");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::OK);
@@ -125,7 +125,7 @@ async fn test_put_manifest() {
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(manifest)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -136,7 +136,7 @@ async fn test_put_manifest() {
   assert_eq!(res.status(), StatusCode::CREATED);
 
   let incomplete = "{\"schemaVersion\": 2}";
-  let uri = format!("/v2/{}/manifests/incomplete", name);
+  let uri = format!("/v2/{name}/manifests/incomplete");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(incomplete)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -158,7 +158,7 @@ async fn test_get_manifest() {
   let service = test::init_service(app).await;
 
   // PUT manifest
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(manifest)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -175,7 +175,7 @@ async fn test_get_manifest() {
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
     .method(Method::GET)
@@ -190,7 +190,7 @@ async fn test_get_manifest() {
 
   // GET manifest based on its digest
   let manifest_digest = "sha256:edee272db7445c0aedfa7892df3f734fa6117221e37389063e65648ba47f7b00";
-  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let uri = format!("/v2/{name}/manifests/{manifest_digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
     .method(Method::GET)
@@ -204,7 +204,7 @@ async fn test_get_manifest() {
     .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").delete(delete_manifest));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let uri = format!("/v2/{name}/manifests/{manifest_digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
     .method(Method::DELETE)
@@ -225,7 +225,7 @@ async fn test_delete_manifest() {
   let service = test::init_service(app).await;
 
   // PUT manifest
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(manifest)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -238,7 +238,7 @@ async fn test_delete_manifest() {
   let app = App::new()
     .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").delete(delete_manifest));
   let service = test::init_service(app).await;
-  let uri = format!("/v2/{}/manifests/{}", name, digest);
+  let uri = format!("/v2/{name}/manifests/{digest}");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::DELETE).to_request();
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::ACCEPTED);
@@ -247,7 +247,7 @@ async fn test_delete_manifest() {
   let app =
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").get(get_manifest));
   let service = test::init_service(app).await;
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::NOT_FOUND);
@@ -264,7 +264,7 @@ async fn test_manifest_media_type() {
   let service = test::init_service(app).await;
 
   // PUT manifest
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(manifest)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -280,7 +280,7 @@ async fn test_manifest_media_type() {
   let service = test::init_service(app).await;
 
   // Based on tag
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
     .method(Method::GET)
@@ -294,7 +294,7 @@ async fn test_manifest_media_type() {
   );
 
   // Based on digest
-  let uri = format!("/v2/{}/manifests/{}", name, manifest_digest);
+  let uri = format!("/v2/{name}/manifests/{manifest_digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Accept", "application/vnd.docker.distribution.manifest.v2+json"))
     .method(Method::GET)
@@ -320,7 +320,7 @@ async fn test_push_as_hunks() {
   let service = test::init_service(app).await;
 
   // POST to get reference
-  let uri = format!("/v2/{}/blobs/uploads/", name);
+  let uri = format!("/v2/{name}/blobs/uploads/");
   let req = test::TestRequest::with_uri(uri.as_str())
     .insert_header(("Content-Length", blob.len().to_string()))
     .insert_header(("Content-Type", "application/octet-stream"))
@@ -330,10 +330,10 @@ async fn test_push_as_hunks() {
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::ACCEPTED);
   let location = res.headers().get("Location").unwrap();
-  let reference = location.to_str().unwrap().split('/').last().unwrap();
+  let reference = location.to_str().unwrap().split('/').next_back().unwrap();
 
   // PATCH first chunk
-  let uri = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  let uri = format!("/v2/{name}/blobs/uploads/{reference}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload("AAAA")
     .insert_header(("Content-Length", "4"))
@@ -345,7 +345,7 @@ async fn test_push_as_hunks() {
   assert_eq!(res.status(), StatusCode::ACCEPTED);
 
   // PATCH second chunk
-  let uri = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  let uri = format!("/v2/{name}/blobs/uploads/{reference}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload("BBBB")
     .insert_header(("Content-Length", "4"))
@@ -364,7 +364,7 @@ async fn test_push_as_hunks() {
     .service(web::resource("/v2/{name:[^{}]+}/blobs/{digest}").get(get_blob));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/blobs/uploads/{}?digest={}", name, reference, digest);
+  let uri = format!("/v2/{name}/blobs/uploads/{reference}?digest={digest}");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload("CCCC")
     .insert_header(("Content-Length", "4"))
@@ -374,7 +374,7 @@ async fn test_push_as_hunks() {
   assert_eq!(res.status(), StatusCode::CREATED);
 
   // Verify that the blob can be retrieved
-  let uri = format!("/v2/{}/blobs/{}", name, digest);
+  let uri = format!("/v2/{name}/blobs/{digest}");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::OK);
@@ -402,10 +402,7 @@ async fn test_auth_read_write() {
 
   // Auth success
   let req = test::TestRequest::with_uri("/v2/")
-    .insert_header((
-      "Authorization",
-      format!("Basic {}", encode_base64(format!("{}:{}", user, pass))),
-    ))
+    .insert_header(("Authorization", format!("Basic {}", encode_base64(format!("{user}:{pass}")))))
     .method(Method::GET)
     .to_request();
 
@@ -442,13 +439,13 @@ async fn test_get_tags_list() {
     .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
   let service = test::init_service(app).await;
 
-  let uri = format!("/v2/{}/tags/list", name);
+  let uri = format!("/v2/{name}/tags/list");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
   let res = service.call(req).await;
   assert_eq!(res.unwrap().status(), StatusCode::NOT_FOUND);
 
   // PUT manifest
-  let uri = format!("/v2/{}/manifests/latest", name);
+  let uri = format!("/v2/{name}/manifests/latest");
   let req = test::TestRequest::with_uri(uri.as_str())
     .set_payload(manifest)
     .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
@@ -458,7 +455,7 @@ async fn test_get_tags_list() {
   assert_eq!(res.unwrap().status(), StatusCode::CREATED);
 
   // GET tags list
-  let uri = format!("/v2/{}/tags/list", name);
+  let uri = format!("/v2/{name}/tags/list");
   let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::OK);

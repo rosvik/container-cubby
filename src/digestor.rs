@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 pub fn get_sha256_digest(data: &Vec<u8>) -> String {
   let hash_bytes = hash_data(data);
   let hash_string = bytes_to_hex_string(&hash_bytes);
-  format!("sha256:{}", hash_string)
+  format!("sha256:{hash_string}")
 }
 
 fn hash_data(data: &Vec<u8>) -> Vec<u8> {
@@ -20,7 +20,7 @@ fn hash_data(data: &Vec<u8>) -> Vec<u8> {
 fn bytes_to_hex_string(data: &Vec<u8>) -> String {
   let mut s = String::new();
   for byte in data {
-    s.push_str(&format!("{:02x}", byte));
+    s.push_str(&format!("{byte:02x}"));
   }
   s
 }
@@ -34,7 +34,7 @@ mod tests {
     let mut chars = hex_string.chars();
     while let Some(a) = chars.next() {
       let b = chars.next().unwrap();
-      let byte = u8::from_str_radix(&format!("{}{}", a, b), 16).unwrap();
+      let byte = u8::from_str_radix(&format!("{a}{b}"), 16).unwrap();
       data.push(byte);
     }
     data
@@ -73,10 +73,10 @@ mod tests {
 
   #[test]
   fn test_get_sha256_digest() {
-    let empty_digest = format!("sha256:{}", EMPTY_HASH);
+    let empty_digest = format!("sha256:{EMPTY_HASH}");
     let empty_bytes: Vec<u8> = EMPTY_STRING.as_bytes().to_vec();
     assert_eq!(empty_digest, get_sha256_digest(&empty_bytes));
-    let example_digest = format!("sha256:{}", EXAMPLE_HASH);
+    let example_digest = format!("sha256:{EXAMPLE_HASH}");
     let example_bytes: Vec<u8> = EXAMPLE_STRING.as_bytes().to_vec();
     assert_eq!(example_digest, get_sha256_digest(&example_bytes));
   }

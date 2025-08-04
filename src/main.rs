@@ -62,7 +62,7 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let mut file = match file {
     Ok(file) => file,
     Err(e) => {
-      println!("Error getting blob: {:?}", e);
+      println!("Error getting blob: {e:?}");
       return HttpResponse::NotFound().finish();
     }
   };
@@ -93,7 +93,7 @@ async fn head_blob(path: web::Path<(String, String)>) -> impl Responder {
   let file = match file {
     Ok(file) => file,
     Err(e) => {
-      println!("Error getting blob: {:?}", e);
+      println!("Error getting blob: {e:?}");
       // If the blob or manifest is not found in the registry, the response code
       // MUST be `404 Not Found`.
       return HttpResponse::NotFound().finish();
@@ -129,7 +129,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 
   if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
-    println!("Error: Invalid reference: {:?}", reference);
+    println!("Error: Invalid reference: {reference:?}");
     return HttpResponse::BadRequest().finish();
   }
 
@@ -137,11 +137,11 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     Ok(file) => file,
     Err(e) => match e.kind() {
       std::io::ErrorKind::NotFound => {
-        println!("Error: Manifest not found: name='{}' reference='{}'", name, reference);
+        println!("Error: Manifest not found: name='{name}' reference='{reference}'");
         return HttpResponse::NotFound().finish();
       }
       _ => {
-        println!("Error getting manifest: {:?}", e);
+        println!("Error getting manifest: {e:?}");
         return HttpResponse::InternalServerError().finish();
       }
     },
@@ -175,7 +175,7 @@ async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
 
   if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
-    println!("Error: Invalid reference: {:?}", reference);
+    println!("Error: Invalid reference: {reference:?}");
     return HttpResponse::BadRequest().finish();
   }
 
@@ -183,13 +183,13 @@ async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
     Ok(file) => file,
     Err(e) => match e.kind() {
       std::io::ErrorKind::NotFound => {
-        println!("Error: Manifest not found: name='{}' reference='{}'", name, reference);
+        println!("Error: Manifest not found: name='{name}' reference='{reference}'");
         // If the blob or manifest is not found in the registry, the response
         // code MUST be `404 Not Found`.
         return HttpResponse::NotFound().finish();
       }
       _ => {
-        println!("Error getting manifest: {:?}", e);
+        println!("Error getting manifest: {e:?}");
         return HttpResponse::InternalServerError().finish();
       }
     },
@@ -271,7 +271,7 @@ async fn post_blob_upload(
         // spec doesn't specify what to do when treating the `from` parameter as
         // optional.
 
-        println!("Error: Could not mount blob: {:?}", e);
+        println!("Error: Could not mount blob: {e:?}");
         return HttpResponse::NotFound().finish();
       }
     }
@@ -279,7 +279,7 @@ async fn post_blob_upload(
     // The response to a successful mount MUST be 201 Created, and MUST contain
     // the following header: `Location: <blob-location>`. The Location header
     // will contain the registry URL to access the accepted layer file.
-    let location = format!("/v2/{}/blobs/{}", name, mount);
+    let location = format!("/v2/{name}/blobs/{mount}");
 
     return HttpResponse::Created().append_header(("Location", location)).finish();
   }
@@ -300,7 +300,7 @@ async fn post_blob_upload(
 
       let _ = storage::create_hunk(&name, &reference);
 
-      let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+      let location = format!("/v2/{name}/blobs/uploads/{reference}");
 
       // Upon success, the response MUST have a code of 202 Accepted
       HttpResponse::Accepted().insert_header(("Location", location)).finish()
@@ -318,9 +318,9 @@ async fn post_blob_upload(
             // We have already stored this blob. Until the spec tells us what to
             // do in this case, we treat it as a success and continue the normal
             // flow.
-            println!("Warning: Existing blob uploaded, name='{}' digest='{}'", name, digest);
+            println!("Warning: Existing blob uploaded, name='{name}' digest='{digest}'");
           } else {
-            println!("Error: Could not create blob: {:?}", e);
+            println!("Error: Could not create blob: {e:?}");
             return HttpResponse::InternalServerError().finish();
           }
         }
@@ -366,7 +366,7 @@ async fn patch_blob_upload(
     Some(range) => range,
     None => {
       if content_range.is_some() {
-        println!("Error: Invalid range: {:?}", content_range);
+        println!("Error: Invalid range: {content_range:?}");
         return HttpResponse::BadRequest().finish();
       }
 
@@ -377,7 +377,7 @@ async fn patch_blob_upload(
       // <https://github.com/opencontainers/distribution-spec/issues/506>
       let range_start = 0;
       let range_end = data.len() - 1;
-      (format!("{}-{}", range_start, range_end), range_start, range_end)
+      (format!("{range_start}-{range_end}"), range_start, range_end)
     }
   };
   let content_length = req.headers().get("Content-Length");
@@ -404,7 +404,7 @@ async fn patch_blob_upload(
   let hunk = match storage::read_hunk(&name, &reference) {
     Ok(hunk) => hunk,
     Err(e) => {
-      println!("Error: Could not get hunk: {:?}", e);
+      println!("Error: Could not get hunk: {e:?}");
       return HttpResponse::NotFound().finish();
     }
   };
@@ -414,24 +414,21 @@ async fn patch_blob_upload(
 
   if size_in_bytes == 0 && range_start != 0 {
     // The first chunk's range MUST begin with 0.
-    println!("Error: First chunk's range must begin with 0: {:?}", range);
+    println!("Error: First chunk's range must begin with 0: {range:?}");
     return HttpResponse::RangeNotSatisfiable().finish();
   } else if size_in_bytes != 0 && size_in_bytes != (range_start as u64) {
     // Chunks MUST be uploaded in order, with the first byte of a chunk being
     // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
     // order, the registry MUST respond with a 416 Requested Range Not
     // Satisfiable code.
-    println!(
-      "Error: Uploaded hunk range did not match stored hunk: Stored: {}, req_first_byte: {}",
-      size_in_bytes, range_start
-    );
+    println!("Error: Uploaded hunk range did not match stored hunk: Stored: {size_in_bytes}, req_first_byte: {range_start}");
     return HttpResponse::RangeNotSatisfiable().finish();
   }
 
   if range_start + req_length != range_end + 1 {
     // The Content-Range header MUST specify the range of bytes being uploaded
     // in the format `0-{end-of-range}`.
-    println!("Error: Invalid range: {} ({range_start}+{req_length}!={range_end}+1)", range);
+    println!("Error: Invalid range: {range} ({range_start}+{req_length}!={range_end}+1)");
     return HttpResponse::BadRequest().finish();
   }
 
@@ -442,8 +439,8 @@ async fn patch_blob_upload(
   // MUST have the following headers:
   // - Location: <location>
   // - Range: 0-<end-of-range>
-  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
-  let range = format!("0-{}", range_end);
+  let location = format!("/v2/{name}/blobs/uploads/{reference}");
+  let range = format!("0-{range_end}");
 
   HttpResponse::Accepted()
     .insert_header(("Location", location))
@@ -495,12 +492,12 @@ async fn put_blob_upload(
   match storage::commit_hunk(&name, &reference, digest) {
     Ok(_) => (),
     Err(e) => {
-      println!("Error: Could not commit hunk: {:?}", e);
+      println!("Error: Could not commit hunk: {e:?}");
       return HttpResponse::InternalServerError().finish();
     }
   };
 
-  let blob_location = format!("/v2/{name}/blobs/{}", digest);
+  let blob_location = format!("/v2/{name}/blobs/{digest}");
   HttpResponse::Created().insert_header(("Location", blob_location)).finish()
 }
 
@@ -522,7 +519,7 @@ async fn put_manifest(
   let (name, reference) = path.into_inner();
   if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
-    println!("Error: Invalid reference: {:?}", reference);
+    println!("Error: Invalid reference: {reference:?}");
     return HttpResponse::BadRequest().finish();
   }
 
@@ -533,7 +530,7 @@ async fn put_manifest(
   {
     Ok(manifest_variant) => manifest_variant,
     Err(e) => {
-      println!("Error: Invalid manifest: {:?}", e);
+      println!("Error: Invalid manifest: {e:?}");
       return HttpResponse::BadRequest().finish();
     }
   };
@@ -542,7 +539,7 @@ async fn put_manifest(
     SchemaVariant::ImageManifest(manifest) => SchemaVariant::ImageManifest(manifest),
     SchemaVariant::ImageIndex(index) => SchemaVariant::ImageIndex(index),
     SchemaVariant::Unknown(base) => {
-      println!("Error: Unknown manifest: {:?}", base);
+      println!("Error: Unknown manifest: {base:?}");
       return HttpResponse::BadRequest().finish();
     }
   };
@@ -550,8 +547,7 @@ async fn put_manifest(
   let digest = digestor::get_sha256_digest(&data.to_vec());
   if reference.starts_with("sha256:") && reference != digest {
     println!(
-      "Error: sha256 reference does not match digest: reference='{}' digest='{}'",
-      reference, digest
+      "Error: sha256 reference does not match digest: reference='{reference}' digest='{digest}'"
     );
     return HttpResponse::BadRequest().finish();
   }
@@ -573,7 +569,7 @@ async fn put_manifest(
     Err(e) => {
       // Continue if the manifest already exists, otherwise return 500.
       if e.kind() != std::io::ErrorKind::AlreadyExists {
-        println!("Error: Could not create manifest: {:?}", e);
+        println!("Error: Could not create manifest: {e:?}");
         return HttpResponse::InternalServerError().finish();
       }
     }
@@ -617,7 +613,7 @@ async fn get_tags_list(
       if e.kind() == std::io::ErrorKind::NotFound {
         return HttpResponse::NotFound().finish();
       } else {
-        println!("Error: Could not get tags: {:?}", e);
+        println!("Error: Could not get tags: {e:?}");
         return HttpResponse::InternalServerError().finish();
       }
     }
@@ -674,8 +670,7 @@ async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
     Ok(_) => (),
     Err(e) => {
       println!(
-        "Warning: Error '{e}' when deleting manifest, name='{}' reference='{}'",
-        name, reference
+        "Warning: Error '{e}' when deleting manifest, name='{name}' reference='{reference}'"
       );
       return HttpResponse::NotFound().finish();
     }
@@ -693,7 +688,7 @@ async fn delete_blob(path: web::Path<(String, String)>) -> impl Responder {
   match storage::delete_blob(&name, &digest) {
     Ok(_) => (),
     Err(e) => {
-      println!("Warning: Error '{e}' when deleting blob, name='{}' digest='{}'", name, digest);
+      println!("Warning: Error '{e}' when deleting blob, name='{name}' digest='{digest}'");
       return HttpResponse::NotFound().finish();
     }
   }
@@ -718,14 +713,14 @@ async fn get_blob_upload(path: web::Path<(String, String)>) -> impl Responder {
   let hunk = match storage::read_hunk(&name, &reference) {
     Ok(hunk) => hunk,
     Err(e) => {
-      println!("Error: Could not get hunk: {:?}", e);
+      println!("Error: Could not get hunk: {e:?}");
       return HttpResponse::NotFound().finish();
     }
   };
 
   // The <location> refers to the URL obtained from any preceding POST or PATCH
   // request.
-  let location = format!("/v2/{}/blobs/uploads/{}", name, reference);
+  let location = format!("/v2/{name}/blobs/uploads/{reference}");
 
   // The <end-of-range> value is the position of the last uploaded byte.
   let size_in_bytes = hunk.metadata().unwrap().len();

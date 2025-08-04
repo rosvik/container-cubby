@@ -20,7 +20,7 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
     symlink::create_relative_symlink(&symlink_path, &blob_path)?;
     return Err(io::Error::new(
       io::ErrorKind::AlreadyExists,
-      format!("Blob already exists: {}", digest),
+      format!("Blob already exists: {digest}"),
     ));
   }
 
@@ -128,7 +128,7 @@ pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
 /// Lists all the tags in a given namespace.
 pub fn get_tags(name: &str) -> Result<Vec<String>, io::Error> {
   if !utils::is_safe_name(name) {
-    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {}", name)));
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Unsafe name: {name}")));
   }
   let container_dir = path::container_dir(name)?;
   let entries = file::read_dir(&container_dir)?;
@@ -184,7 +184,7 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   if utils::verify_blob(&buf, digest).is_err() {
     return Err(io::Error::new(
       io::ErrorKind::InvalidData,
-      format!("Digest mismatch: {}", reference),
+      format!("Digest mismatch: {reference}"),
     ));
   }
 

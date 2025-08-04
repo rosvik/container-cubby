@@ -57,13 +57,13 @@ where
 fn log_request(req: &ServiceRequest) {
   println!("\n\x1b[1;35mRequest: \x1b[1;34m{} {:?}\x1b[0m", &req.method(), &req.uri());
   req.headers().iter().for_each(|(name, value)| {
-    println!("  \x1b[36m{}: {:?}\x1b[0m", name, value);
+    println!("  \x1b[36m{name}: {value:?}\x1b[0m");
   });
 }
 
 fn log_response<B>(res: &ServiceResponse<B>) {
   println!("\x1b[1;35mResponse: \x1b[34m{:?}\x1b[0m", res.status());
   res.headers().iter().for_each(|(name, value)| {
-    println!("  \x1b[36m{}: {:?}\x1b[0m", name, value);
+    println!("  \x1b[36m{name}: {value:?}\x1b[0m");
   });
 }

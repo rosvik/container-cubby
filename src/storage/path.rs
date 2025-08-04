@@ -18,7 +18,7 @@ pub fn get(name: &str, reference: &str, file_type: FileType) -> Result<String, s
   if !is_safe {
     return Err(std::io::Error::new(
       std::io::ErrorKind::InvalidInput,
-      format!("Unsafe reference: {}", reference),
+      format!("Unsafe reference: {reference}"),
     ));
   }
 
@@ -44,7 +44,7 @@ pub fn container_dir(name: &str) -> Result<String, std::io::Error> {
   if !utils::is_safe_name(name) {
     return Err(std::io::Error::new(
       std::io::ErrorKind::InvalidInput,
-      format!("Unsafe name: {}", name),
+      format!("Unsafe name: {name}"),
     ));
   }
   let container_dir = format!("containers/{name}");

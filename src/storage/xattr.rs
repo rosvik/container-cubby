@@ -6,7 +6,7 @@ pub fn get_xattr_media_type(file: &File) -> Option<String> {
   let bytes = match file.get_xattr("user.mime_type") {
     Ok(bytes) => bytes?,
     Err(e) => {
-      println!("Failed to get media type: {:?}", e);
+      println!("Failed to get media type: {e:?}");
       return None;
     }
   };

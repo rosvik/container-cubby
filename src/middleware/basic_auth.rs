@@ -74,7 +74,7 @@ where
 
     if requires_auth {
       let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
-        (Ok(username), Ok(password)) => format!("{}:{}", username, password),
+        (Ok(username), Ok(password)) => format!("{username}:{password}"),
         _ => {
           // If server credentials are not set, return 401 Unauthorized.
           let response = into_unauthorized(req);
@@ -135,6 +135,6 @@ fn get_auth_mode() -> AuthMode {
     "none" => AuthMode::None,
     "read_write" => AuthMode::ReadWrite,
     "write_only" => AuthMode::WriteOnly,
-    invalid => panic!("Invalid AUTH_MODE: {}", invalid),
+    invalid => panic!("Invalid AUTH_MODE: {invalid}"),
   }
 }

@@ -72,7 +72,7 @@ pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
         if error.kind() == std::io::ErrorKind::NotFound {
           std::fs::remove_file(&link_path)?;
           let tag_name = &file_name[..file_name.len() - 5];
-          println!("Deleted tag: {}", tag_name);
+          println!("Deleted tag: {tag_name}");
         } else {
           return Err(error);
         }
