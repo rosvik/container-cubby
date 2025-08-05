@@ -1,5 +1,24 @@
 use crate::utils;
 
+/// The data directory is structured as follows:
+///
+/// ```
+/// <DATA_DIR>/
+/// ├── containers/
+/// │   └── foo/
+/// │       └── bar/
+/// │           ├── latest.json                      [SYMLINK]
+/// │           ├── sha256:<manifest hash>.json
+/// │           ├── sha256:abc123.blob               [SYMLINK]
+/// │           └── <UUID>.hunk
+/// └── blobs/
+///     └── ab/
+///         └── c123.blob
+/// ```
+///
+/// - **Tag** `latest.json` is a symlink to **Manifest** `sha256:<manifest hash>.json`
+/// - **BlobLink** `sha256:abc123.blob` is a symlink to **Blob** `blobs/ab/c123.blob`
+/// - **Hunk** `<UUID>.hunk` is a partial blob
 pub enum FileType {
   Blob,     // .blob
   BlobLink, // Symlink to Blob
@@ -7,6 +26,8 @@ pub enum FileType {
   Manifest, // .json
   Tag,      // Symlink to Manifest
 }
+
+/// Get the path to a file on disk, relative to DATA_DIR.
 pub fn get(name: &str, reference: &str, file_type: FileType) -> Result<String, std::io::Error> {
   let is_safe = match file_type {
     FileType::Blob => utils::is_safe_digest(reference),

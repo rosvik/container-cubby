@@ -1,19 +1,4 @@
 /*
-Structure:
-Here, latest.json is a symlink to sha256:<manifest hash>.json, and sha256:abc123.blob is a symlink to blobs/ab/c123.blob.
-
-<DATA_DIR>/
-├── containers/
-│   └── rosvik/
-│       └── container-cubby/
-│           ├── latest.json                      [SYMLINK]
-│           ├── sha256:<manifest hash>.json
-│           └── sha256:abc123.blob               [SYMLINK]
-└── blobs/
-    └── ab/
-        └── c123.blob
-
-
 Prune modes:
 - Dangling blobs. If no symlinks in the container directory links to a blob, delete the blob.
 - Dangling manifests. If a manifest is not linked to by a tag, delete the manifest.
