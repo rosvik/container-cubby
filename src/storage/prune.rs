@@ -80,25 +80,24 @@ fn get_dangling_manifests() -> Vec<String> {
   manifests
     .iter()
     .filter(|manifest| {
-      let manifest_path = Path::new(manifest);
-      let manifest_file_name = manifest_path.file_name().unwrap().to_str().unwrap();
-      let manifest_dir = fs::read_dir(manifest_path.parent().unwrap()).unwrap();
-      for file in manifest_dir {
-        let file = file.unwrap();
+      check_in_parent_dir(manifest, |parent_dir, file_name| {
+        for file in parent_dir {
+          let file = file.unwrap();
 
-        // Is the file a Tag?
-        if file.path().is_symlink() && file.path().to_str().unwrap().ends_with(".json") {
-          let symlink_target = fs::read_link(file.path()).unwrap();
+          // Is the file a Tag?
+          if file.path().is_symlink() && file.path().to_str().unwrap().ends_with(".json") {
+            let symlink_target = fs::read_link(file.path()).unwrap();
 
-          // Does the Tag target the manifest?
-          if symlink_target.to_str().unwrap() == manifest_file_name {
-            // The manifest is linked to by a tag, so it is not dangling
-            return false;
+            // Does the Tag target the manifest?
+            if symlink_target.to_str().unwrap() == file_name {
+              // The manifest is linked to by a tag, so it is not dangling
+              return false;
+            }
           }
         }
-      }
-      // The manifest is not linked to by a tag, so it is dangling
-      true
+        // The manifest is not linked to by a tag, so it is dangling
+        true
+      })
     })
     .map(|s| s.to_string())
     .collect::<Vec<String>>()
@@ -143,6 +142,16 @@ fn recursively_find(dir_path: &str, predicate: impl Fn(&str) -> bool + Clone) ->
     }
   }
   matches
+}
+
+fn check_in_parent_dir(
+  file_path: &str,
+  predicate: impl Fn(fs::ReadDir, &str) -> bool + Clone,
+) -> bool {
+  let file_path = Path::new(file_path);
+  let file_name = file_path.file_name().unwrap().to_str().unwrap();
+  let parent_dir = fs::read_dir(file_path.parent().unwrap()).unwrap();
+  predicate(parent_dir, file_name)
 }
 
 #[cfg(test)]
