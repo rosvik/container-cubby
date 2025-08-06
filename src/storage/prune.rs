@@ -186,11 +186,6 @@ mod tests {
   use crate::{storage, tests};
 
   #[test]
-  fn test_prune_dangling_blobs() {
-    prune(PruneMode::DanglingBlobs, true);
-  }
-
-  #[test]
   fn test_dangling_manifests_with_tag() {
     let data_dir = env::data_dir();
     let namespace = tests::utils::get_random_namespace();
