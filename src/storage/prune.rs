@@ -126,8 +126,37 @@ fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
     .map(|s| s.to_string())
     .collect::<Vec<String>>()
 }
-fn get_blob_links() -> Vec<String> {
-  panic!("Not implemented");
+
+fn get_dangling_blob_links_in(directory: &str) -> Vec<String> {
+  let blob_links = recursively_find(directory, |path| path.ends_with(".blob"));
+  blob_links
+    .iter()
+    .filter(|blob_link| {
+      check_in_parent_dir(blob_link, |mut parent_dir, file_name| {
+        let digest = file_name.strip_suffix(".blob").unwrap();
+
+        // If no manifest references the blob link, it is dangling
+        !parent_dir.any(|dir_entry| {
+          let dir_entry_path = dir_entry.unwrap().path();
+          let dir_entry_path = dir_entry_path.to_str().unwrap();
+
+          // Read all manifest files (excluding Tags)
+          if dir_entry_path.ends_with(".json")
+            && dir_entry_path.split("/").last().unwrap().starts_with("sha256:")
+          {
+            let manifest_file = fs::read_to_string(dir_entry_path).unwrap();
+            let manifest: schemas::ImageManifest = serde_json::from_str(&manifest_file).unwrap();
+            // Does any layer reference the blob link?
+            manifest.layers.iter().any(|layer| layer.digest == digest)
+          } else {
+            // Skip non-manifest files
+            false
+          }
+        })
+      })
+    })
+    .map(|s| s.to_string())
+    .collect::<Vec<String>>()
 }
 
 fn list_all_blob_shas() -> Vec<String> {
@@ -271,5 +300,48 @@ mod tests {
     assert_eq!(dangling_manifests.len(), 1);
     assert!(dangling_manifests[0]
       .ends_with("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"));
+  }
+
+  #[test]
+  fn test_dangling_blob_links() {
+    let data_dir = env::data_dir();
+    let namespace = tests::utils::get_random_namespace();
+    let directory = format!("{data_dir}/containers/{namespace}");
+
+    // Create a manifest
+    let mut manifest_file = storage::create_manifest(
+      &namespace,
+      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
+      None,
+    )
+    .unwrap();
+    manifest_file
+      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+      .unwrap();
+    storage::xattr::set_xattr_media_type(
+      &manifest_file,
+      "application/vnd.docker.distribution.manifest.v2+json",
+    )
+    .unwrap();
+
+    // Create a blob and blob link (referenced by the manifest)
+    let _ = storage::create_blob(
+      &namespace,
+      "sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b",
+    );
+
+    let dangling_blob_links = get_dangling_blob_links_in(&directory);
+    assert_eq!(dangling_blob_links.len(), 0);
+
+    // Delete the manifest to make the blob link dangling
+    fs::remove_file(format!(
+      "{directory}/sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"
+    ))
+    .unwrap();
+
+    let dangling_blob_links = get_dangling_blob_links_in(&directory);
+    assert_eq!(dangling_blob_links.len(), 1);
+    assert!(dangling_blob_links[0]
+      .ends_with("sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b.blob"));
   }
 }
