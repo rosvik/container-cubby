@@ -1,18 +1,23 @@
 /*
 Prune modes:
 - Dangling blobs. If no symlinks in the container directory links to a blob, delete the blob.
-- Dangling manifests. If a manifest is not linked to by a tag, delete the manifest.
+- Dangling manifests. If a manifest is not linked to by a tag or image index, delete the manifest.
 - Dangling blob links. If a blob link is not referenced by a manifest, delete the blob link.
 
 Running `container-cubby --prune untagged` could
 1. delete all manifests that are not linked to by a tag
 2. delete all blob links that are not linked to by a manifest
 3. delete all blobs that are not linked to by a blob link ✅
+
+In that case, there are two paths for files to be considered "in use":
+- Tag -> Image Index -> Manifests -> Blob Links -> Blob
+- Tag -> Manifest -> Blob Links -> Blob
 */
 
-use crate::{env, storage::file};
+use crate::{env, schemas, storage::file};
 use std::{fmt, fs, path::Path};
 
+#[allow(dead_code)]
 pub enum PruneMode {
   /// If no symlinks in the container directory links to a blob, delete the blob.
   DanglingBlobs,
@@ -81,12 +86,18 @@ fn get_dangling_manifests() -> Vec<String> {
     .iter()
     .filter(|manifest| {
       check_in_parent_dir(manifest, |parent_dir, file_name| {
-        for file in parent_dir {
-          let file = file.unwrap();
+        let manifest_digest = file_name.strip_suffix(".json").unwrap();
+        for dir_entry in parent_dir {
+          let dir_entry = dir_entry.unwrap();
+
+          // Skip non-manifest files
+          if !dir_entry.path().to_str().unwrap().ends_with(".json") {
+            continue;
+          }
 
           // Is the file a Tag?
-          if file.path().is_symlink() && file.path().to_str().unwrap().ends_with(".json") {
-            let symlink_target = fs::read_link(file.path()).unwrap();
+          if dir_entry.path().is_symlink() {
+            let symlink_target = fs::read_link(dir_entry.path()).unwrap();
 
             // Does the Tag target the manifest?
             if symlink_target.to_str().unwrap() == file_name {
@@ -94,8 +105,19 @@ fn get_dangling_manifests() -> Vec<String> {
               return false;
             }
           }
+
+          // Is the file referenced by an image index?
+          if dir_entry.path().is_file() {
+            let file_content = fs::read_to_string(dir_entry.path()).unwrap();
+            if let Ok(image_index) = serde_json::from_str::<schemas::ImageIndex>(&file_content) {
+              if image_index.manifests.iter().any(|manifest| manifest.digest == manifest_digest) {
+                // The manifest is referenced by an image index, so it is not dangling
+                return false;
+              }
+            }
+          }
         }
-        // The manifest is not linked to by a tag, so it is dangling
+        // The manifest is not linked to by a tag or image index, so it is dangling
         true
       })
     })
