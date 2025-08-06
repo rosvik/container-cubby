@@ -1,6 +1,22 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// For the media type that this document is compatible with, see the matrix.
+/// https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
+///
+/// Compatibility notes:
+/// - `.annotations`: only present in OCI
+/// - `.config.annotations`: only present in OCI
+/// - `.config.urls`: only present in OCI
+/// - `.[]layers.annotations`: only present in OCI
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ImageManifestMediaType {
+  #[serde(rename = "application/vnd.oci.image.manifest.v1+json")]
+  OCIImageManifestV1,
+  #[serde(rename = "application/vnd.docker.distribution.manifest.v2+json")]
+  DockerManifestV2,
+}
+
 /// An image manifest provides a configuration and set of layers for a single
 /// container image for a specific architecture and operating system.
 ///
@@ -21,7 +37,7 @@ pub struct ImageManifest {
   /// This property is reserved for use, to maintain compatibility. When used,
   /// this field contains the media type of this document, which differs from
   /// the descriptor use of mediaType.
-  pub media_type: Option<String>,
+  pub media_type: Option<ImageManifestMediaType>,
 
   /// This REQUIRED property references a configuration object for a container,
   /// by digest.

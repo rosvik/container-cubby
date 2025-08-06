@@ -1,6 +1,21 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// For the media type that this document is compatible with, see the matrix.
+/// https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
+///
+/// Compatibility notes:
+/// - `.annotations`: only present in OCI
+/// - `.[]manifests.annotations`: only present in OCI
+/// - `.[]manifests.urls`: only present in OCI
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ImageIndexMediaType {
+  #[serde(rename = "application/vnd.oci.image.index.v1+json")]
+  OCIImageIndexV1,
+  #[serde(rename = "application/vnd.docker.distribution.manifest.list.v2+json")]
+  DockerManifestListV2,
+}
+
 /// The image index is a higher-level manifest which points to specific image
 /// manifests, ideal for one or more platforms. While the use of an image index
 /// is OPTIONAL for image providers, image consumers SHOULD be prepared to
@@ -23,7 +38,7 @@ pub struct ImageIndex {
   /// This property is reserved for use, to maintain compatibility. When used,
   /// this field contains the media type of this document, which differs from
   /// the descriptor use of mediaType.
-  pub media_type: Option<String>,
+  pub media_type: Option<ImageIndexMediaType>,
 
   /// This REQUIRED property contains a list of manifests for specific
   /// platforms. While this property MUST be present, the size of the array

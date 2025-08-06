@@ -90,6 +90,7 @@ fn parse_image_index(data: &[u8]) -> Result<SchemaVariant> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::schemas::{image_index::ImageIndexMediaType, image_manifest::ImageManifestMediaType};
 
   #[test]
   fn test_validate_manifest_data() {
@@ -108,10 +109,7 @@ mod test {
     let data = validate_manifest_data(manifest_json.as_bytes().to_vec(), None);
     match data.unwrap() {
       SchemaVariant::ImageManifest(manifest) => {
-        assert_eq!(
-          manifest.media_type,
-          Some("application/vnd.docker.distribution.manifest.v2+json".to_string())
-        );
+        assert_eq!(manifest.media_type, Some(ImageManifestMediaType::DockerManifestV2));
       }
       _ => panic!("Expected ImageManifest variant"),
     }
@@ -123,7 +121,7 @@ mod test {
     );
     match data.unwrap() {
       SchemaVariant::ImageIndex(index) => {
-        assert_eq!(index.media_type, Some("application/vnd.oci.image.index.v1+json".to_string()));
+        assert_eq!(index.media_type, Some(ImageIndexMediaType::OCIImageIndexV1));
       }
       _ => panic!("Expected ImageIndex variant"),
     }
@@ -141,10 +139,7 @@ mod test {
     let manifest_variant = parse_image_manifest(manifest_json.as_bytes()).unwrap();
     match manifest_variant {
       SchemaVariant::ImageManifest(manifest) => {
-        assert_eq!(
-          manifest.media_type,
-          Some("application/vnd.docker.distribution.manifest.v2+json".to_string())
-        );
+        assert_eq!(manifest.media_type, Some(ImageManifestMediaType::DockerManifestV2));
       }
       _ => panic!("Expected ImageManifest variant"),
     }
@@ -156,7 +151,7 @@ mod test {
     let index_variant = parse_image_index(index_json.as_bytes()).unwrap();
     match index_variant {
       SchemaVariant::ImageIndex(index) => {
-        assert_eq!(index.media_type, Some("application/vnd.oci.image.index.v1+json".to_string()));
+        assert_eq!(index.media_type, Some(ImageIndexMediaType::OCIImageIndexV1));
       }
       _ => panic!("Expected ImageIndex variant"),
     }
