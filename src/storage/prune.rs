@@ -5,7 +5,7 @@ Prune modes:
 - Dangling blob links. If a blob link is not referenced by a manifest, delete the blob link.
 
 Running `container-cubby --prune untagged` could
-1. delete all manifests that are not linked to by a tag
+1. delete all manifests that are not linked to by a tag ✅
 2. delete all blob links that are not linked to by a manifest
 3. delete all blobs that are not linked to by a blob link ✅
 
@@ -40,9 +40,12 @@ impl fmt::Display for PruneMode {
 pub fn prune(mode: PruneMode, dry_run: bool) {
   println!("Pruning {mode} from database");
 
+  let data_dir = env::data_dir();
+  let containers_dir = format!("{data_dir}/containers");
+
   let result = match mode {
     PruneMode::DanglingBlobs => prune_dangling_blobs(),
-    PruneMode::DanglingManifests => get_dangling_manifests(),
+    PruneMode::DanglingManifests => get_dangling_manifests_in(&containers_dir),
     PruneMode::BlobLinks => get_blob_links(),
   };
   if result.is_empty() {
@@ -75,9 +78,8 @@ fn prune_dangling_blobs() -> Vec<String> {
     .collect::<Vec<String>>()
 }
 
-fn get_dangling_manifests() -> Vec<String> {
-  let containers_dir = format!("{}/containers", env::data_dir());
-  let manifests = recursively_find(&containers_dir, |path| {
+fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
+  let manifests = recursively_find(directory, |path| {
     path.ends_with(".json") && path.split("/").last().unwrap().starts_with("sha256:")
   });
 
@@ -178,11 +180,101 @@ fn check_in_parent_dir(
 
 #[cfg(test)]
 mod tests {
+  use std::io::Write;
+
   use super::*;
+  use crate::{storage, tests};
 
   #[test]
   fn test_prune_dangling_blobs() {
-    prune(PruneMode::DanglingManifests, true);
-    // prune(PruneMode::DanglingBlobs, true);
+    prune(PruneMode::DanglingBlobs, true);
+  }
+
+  #[test]
+  fn test_dangling_manifests_with_tag() {
+    let data_dir = env::data_dir();
+    let namespace = tests::utils::get_random_namespace();
+    let directory = format!("{data_dir}/containers/{namespace}");
+
+    // Create a tagged manifest
+    let mut manifest_file = storage::create_manifest(
+      &namespace,
+      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
+      Some("latest"),
+    )
+    .unwrap();
+    manifest_file
+      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+      .unwrap();
+    storage::xattr::set_xattr_media_type(
+      &manifest_file,
+      "application/vnd.docker.distribution.manifest.v2+json",
+    )
+    .unwrap();
+
+    let dangling_manifests = get_dangling_manifests_in(&directory);
+
+    println!("Dangling manifests: {dangling_manifests:?}");
+    assert_eq!(dangling_manifests.len(), 0);
+
+    // Delete the tag file to make the manifest dangling
+    fs::remove_file(format!("{directory}/latest.json")).unwrap();
+
+    // Get dangling manifests again
+    let dangling_manifests = get_dangling_manifests_in(&directory);
+    assert_eq!(dangling_manifests.len(), 1);
+    assert!(dangling_manifests[0]
+      .ends_with("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"));
+  }
+
+  #[test]
+  fn test_dangling_manifests_with_image_index() {
+    let data_dir = env::data_dir();
+    let namespace = tests::utils::get_random_namespace();
+    let directory = format!("{data_dir}/containers/{namespace}");
+
+    // Create an image index
+    let mut index_file = storage::create_manifest(
+      &namespace,
+      "sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b",
+      Some("latest"),
+    )
+    .unwrap();
+    index_file.write_all(include_str!("../tests/fixtures/image_index.json").as_bytes()).unwrap();
+    storage::xattr::set_xattr_media_type(&index_file, "application/vnd.oci.image.index.v1+json")
+      .unwrap();
+
+    // Create a manifest (referenced by the image index)
+    let mut manifest_file = storage::create_manifest(
+      &namespace,
+      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
+      None,
+    )
+    .unwrap();
+    manifest_file
+      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+      .unwrap();
+    storage::xattr::set_xattr_media_type(
+      &manifest_file,
+      "application/vnd.docker.distribution.manifest.v2+json",
+    )
+    .unwrap();
+
+    let dangling_manifests = get_dangling_manifests_in(&directory);
+
+    println!("Dangling manifests: {dangling_manifests:?}");
+    assert_eq!(dangling_manifests.len(), 0);
+
+    // Delete the index file to make the manifest dangling
+    fs::remove_file(format!(
+      "{directory}/sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b.json"
+    ))
+    .unwrap();
+
+    // Get dangling manifests again
+    let dangling_manifests = get_dangling_manifests_in(&directory);
+    assert_eq!(dangling_manifests.len(), 1);
+    assert!(dangling_manifests[0]
+      .ends_with("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"));
   }
 }
