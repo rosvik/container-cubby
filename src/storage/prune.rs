@@ -44,7 +44,7 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   let containers_dir = format!("{data_dir}/containers");
 
   let result = match mode {
-    PruneMode::DanglingBlobs => prune_dangling_blobs(),
+    PruneMode::DanglingBlobs => get_dangling_blobs(),
     PruneMode::DanglingManifests => get_dangling_manifests_in(&containers_dir),
     PruneMode::BlobLinks => get_blob_links(),
   };
@@ -66,7 +66,7 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   }
 }
 
-fn prune_dangling_blobs() -> Vec<String> {
+fn get_dangling_blobs() -> Vec<String> {
   let all_blob_shas = list_all_blob_shas();
   let all_blob_link_targets = list_all_blob_link_target_shas();
 
