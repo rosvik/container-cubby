@@ -19,19 +19,19 @@ use std::{fmt, fs, path::Path};
 
 #[allow(dead_code)]
 pub enum PruneMode {
-  /// If no symlinks in the container directory links to a blob, delete the blob.
-  DanglingBlobs,
   /// If a manifest is not linked to by a tag, delete the manifest.
   DanglingManifests,
   /// If a blob link is not referenced by a manifest, delete the blob link.
   BlobLinks,
+  /// If no symlinks in the container directory links to a blob, delete the blob.
+  DanglingBlobs,
 }
 impl fmt::Display for PruneMode {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      PruneMode::DanglingBlobs => write!(f, "dangling blobs"),
       PruneMode::DanglingManifests => write!(f, "dangling manifests"),
       PruneMode::BlobLinks => write!(f, "blob links"),
+      PruneMode::DanglingBlobs => write!(f, "dangling blobs"),
     }
   }
 }
@@ -44,9 +44,9 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   let containers_dir = format!("{data_dir}/containers");
 
   let result = match mode {
-    PruneMode::DanglingBlobs => get_dangling_blobs(),
     PruneMode::DanglingManifests => get_dangling_manifests_in(&containers_dir),
-    PruneMode::BlobLinks => get_blob_links(),
+    PruneMode::BlobLinks => get_dangling_blob_links_in(&containers_dir),
+    PruneMode::DanglingBlobs => get_dangling_blobs(),
   };
   if result.is_empty() {
     println!("No {mode} to delete");
