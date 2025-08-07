@@ -241,7 +241,8 @@ mod tests {
   use std::io::Write;
 
   use super::*;
-  use crate::{storage, tests};
+  use crate::{digestor, storage, tests};
+  use uuid::Uuid;
 
   #[test]
   fn test_dangling_manifests_with_tag() {
@@ -372,5 +373,30 @@ mod tests {
     assert_eq!(dangling_blob_links.len(), 1);
     assert!(dangling_blob_links[0]
       .ends_with("sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b.blob"));
+  }
+
+  #[test]
+  fn test_dangling_blobs() {
+    let namespace = tests::utils::get_random_namespace();
+    let blob_data = Uuid::new_v4().to_string();
+    let blob_sha = digestor::get_sha256_digest(&blob_data.as_bytes().to_vec());
+    let blob_path =
+      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap();
+
+    // Create a blob (ignore error if it already exists)
+    if let Ok(mut file) = storage::create_blob(&namespace, blob_sha.as_str()) {
+      file.write_all(blob_data.as_bytes()).unwrap();
+    }
+
+    let dangling_blobs = get_dangling_blobs();
+    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path})");
+    assert!(!dangling_blobs.contains(&blob_path));
+
+    // Deletes the blob link, making the blob dangling
+    storage::delete_blob(&namespace, blob_sha.as_str()).unwrap();
+
+    let dangling_blobs = get_dangling_blobs();
+    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path})");
+    assert!(dangling_blobs.contains(&blob_path));
   }
 }
