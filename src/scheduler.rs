@@ -36,3 +36,22 @@ pub async fn prune_job() {
 
   println!("Total prune time: {:?}", start.elapsed());
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::env;
+  use std::fs;
+
+  #[tokio::test]
+  async fn test_prune_job() {
+    // Setup data directory if it doesn't exist
+    let data_dir = env::data_dir();
+    let containers_dir = format!("{data_dir}/containers");
+    let blobs_dir = format!("{data_dir}/blobs");
+    let _ = fs::create_dir_all(containers_dir);
+    let _ = fs::create_dir_all(blobs_dir);
+
+    prune_job().await;
+  }
+}
