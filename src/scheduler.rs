@@ -12,11 +12,11 @@ pub async fn scheduler() {
   loop {
     interval.tick().await;
 
-    prune_job().await;
+    prune_job();
   }
 }
 
-pub async fn prune_job() {
+pub fn prune_job() {
   fn print_prune_stats(start: time::Instant, mode: prune::PruneMode) {
     println!("{mode:?} pruned in {:?}", start.elapsed());
   }
@@ -43,8 +43,8 @@ mod tests {
   use crate::env;
   use std::fs;
 
-  #[tokio::test]
-  async fn test_prune_job() {
+  #[test]
+  fn test_prune_job() {
     // Setup data directory if it doesn't exist
     let data_dir = env::data_dir();
     let containers_dir = format!("{data_dir}/containers");
@@ -52,6 +52,6 @@ mod tests {
     let _ = fs::create_dir_all(containers_dir);
     let _ = fs::create_dir_all(blobs_dir);
 
-    prune_job().await;
+    prune_job();
   }
 }
