@@ -15,41 +15,34 @@ In that case, there are two paths for files to be considered "in use":
 */
 
 use crate::{env, schemas, storage::file};
-use std::{fmt, fs, path::Path};
+use std::{fs, path::Path};
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum PruneMode {
-  /// If a manifest is not linked to by a tag, delete the manifest.
-  DanglingManifests,
+  /// If a manifest is not linked to by a tag or referenced image index, delete
+  /// the manifest.
+  Manifests,
   /// If a blob link is not referenced by a manifest, delete the blob link.
   BlobLinks,
-  /// If no symlinks in the container directory links to a blob, delete the blob.
-  DanglingBlobs,
-}
-impl fmt::Display for PruneMode {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      PruneMode::DanglingManifests => write!(f, "dangling manifests"),
-      PruneMode::BlobLinks => write!(f, "blob links"),
-      PruneMode::DanglingBlobs => write!(f, "dangling blobs"),
-    }
-  }
+  /// If a blob is not linked by a blob link, delete the blob.
+  Blobs,
 }
 
 #[allow(dead_code)]
 pub fn prune(mode: PruneMode, dry_run: bool) {
-  println!("Pruning {mode} from database");
+  println!("Pruning {mode:?} from database");
 
   let data_dir = env::data_dir();
   let containers_dir = format!("{data_dir}/containers");
 
   let result = match mode {
-    PruneMode::DanglingManifests => get_dangling_manifests_in(&containers_dir),
+    PruneMode::Manifests => get_dangling_manifests_in(&containers_dir),
     PruneMode::BlobLinks => get_dangling_blob_links_in(&containers_dir),
-    PruneMode::DanglingBlobs => get_dangling_blobs(),
+    PruneMode::Blobs => get_dangling_blobs(),
   };
   if result.is_empty() {
-    println!("No {mode} to delete");
+    println!("No {mode:?} to delete");
     return;
   }
   if !dry_run {
@@ -66,6 +59,8 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   }
 }
 
+/// Checks blobs against blob links in the configured data directory if there
+/// are any that have no links to them.
 fn get_dangling_blobs() -> Vec<String> {
   let all_blob_shas = list_all_blob_shas();
   let all_blob_link_targets = list_all_blob_link_target_shas();
@@ -78,6 +73,8 @@ fn get_dangling_blobs() -> Vec<String> {
     .collect::<Vec<String>>()
 }
 
+/// Recursively finds all manifests in the given directory, and check if sibling
+/// files are tags or image indexes that reference the manifest.
 fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
   let manifests = recursively_find(directory, |path| {
     path.ends_with(".json") && path.split("/").last().unwrap().starts_with("sha256:")
@@ -119,7 +116,8 @@ fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
             }
           }
         }
-        // The manifest is not linked to by a tag or image index, so it is dangling
+        // The manifest is not linked to by a tag or image index, so it is
+        // dangling
         true
       })
     })
@@ -127,6 +125,8 @@ fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
     .collect::<Vec<String>>()
 }
 
+/// Recursively finds all blob links in the given directory, and check if
+/// sibling files are manifests that reference the blob link.
 fn get_dangling_blob_links_in(directory: &str) -> Vec<String> {
   let blob_links = recursively_find(directory, |path| path.ends_with(".blob"));
   blob_links

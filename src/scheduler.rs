@@ -17,18 +17,22 @@ pub async fn scheduler() {
 }
 
 pub async fn prune_job() {
+  fn print_prune_stats(start: time::Instant, mode: prune::PruneMode) {
+    println!("{mode:?} pruned in {:?}", start.elapsed());
+  }
+
   let start = time::Instant::now();
   let start_manifests = time::Instant::now();
-  prune::prune(prune::PruneMode::DanglingManifests, DRY_RUN);
-  println!("Dangling manifests pruned in {:?}", start_manifests.elapsed());
+  prune::prune(prune::PruneMode::Manifests, DRY_RUN);
+  print_prune_stats(start_manifests, prune::PruneMode::Manifests);
 
   let start_blob_links = time::Instant::now();
   prune::prune(prune::PruneMode::BlobLinks, DRY_RUN);
-  println!("Blob links pruned in {:?}", start_blob_links.elapsed());
+  print_prune_stats(start_blob_links, prune::PruneMode::BlobLinks);
 
   let start_blobs = time::Instant::now();
-  prune::prune(prune::PruneMode::DanglingBlobs, DRY_RUN);
-  println!("Dangling blobs pruned in {:?}", start_blobs.elapsed());
+  prune::prune(prune::PruneMode::Blobs, DRY_RUN);
+  print_prune_stats(start_blobs, prune::PruneMode::Blobs);
 
   println!("Total prune time: {:?}", start.elapsed());
 }
