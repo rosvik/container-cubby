@@ -1,4 +1,7 @@
-use crate::{env, schemas, storage::file};
+use crate::{
+  env, schemas,
+  storage::{file, path},
+};
 use std::{fs, path::Path};
 use tokio::time;
 
@@ -80,10 +83,16 @@ fn get_dangling_blobs() -> Vec<String> {
   let all_blob_link_targets = list_all_blob_link_target_shas();
 
   // Find all blobs that are not in all_blob_link_targets
-  all_blob_shas
+  let dangling_blob_shas = all_blob_shas
     .iter()
     .filter(|sha| !all_blob_link_targets.contains(sha))
     .map(|s| s.to_string())
+    .collect::<Vec<String>>();
+
+  // Return the paths of the dangling blobs
+  dangling_blob_shas
+    .iter()
+    .map(|sha| path::get("", sha, path::FileType::Blob).unwrap())
     .collect::<Vec<String>>()
 }
 
