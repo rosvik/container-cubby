@@ -23,6 +23,11 @@ pub fn data_dir() -> String {
   std::env::var("DATA_DIR").unwrap_or_else(|_| DEFAULT_DATA_DIR.to_string())
 }
 
+const DEFAULT_PRUNE_CRON: &str = "* * 0 * * *"; // every day at midnight (UTC)
+pub fn prune_cron() -> String {
+  std::env::var("PRUNE_CRON").unwrap_or_else(|_| DEFAULT_PRUNE_CRON.to_string())
+}
+
 pub fn print_env_info() {
   let username = std::env::var("USERNAME");
   let password = std::env::var("PASSWORD");

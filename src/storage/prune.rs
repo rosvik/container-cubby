@@ -16,8 +16,29 @@ In that case, there are two paths for files to be considered "in use":
 
 use crate::{env, schemas, storage::file};
 use std::{fs, path::Path};
+use tokio::time;
 
-#[allow(dead_code)]
+pub fn prune_all(dry_run: bool) {
+  fn print_prune_stats(start: time::Instant, mode: PruneMode) {
+    println!("{mode:?} pruned in {:?}", start.elapsed());
+  }
+
+  let start = time::Instant::now();
+  let start_manifests = time::Instant::now();
+  prune(PruneMode::Manifests, dry_run);
+  print_prune_stats(start_manifests, PruneMode::Manifests);
+
+  let start_blob_links = time::Instant::now();
+  prune(PruneMode::BlobLinks, dry_run);
+  print_prune_stats(start_blob_links, PruneMode::BlobLinks);
+
+  let start_blobs = time::Instant::now();
+  prune(PruneMode::Blobs, dry_run);
+  print_prune_stats(start_blobs, PruneMode::Blobs);
+
+  println!("Total prune time: {:?}", start.elapsed());
+}
+
 #[derive(Debug)]
 pub enum PruneMode {
   /// If a manifest is not linked to by a tag or referenced image index, delete
@@ -29,7 +50,6 @@ pub enum PruneMode {
   Blobs,
 }
 
-#[allow(dead_code)]
 pub fn prune(mode: PruneMode, dry_run: bool) {
   println!("Pruning {mode:?} from database");
 

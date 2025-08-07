@@ -19,7 +19,11 @@ use uuid::Uuid;
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
   env::print_env_info();
-  tokio::spawn(async move { scheduler::scheduler().await });
+
+  let scheduler = scheduler::start_scheduler().await;
+  if let Err(e) = scheduler {
+    println!("Scheduler error: {e}");
+  }
 
   let port = env::port();
   let host = env::host();
