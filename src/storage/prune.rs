@@ -145,9 +145,12 @@ fn get_dangling_blob_links_in(directory: &str) -> Vec<String> {
             && dir_entry_path.split("/").last().unwrap().starts_with("sha256:")
           {
             let manifest_file = fs::read_to_string(dir_entry_path).unwrap();
-            let manifest: schemas::ImageManifest = serde_json::from_str(&manifest_file).unwrap();
+            let manifest: Option<schemas::ImageManifest> =
+              serde_json::from_str(&manifest_file).ok();
+
             // Does any layer reference the blob link?
-            manifest.layers.iter().any(|layer| layer.digest == digest)
+            manifest
+              .is_some_and(|manifest| manifest.layers.iter().any(|layer| layer.digest == digest))
           } else {
             // Skip non-manifest files
             false
