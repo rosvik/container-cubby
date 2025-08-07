@@ -196,8 +196,11 @@ fn list_all_blob_shas() -> Vec<String> {
 
 fn list_all_blob_link_target_shas() -> Vec<String> {
   let containers_dir = format!("{}/containers", env::data_dir());
-  let target_paths = recursively_find(&containers_dir, |path| path.ends_with(".blob"));
-  target_paths.iter().map(|path| path.replace(".blob", "")).collect::<Vec<String>>()
+  let blob_link_paths = recursively_find(&containers_dir, |path| path.ends_with(".blob"));
+  blob_link_paths
+    .iter()
+    .map(|path| path.split("/").last().unwrap().replace(".blob", ""))
+    .collect::<Vec<String>>()
 }
 
 fn recursively_find(dir_path: &str, predicate: impl Fn(&str) -> bool + Clone) -> Vec<String> {
