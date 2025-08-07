@@ -245,6 +245,18 @@ mod tests {
   use uuid::Uuid;
 
   #[test]
+  fn test_prune_all() {
+    // Setup data directory if it doesn't exist
+    let data_dir = env::data_dir();
+    let containers_dir = format!("{data_dir}/containers");
+    let blobs_dir = format!("{data_dir}/blobs");
+    let _ = fs::create_dir_all(containers_dir);
+    let _ = fs::create_dir_all(blobs_dir);
+
+    prune_all(true);
+  }
+
+  #[test]
   fn test_dangling_manifests_with_tag() {
     let data_dir = env::data_dir();
     let namespace = tests::utils::get_random_namespace();
