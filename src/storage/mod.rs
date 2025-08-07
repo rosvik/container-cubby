@@ -1,7 +1,8 @@
 mod file;
 mod path;
-mod prune;
 mod symlink;
+
+pub mod prune;
 pub mod xattr;
 
 use crate::utils;

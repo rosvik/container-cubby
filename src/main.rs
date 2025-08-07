@@ -1,6 +1,7 @@
 mod digestor;
 mod env;
 mod middleware;
+mod scheduler;
 mod schemas;
 mod storage;
 mod utils;
@@ -18,6 +19,7 @@ use uuid::Uuid;
 async fn main() -> std::io::Result<()> {
   dotenv().ok();
   env::print_env_info();
+  tokio::spawn(async move { scheduler::scheduler().await });
 
   let port = env::port();
   let host = env::host();
