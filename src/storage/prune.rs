@@ -1,23 +1,17 @@
-/*
-Prune modes:
-- Dangling blobs. If no symlinks in the container directory links to a blob, delete the blob.
-- Dangling manifests. If a manifest is not linked to by a tag or image index, delete the manifest.
-- Dangling blob links. If a blob link is not referenced by a manifest, delete the blob link.
-
-Running `container-cubby --prune untagged` could
-1. delete all manifests that are not linked to by a tag ✅
-2. delete all blob links that are not linked to by a manifest
-3. delete all blobs that are not linked to by a blob link ✅
-
-In that case, there are two paths for files to be considered "in use":
-- Tag -> Image Index -> Manifests -> Blob Links -> Blob
-- Tag -> Manifest -> Blob Links -> Blob
-*/
-
 use crate::{env, schemas, storage::file};
 use std::{fs, path::Path};
 use tokio::time;
 
+/// Do a complete prune of the registry.
+///
+/// This will:
+/// 1. delete all manifests that are not linked to by a tag or image index
+/// 2. delete all blob links that are not linked to by a manifest
+/// 3. delete all blobs that are not linked to by a blob link
+///
+/// Files are kept if they are part of one of the following chains:
+/// - Tag -> Image Index -> Manifests -> Blob Links -> Blob
+/// - Tag -> Manifest -> Blob Links -> Blob
 pub fn prune_all(dry_run: bool) {
   fn print_prune_stats(start: time::Instant, mode: PruneMode) {
     println!("{mode:?} pruned in {:?}", start.elapsed());
