@@ -8,10 +8,12 @@ pub async fn start_scheduler() -> Result<JobScheduler, Box<dyn std::error::Error
   let mut scheduler = JobScheduler::new().await?;
 
   // Prune job
-  let prune_job = Job::new(prune_cron.as_str(), |_, _| {
-    prune::prune_all(PRUNE_DRY_RUN);
-  })?;
-  scheduler.add(prune_job).await?;
+  if let Some(prune_cron) = prune_cron {
+    let prune_job = Job::new(prune_cron.as_str(), |_, _| {
+      prune::prune_all(PRUNE_DRY_RUN);
+    })?;
+    scheduler.add(prune_job).await?;
+  }
 
   scheduler.start().await?;
   if let Ok(Some(next_job_in)) = scheduler.time_till_next_job().await {
