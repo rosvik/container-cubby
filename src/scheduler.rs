@@ -1,7 +1,7 @@
 use crate::{env, storage::prune};
 use tokio_cron_scheduler::{Job, JobScheduler};
 
-const PRUNE_DRY_RUN: bool = true;
+const PRUNE_DRY_RUN: bool = false;
 
 pub async fn start_scheduler() -> Result<JobScheduler, Box<dyn std::error::Error>> {
   let prune_cron = env::prune_cron();
