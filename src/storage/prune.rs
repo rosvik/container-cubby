@@ -56,24 +56,24 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   let data_dir = env::data_dir();
   let containers_dir = PathBuf::from(format!("{data_dir}/containers"));
 
-  let result = match mode {
+  let absolute_paths = match mode {
     PruneMode::Manifests => get_dangling_manifests_in(&containers_dir),
     PruneMode::BlobLinks => get_dangling_blob_links_in(&containers_dir),
     PruneMode::Blobs => get_dangling_blobs(),
   };
-  if result.is_empty() {
+  if absolute_paths.is_empty() {
     println!("No {mode:?} to delete");
     return;
   }
   if !dry_run {
-    println!("Deleting {} files:", result.len());
-    for item in result {
-      println!("{item:?}");
-      file::delete(item.to_str().unwrap()).unwrap();
+    println!("Deleting {} files:", absolute_paths.len());
+    for absolute_path in absolute_paths {
+      println!("{absolute_path:?}");
+      fs::remove_file(absolute_path).unwrap();
     }
   } else {
-    println!("Would delete {} files:", result.len());
-    for item in result {
+    println!("Would delete {} files:", absolute_paths.len());
+    for item in absolute_paths {
       println!("{item:?}");
     }
   }
@@ -96,7 +96,7 @@ fn get_dangling_blobs() -> Vec<PathBuf> {
   dangling_blob_shas
     .iter()
     .map(|sha| path::get("", sha, path::FileType::Blob).unwrap())
-    .map(PathBuf::from)
+    .map(|s| PathBuf::from(format!("{}/{s}", env::data_dir())))
     .collect::<Vec<PathBuf>>()
 }
 
@@ -395,9 +395,11 @@ mod tests {
     let namespace = tests::utils::get_random_namespace();
     let blob_data = Uuid::new_v4().to_string();
     let blob_sha = digestor::get_sha256_digest(&blob_data.as_bytes().to_vec());
-    let blob_path = PathBuf::from(
-      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap(),
-    );
+    let blob_path = PathBuf::from(format!(
+      "{}/{}",
+      env::data_dir(),
+      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap()
+    ));
 
     // Create a blob (ignore error if it already exists)
     if let Ok(mut file) = storage::create_blob(&namespace, blob_sha.as_str()) {
