@@ -2,7 +2,10 @@ use crate::{
   env, schemas,
   storage::{file, path},
 };
-use std::{fs, path::Path};
+use std::{
+  fs,
+  path::{Path, PathBuf},
+};
 use tokio::time;
 
 /// Do a complete prune of the registry.
@@ -51,7 +54,7 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   println!("Pruning {mode:?} from database");
 
   let data_dir = env::data_dir();
-  let containers_dir = format!("{data_dir}/containers");
+  let containers_dir = PathBuf::from(format!("{data_dir}/containers"));
 
   let result = match mode {
     PruneMode::Manifests => get_dangling_manifests_in(&containers_dir),
@@ -65,20 +68,20 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   if !dry_run {
     println!("Deleting {} files:", result.len());
     for item in result {
-      println!("{item}");
-      file::delete(&item).unwrap();
+      println!("{item:?}");
+      file::delete(item.to_str().unwrap()).unwrap();
     }
   } else {
     println!("Would delete {} files:", result.len());
     for item in result {
-      println!("{item}");
+      println!("{item:?}");
     }
   }
 }
 
 /// Checks blobs against blob links in the configured data directory if there
 /// are any that have no links to them.
-fn get_dangling_blobs() -> Vec<String> {
+fn get_dangling_blobs() -> Vec<PathBuf> {
   let all_blob_shas = list_all_blob_shas();
   let all_blob_link_targets = list_all_blob_link_target_shas();
 
@@ -93,12 +96,13 @@ fn get_dangling_blobs() -> Vec<String> {
   dangling_blob_shas
     .iter()
     .map(|sha| path::get("", sha, path::FileType::Blob).unwrap())
-    .collect::<Vec<String>>()
+    .map(PathBuf::from)
+    .collect::<Vec<PathBuf>>()
 }
 
 /// Recursively finds all manifests in the given directory, and check if sibling
 /// files are tags or image indexes that reference the manifest.
-fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
+fn get_dangling_manifests_in(directory: &PathBuf) -> Vec<PathBuf> {
   let manifests = recursively_find(directory, |path| {
     path.ends_with(".json") && path.split("/").last().unwrap().starts_with("sha256:")
   });
@@ -130,8 +134,9 @@ fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
 
           // Is the file referenced by an image index?
           if dir_entry.path().is_file() {
-            let file_content = fs::read_to_string(dir_entry.path()).unwrap();
-            if let Ok(image_index) = serde_json::from_str::<schemas::ImageIndex>(&file_content) {
+            if let Ok(image_index) = serde_json::from_reader::<_, schemas::ImageIndex>(
+              &fs::File::open(dir_entry.path()).unwrap(),
+            ) {
               if image_index.manifests.iter().any(|manifest| manifest.digest == manifest_digest) {
                 // The manifest is referenced by an image index, so it is not dangling
                 return false;
@@ -144,13 +149,13 @@ fn get_dangling_manifests_in(directory: &str) -> Vec<String> {
         true
       })
     })
-    .map(|s| s.to_string())
-    .collect::<Vec<String>>()
+    .map(|s| s.to_owned())
+    .collect::<Vec<PathBuf>>()
 }
 
 /// Recursively finds all blob links in the given directory, and check if
 /// sibling files are manifests that reference the blob link.
-fn get_dangling_blob_links_in(directory: &str) -> Vec<String> {
+fn get_dangling_blob_links_in(directory: &PathBuf) -> Vec<PathBuf> {
   let blob_links = recursively_find(directory, |path| path.ends_with(".blob"));
   blob_links
     .iter()
@@ -160,29 +165,26 @@ fn get_dangling_blob_links_in(directory: &str) -> Vec<String> {
 
         // If no manifest references the blob link, it is dangling
         !parent_dir.any(|dir_entry| {
-          let dir_entry_path = dir_entry.unwrap().path();
-          let dir_entry_path = dir_entry_path.to_str().unwrap();
+          let path = dir_entry.unwrap().path();
+          let file_name = path.file_name().unwrap().to_str().unwrap();
 
           // Read all manifest files (excluding Tags)
-          if dir_entry_path.ends_with(".json")
-            && dir_entry_path.split("/").last().unwrap().starts_with("sha256:")
-          {
-            let manifest_file = fs::read_to_string(dir_entry_path).unwrap();
-            let manifest: Option<schemas::ImageManifest> =
-              serde_json::from_str(&manifest_file).ok();
-
-            // Does any layer reference the blob link?
-            manifest
-              .is_some_and(|manifest| manifest.layers.iter().any(|layer| layer.digest == digest))
-          } else {
+          if !file_name.ends_with(".json") || !file_name.starts_with("sha256:") {
             // Skip non-manifest files
-            false
+            return false;
           }
+
+          let manifest: Option<schemas::ImageManifest> =
+            serde_json::from_reader(fs::File::open(path).unwrap()).ok();
+
+          // Does any layer reference the blob link?
+          manifest
+            .is_some_and(|manifest| manifest.layers.iter().any(|layer| layer.digest == digest))
         })
       })
     })
-    .map(|s| s.to_string())
-    .collect::<Vec<String>>()
+    .map(|s| s.to_owned())
+    .collect::<Vec<PathBuf>>()
 }
 
 fn list_all_blob_shas() -> Vec<String> {
@@ -204,33 +206,32 @@ fn list_all_blob_shas() -> Vec<String> {
 }
 
 fn list_all_blob_link_target_shas() -> Vec<String> {
-  let containers_dir = format!("{}/containers", env::data_dir());
+  let containers_dir = PathBuf::from(format!("{}/containers", env::data_dir()));
   let blob_link_paths = recursively_find(&containers_dir, |path| path.ends_with(".blob"));
   blob_link_paths
     .iter()
-    .map(|path| path.split("/").last().unwrap().replace(".blob", ""))
+    .map(|path| path.to_str().unwrap().split("/").last().unwrap().replace(".blob", ""))
     .collect::<Vec<String>>()
 }
 
-fn recursively_find(dir_path: &str, predicate: impl Fn(&str) -> bool + Clone) -> Vec<String> {
+fn recursively_find(dir_path: &PathBuf, predicate: impl Fn(&str) -> bool + Clone) -> Vec<PathBuf> {
   let dir = fs::read_dir(dir_path).unwrap();
   let mut matches = Vec::new();
   for entry in dir {
     let path = entry.unwrap().path();
     if path.is_dir() {
-      matches.extend(recursively_find(path.to_str().unwrap(), predicate.clone()));
+      matches.extend(recursively_find(&path, predicate.clone()));
     } else if path.is_file() && predicate(path.to_str().unwrap()) {
-      matches.push(path.to_str().unwrap().to_string());
+      matches.push(path);
     }
   }
   matches
 }
 
 fn check_in_parent_dir(
-  file_path: &str,
+  file_path: &Path,
   predicate: impl Fn(fs::ReadDir, &str) -> bool + Clone,
 ) -> bool {
-  let file_path = Path::new(file_path);
   let file_name = file_path.file_name().unwrap().to_str().unwrap();
   let parent_dir = fs::read_dir(file_path.parent().unwrap()).unwrap();
   predicate(parent_dir, file_name)
@@ -260,7 +261,7 @@ mod tests {
   fn test_dangling_manifests_with_tag() {
     let data_dir = env::data_dir();
     let namespace = tests::utils::get_random_namespace();
-    let directory = format!("{data_dir}/containers/{namespace}");
+    let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create a tagged manifest
     let mut manifest_file = storage::create_manifest(
@@ -284,7 +285,7 @@ mod tests {
     assert_eq!(dangling_manifests.len(), 0);
 
     // Delete the tag file to make the manifest dangling
-    fs::remove_file(format!("{directory}/latest.json")).unwrap();
+    fs::remove_file(format!("{}/latest.json", directory.to_str().unwrap())).unwrap();
 
     // Get dangling manifests again
     let dangling_manifests = get_dangling_manifests_in(&directory);
@@ -297,7 +298,7 @@ mod tests {
   fn test_dangling_manifests_with_image_index() {
     let data_dir = env::data_dir();
     let namespace = tests::utils::get_random_namespace();
-    let directory = format!("{data_dir}/containers/{namespace}");
+    let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create an image index
     let mut index_file = storage::create_manifest(
@@ -333,7 +334,8 @@ mod tests {
 
     // Delete the index file to make the manifest dangling
     fs::remove_file(format!(
-      "{directory}/sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b.json"
+      "{}/sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b.json",
+      directory.to_str().unwrap()
     ))
     .unwrap();
 
@@ -348,7 +350,7 @@ mod tests {
   fn test_dangling_blob_links() {
     let data_dir = env::data_dir();
     let namespace = tests::utils::get_random_namespace();
-    let directory = format!("{data_dir}/containers/{namespace}");
+    let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create a manifest
     let mut manifest_file = storage::create_manifest(
@@ -377,7 +379,8 @@ mod tests {
 
     // Delete the manifest to make the blob link dangling
     fs::remove_file(format!(
-      "{directory}/sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"
+      "{}/sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json",
+      directory.to_str().unwrap()
     ))
     .unwrap();
 
@@ -392,8 +395,9 @@ mod tests {
     let namespace = tests::utils::get_random_namespace();
     let blob_data = Uuid::new_v4().to_string();
     let blob_sha = digestor::get_sha256_digest(&blob_data.as_bytes().to_vec());
-    let blob_path =
-      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap();
+    let blob_path = PathBuf::from(
+      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap(),
+    );
 
     // Create a blob (ignore error if it already exists)
     if let Ok(mut file) = storage::create_blob(&namespace, blob_sha.as_str()) {
@@ -401,14 +405,14 @@ mod tests {
     }
 
     let dangling_blobs = get_dangling_blobs();
-    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path})");
+    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
     assert!(!dangling_blobs.contains(&blob_path));
 
     // Deletes the blob link, making the blob dangling
     storage::delete_blob(&namespace, blob_sha.as_str()).unwrap();
 
     let dangling_blobs = get_dangling_blobs();
-    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path})");
+    println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
     assert!(dangling_blobs.contains(&blob_path));
   }
 }
