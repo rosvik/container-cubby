@@ -65,6 +65,12 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
     println!("No {mode:?} to delete");
     return;
   }
+
+  // Don't delete files that are less than 24 hours old to avoid disrupting ongoing transactions.
+  let min_age = time::Duration::from_secs(60 * 60 * 24);
+  let absolute_paths =
+    absolute_paths.iter().filter(|path| is_older_than(min_age, path)).collect::<Vec<_>>();
+
   if !dry_run {
     println!("Deleting {} files:", absolute_paths.len());
     for absolute_path in absolute_paths {
@@ -242,12 +248,19 @@ fn check_in_parent_dir(
   predicate(parent_dir, file_name)
 }
 
+pub fn is_older_than(duration: time::Duration, path: &PathBuf) -> bool {
+  let file_metadata = fs::metadata(path).unwrap();
+  let file_age = file_metadata.modified().unwrap().elapsed().unwrap();
+  file_age > duration
+}
+
 #[cfg(test)]
 mod tests {
   use std::io::Write;
 
   use super::*;
   use crate::{digestor, storage, tests};
+  use tempfile::NamedTempFile;
   use uuid::Uuid;
 
   #[test]
@@ -421,5 +434,17 @@ mod tests {
     let dangling_blobs = get_dangling_blobs();
     println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
     assert!(dangling_blobs.contains(&blob_path));
+  }
+
+  #[test]
+  fn test_is_recent_file() {
+    let mut file = NamedTempFile::new().unwrap();
+    println!("File: {file:?}");
+    file.write_all(b"test").unwrap();
+
+    assert!(!is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()));
+
+    std::thread::sleep(time::Duration::from_millis(101));
+    assert!(is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()));
   }
 }
