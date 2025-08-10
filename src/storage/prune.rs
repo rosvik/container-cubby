@@ -177,6 +177,11 @@ fn get_dangling_blob_links_in(directory: &PathBuf) -> Vec<PathBuf> {
           let manifest: Option<schemas::ImageManifest> =
             serde_json::from_reader(fs::File::open(path).unwrap()).ok();
 
+          // Does the manifest config reference the blob link?
+          if manifest.as_ref().is_some_and(|manifest| manifest.config.digest == digest) {
+            return true;
+          }
+
           // Does any layer reference the blob link?
           manifest
             .is_some_and(|manifest| manifest.layers.iter().any(|layer| layer.digest == digest))
