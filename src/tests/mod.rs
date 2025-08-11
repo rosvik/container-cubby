@@ -388,8 +388,8 @@ async fn test_auth_read_write() {
   std::env::set_var("USERNAME", "admin");
   std::env::set_var("PASSWORD", "hunter2");
   std::env::set_var("AUTH_MODE", "read_write");
-  let user = std::env::var("USERNAME").unwrap();
-  let pass = std::env::var("PASSWORD").unwrap();
+  let user = env::username().unwrap();
+  let pass = env::password().unwrap();
 
   let app =
     App::new().service(web::resource("/v2/").get(|| async { "Authenticated" })).wrap(BasicAuth);

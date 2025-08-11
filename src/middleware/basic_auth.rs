@@ -1,4 +1,7 @@
-use crate::utils::decode_base64;
+use crate::{
+  env::{self, AuthMode},
+  utils::decode_base64,
+};
 use actix_web::{
   body::EitherBody,
   dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
@@ -8,17 +11,9 @@ use actix_web::{
 };
 use futures_util::{future::LocalBoxFuture, FutureExt};
 use std::{
-  env,
   future::{ready, Ready},
   rc::Rc,
 };
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum AuthMode {
-  None,
-  ReadWrite,
-  WriteOnly,
-}
 
 #[derive(Clone)]
 pub struct BasicAuth;
@@ -57,7 +52,7 @@ where
   forward_ready!(service);
 
   fn call(&self, req: ServiceRequest) -> Self::Future {
-    let auth_mode = get_auth_mode();
+    let auth_mode = env::auth_mode();
 
     #[allow(clippy::if_same_then_else)]
     let requires_auth = if auth_mode == AuthMode::None {
@@ -73,8 +68,8 @@ where
     };
 
     if requires_auth {
-      let server_credentials = match (env::var("USERNAME"), env::var("PASSWORD")) {
-        (Ok(username), Ok(password)) => format!("{username}:{password}"),
+      let server_credentials = match (env::username(), env::password()) {
+        (Some(username), Some(password)) => format!("{username}:{password}"),
         _ => {
           // If server credentials are not set, return 401 Unauthorized.
           let response = into_unauthorized(req);
@@ -128,13 +123,4 @@ fn into_unauthorized(req: ServiceRequest) -> ServiceResponse {
   let http_res = HttpResponse::Unauthorized().finish();
   let (http_req, _) = req.into_parts();
   ServiceResponse::new(http_req, http_res)
-}
-
-fn get_auth_mode() -> AuthMode {
-  match env::var("AUTH_MODE").unwrap().as_str() {
-    "none" => AuthMode::None,
-    "read_write" => AuthMode::ReadWrite,
-    "write_only" => AuthMode::WriteOnly,
-    invalid => panic!("Invalid AUTH_MODE: {invalid}"),
-  }
 }

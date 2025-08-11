@@ -1,3 +1,9 @@
+pub const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
+pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub fn crate_info() -> String {
+  format!("{CRATE_NAME} v{CRATE_VERSION}")
+}
+
 pub const PROTOCOL: &str = "http";
 const DEFAULT_HOST: &str = "localhost";
 const DEFAULT_PORT: u16 = 8602;
@@ -8,10 +14,26 @@ pub fn port() -> u16 {
   std::env::var("PORT").unwrap_or_default().parse::<u16>().unwrap_or(DEFAULT_PORT)
 }
 
-pub const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
-pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub fn crate_info() -> String {
-  format!("{CRATE_NAME} v{CRATE_VERSION}")
+pub fn username() -> Option<String> {
+  std::env::var("USERNAME").ok()
+}
+pub fn password() -> Option<String> {
+  std::env::var("PASSWORD").ok()
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AuthMode {
+  None,
+  ReadWrite,
+  WriteOnly,
+}
+pub fn auth_mode() -> AuthMode {
+  match std::env::var("AUTH_MODE").unwrap().as_str() {
+    "none" => AuthMode::None,
+    "read_write" => AuthMode::ReadWrite,
+    "write_only" => AuthMode::WriteOnly,
+    invalid => panic!("Invalid AUTH_MODE: {invalid}"),
+  }
 }
 
 pub const DEFAULT_DATA_DIR: &str = "data";
