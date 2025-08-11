@@ -26,16 +26,10 @@ podman run -d --name container-cubby -p 8602:8602 \
 
 ### Building from source
 
-To create a optimized binary, run:
+[Install rust](https://rustup.rs/), then execute the following to create and run an optimized binary:
 
 ```bash
-cargo build --release
-```
-
-Then, run:
-
-```bash
-./target/release/container-cubby
+cargo build --release && ./target/release/container-cubby
 ```
 
 ## Environment variables
@@ -100,6 +94,16 @@ Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:a
 
 > [!NOTE]
 > Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Debian, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
+
+### Handling of the data directory
+
+Due to the use of symlinks and extended attributes, some caveats apply when you want to move or backup the data directory. For example, the `cp` command doesn't preserve extended attributes, and the `--archive` parameter should be used to preserve both symlinks and extended attributes.
+
+```bash
+cp --archive data/ data-backup/
+```
+
+You can read more about this on ArchWiki under [Extended Attributes > Preserving extended attributes](https://wiki.archlinux.org/title/Extended_attributes#Preserving_extended_attributes).
 
 ## Endpoints
 
