@@ -38,13 +38,25 @@ Then, run:
 ./target/release/container-cubby
 ```
 
-Example env variables are found in [.env.example](.env.example).
+## Environment variables
+
+| Variable     | Description                                     | Default     |
+| ------------ | ----------------------------------------------- | ---------   |
+| `HOST`       | The host to bind to.                            | `localhost` |
+| `PORT`       | The port to bind to.                            | `8602`      |
+| `DATA_DIR`   | The directory to store the container data in.   | `./data`    |
+| `USERNAME`   | The username to use for authentication.         |             |
+| `PASSWORD`   | The password to use for authentication.         |             |
+| `AUTH_MODE`  | The authentication mode to use. `none`, `read_only` or `read_write`.  | Required |
+| `PRUNE_CRON` | A [cron](https://en.wikipedia.org/wiki/Cron) expression that sets the schedule for pruning the database. | Disabled by default |
+
+See [`.env.example`](.env.example) for a starting point.
 
 ## Storage
 
-While the most common way for an API to store data is trough a traditional database using SQL and a blob storage for larger files, Container Cubby uses a different approach. Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
+Container Cubby doesn't use a traditional database, but instead stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
 
-This is implemented using
+This is implemented using:
 - directories to represent namespaces.
   - E.g. containers under the `rosvik/container-cubby` namespace are stored in `<DATA_DIR>/containers/rosvik/container-cubby/`.
 - files to store manifest and blob data.
@@ -56,7 +68,7 @@ This is implemented using
 - [extended attributes](https://wiki.archlinux.org/title/Extended_attributes) to store file metadata.
   - The `user.mime_type` extended attribute is used to store the media type of manifests.
 
-As an example, if the image `rosvik/container-cubby:latest` is created as one manifest and one blob with hash `sha256:abc123`, then the following files will be created:
+As an example, if the image `rosvik/container-cubby:latest` is created as one manifest which points to two blobs with hashes `sha256:abcdef123456` and `sha256:123456abcdef`, then the following files will be created:
 
 ```
 <DATA_DIR>/
@@ -65,13 +77,16 @@ As an example, if the image `rosvik/container-cubby:latest` is created as one ma
 │       └── container-cubby/
 │           ├── latest.json                      [SYMLINK]
 │           ├── sha256:<manifest hash>.json
-│           └── sha256:abc123.blob               [SYMLINK]
+│           ├── sha256:abcdef123456.blob         [SYMLINK]
+│           └── sha256:123456abcdef.blob         [SYMLINK]
 └── blobs/
+    ├── 12/
+    │   └── 3456abcdef.blob
     └── ab/
-        └── c123.blob
+        └── cdef123456.blob
 ```
 
-Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:abc123.blob` is a symlink to `blobs/ab/c123.blob`.
+Here, `latest.json` is a symlink to `sha256:<manifest hash>.json`, and `sha256:abcdef123456.blob` is a symlink to `blobs/ab/cdef123456.blob`.
 
 > [!NOTE]
 > Since symlinks and extended attributes are OS-specific features, Container Cubby is not guaranteed to work on all operating systems. It is periodically tested and expected to work on MacOS, Debian, Ubuntu and Arch Linux. To verify that your OS is supported, run `cargo test` and check that all tests pass.
