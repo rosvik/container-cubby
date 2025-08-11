@@ -52,9 +52,19 @@ Then, run:
 
 See [`.env.example`](.env.example) for a starting point.
 
+### `AUTH_MODE`
+
+Container Cubby implements the following authentication modes:
+
+- `none`: No authentication is required for reading or writing. Not recommended if the registry is publicly accessible.
+- `read_only`: Authentication is required for writing, but not for reading.
+- `read_write`: Authentication is required for both reading and writing.
+
+The only type of authentication that is supported is basic auth for a single user/password pair. If no username or password is provided, the registry will be set to read-only mode.
+
 ## Storage
 
-Container Cubby doesn't use a traditional database, but instead stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
+Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
 
 This is implemented using:
 - directories to represent namespaces.
