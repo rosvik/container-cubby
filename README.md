@@ -41,7 +41,7 @@ cargo build --release && ./target/release/container-cubby
 | `DATA_DIR`   | The directory to store the container data in.   | `./data`    |
 | `USERNAME`   | The username to use for authentication.         |             |
 | `PASSWORD`   | The password to use for authentication.         |             |
-| `AUTH_MODE`  | The authentication mode to use. `none`, `read_only` or `read_write`.  | Required |
+| `AUTH_MODE`  | The authentication mode to use. `none`, `write_only` or `read_write`.  | Required |
 | `PRUNE_CRON` | A [cron](https://en.wikipedia.org/wiki/Cron) expression that sets the schedule for pruning the database. | Disabled by default |
 
 See [`.env.example`](.env.example) for a starting point.
@@ -51,7 +51,7 @@ See [`.env.example`](.env.example) for a starting point.
 Container Cubby implements the following authentication modes:
 
 - `none`: No authentication is required for reading or writing. Not recommended if the registry is publicly accessible.
-- `read_only`: Authentication is required for writing, but not for reading.
+- `write_only`: Authentication is required for writing, but not for reading.
 - `read_write`: Authentication is required for both reading and writing.
 
 The only type of authentication that is supported is basic auth for a single user/password pair. If no username or password is provided, the registry will be set to read-only mode.
