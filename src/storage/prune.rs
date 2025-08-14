@@ -1,6 +1,7 @@
 use crate::{
   env, schemas,
   storage::{file, path},
+  utils::ansi::{GRAY, ORANGE, RESET},
 };
 use std::{
   fs,
@@ -20,10 +21,11 @@ use tokio::time;
 /// - Tag -> Manifest -> Blob Links -> Blob
 pub fn prune_all(dry_run: bool) {
   fn print_prune_stats(start: time::Instant, mode: PruneMode) {
-    println!("{mode:?} pruned in {:?}", start.elapsed());
+    println!("{ORANGE}│{RESET} {mode:?} pruned in {:?}", start.elapsed());
   }
 
   let start = time::Instant::now();
+  println!("{ORANGE}┌── {GRAY}{}{RESET}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"));
   let start_manifests = time::Instant::now();
   prune(PruneMode::Manifests, dry_run);
   print_prune_stats(start_manifests, PruneMode::Manifests);
@@ -36,7 +38,7 @@ pub fn prune_all(dry_run: bool) {
   prune(PruneMode::Blobs, dry_run);
   print_prune_stats(start_blobs, PruneMode::Blobs);
 
-  println!("Total prune time: {:?}", start.elapsed());
+  println!("{ORANGE}└── Total {:?}{RESET}", start.elapsed());
 }
 
 #[derive(Debug)]
@@ -51,7 +53,7 @@ pub enum PruneMode {
 }
 
 pub fn prune(mode: PruneMode, dry_run: bool) {
-  println!("Pruning {mode:?} from database");
+  println!("{ORANGE}├── Pruning {mode:?}{RESET}");
 
   let data_dir = env::data_dir();
   let containers_dir = PathBuf::from(format!("{data_dir}/containers"));
@@ -62,7 +64,7 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
     PruneMode::Blobs => get_dangling_blobs(),
   };
   if absolute_paths.is_empty() {
-    println!("No {mode:?} to delete");
+    println!("{ORANGE}│{RESET} No {mode:?} to delete");
     return;
   }
 
@@ -72,15 +74,15 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
     absolute_paths.iter().filter(|path| is_older_than(min_age, path)).collect::<Vec<_>>();
 
   if !dry_run {
-    println!("Deleting {} files:", absolute_paths.len());
+    println!("{ORANGE}│{RESET} Deleting {} files", absolute_paths.len());
     for absolute_path in absolute_paths {
-      println!("{absolute_path:?}");
+      println!("{ORANGE}│{RESET} {absolute_path:?}");
       fs::remove_file(absolute_path).unwrap();
     }
   } else {
-    println!("Would delete {} files:", absolute_paths.len());
+    println!("{ORANGE}│{RESET} Would delete {} files", absolute_paths.len());
     for item in absolute_paths {
-      println!("{item:?}");
+      println!("{ORANGE}│{RESET} {item:?}");
     }
   }
 }

@@ -11,6 +11,8 @@ pub mod ansi {
   pub const BLUE: &str = "\x1b[34m";
   pub const MAGENTA: &str = "\x1b[35m";
   pub const CYAN: &str = "\x1b[36m";
+  pub const ORANGE: &str = "\x1b[33m";
+  pub const GRAY: &str = "\x1b[90m";
 }
 
 pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String, usize, usize)> {
