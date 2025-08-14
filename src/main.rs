@@ -12,7 +12,8 @@ use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
 use storage::xattr::set_xattr_media_type;
-use utils::{verify_blob, verify_reference, RESET, UNDERLINE};
+use utils::ansi::{RESET, UNDERLINE};
+use utils::{verify_blob, verify_reference};
 use uuid::Uuid;
 
 #[actix_web::main]
