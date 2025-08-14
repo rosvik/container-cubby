@@ -1,4 +1,6 @@
+use crate::utils::{BLUE, CYAN, GREEN, MAGENTA, RED, RESET, YELLOW};
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::http::StatusCode;
 use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
 
@@ -55,15 +57,25 @@ where
 }
 
 fn log_request(req: &ServiceRequest) {
-  println!("\n\x1b[1;35mRequest: \x1b[1;34m{} {:?}\x1b[0m", &req.method(), &req.uri());
+  println!("\n{MAGENTA}Request: {BLUE}{} {:?}{RESET}", &req.method(), &req.uri());
   req.headers().iter().for_each(|(name, value)| {
-    println!("  \x1b[36m{name}: {value:?}\x1b[0m");
+    println!("  {CYAN}{name}: {value:?}{RESET}");
   });
 }
 
 fn log_response<B>(res: &ServiceResponse<B>) {
-  println!("\x1b[1;35mResponse: \x1b[34m{:?}\x1b[0m", res.status());
+  let status_color = match res.status() {
+    StatusCode::OK => GREEN,            // 200
+    StatusCode::CREATED => GREEN,       // 201
+    StatusCode::ACCEPTED => GREEN,      // 202
+    StatusCode::NO_CONTENT => GREEN,    // 204
+    StatusCode::UNAUTHORIZED => YELLOW, // 401
+    StatusCode::NOT_FOUND => YELLOW,    // 404
+    _ => RED,
+  };
+
+  println!("\n{MAGENTA}Response: {status_color}{:?}{RESET}", res.status());
   res.headers().iter().for_each(|(name, value)| {
-    println!("  \x1b[36m{name}: {value:?}\x1b[0m");
+    println!("  {CYAN}{name}: {value:?}{RESET}");
   });
 }

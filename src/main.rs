@@ -12,7 +12,7 @@ use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
 use storage::xattr::set_xattr_media_type;
-use utils::{verify_blob, verify_reference};
+use utils::{verify_blob, verify_reference, RESET, UNDERLINE};
 use uuid::Uuid;
 
 #[actix_web::main]
@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 
   let port = env::port();
   let host = env::host();
-  println!("Listening on \x1b[1;4m{}://{host}:{port}/\x1b[0m", env::PROTOCOL);
+  println!("Listening on {UNDERLINE}{}://{host}:{port}/{RESET}", env::PROTOCOL);
 
   HttpServer::new(|| {
     App::new()
