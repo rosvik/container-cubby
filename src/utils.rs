@@ -5,12 +5,12 @@ use regex_lite::Regex;
 pub mod ansi {
   pub const RESET: &str = "\x1b[0m";
   pub const UNDERLINE: &str = "\x1b[4m";
-  pub const RED: &str = "\x1b[1;31m";
-  pub const GREEN: &str = "\x1b[1;32m";
-  pub const YELLOW: &str = "\x1b[1;33m";
-  pub const BLUE: &str = "\x1b[1;34m";
-  pub const MAGENTA: &str = "\x1b[1;35m";
-  pub const CYAN: &str = "\x1b[1;36m";
+  pub const RED: &str = "\x1b[31m";
+  pub const GREEN: &str = "\x1b[32m";
+  pub const YELLOW: &str = "\x1b[93m";
+  pub const BLUE: &str = "\x1b[34m";
+  pub const MAGENTA: &str = "\x1b[35m";
+  pub const CYAN: &str = "\x1b[36m";
 }
 
 pub fn get_content_range(content_range: Option<&HeaderValue>) -> Option<(String, usize, usize)> {
