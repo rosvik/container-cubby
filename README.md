@@ -56,6 +56,17 @@ Container Cubby implements the following authentication modes:
 
 The only type of authentication that is supported is basic auth for a single user/password pair. If no username or password is provided, the registry will be set to read-only mode.
 
+### `PRUNE_CRON`
+
+To avoid bloating the database with unused data, Container Cubby can be configured to delete untagged images. Images that are less than 24 hours old are not deleted to avoid issues with ongoing uploads.
+
+Pruning is disabled by default. It is enabled by setting `PRUNE_CRON` as a [cron](https://en.wikipedia.org/wiki/Cron) expression. The following example will prune the database every day at midnight UTC:
+
+```bash
+# sec, min, hour, day of month, month, day of week
+PRUNE_CRON="0 0 0 * * *"
+```
+
 ## Storage
 
 Container Cubby stores all container data in a local directory. The location of this directory can be set by the `DATA_DIR` environment variable.
