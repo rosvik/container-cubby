@@ -116,31 +116,37 @@ cp --archive data/ data-backup/
 
 You can read more about this on ArchWiki under [Extended Attributes > Preserving extended attributes](https://wiki.archlinux.org/title/Extended_attributes#Preserving_extended_attributes).
 
-## Endpoints
+## Spec Compliance
 
-The endpoints defined by the spec, and the project's current progress is the following:
+The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontainers.org/distribution-spec/#endpoints), and the project's current progress is as follows:
 
-| ID      | Method   | API Endpoint                                                 | Success | Failure     | Todo |
-| ------- | -------- | ------------------------------------------------------------ | ------- | ----------- | ---- |
-| end-1   | GET      | `/v2/`                                                       | 200     | 404/401     | X    |
-| end-2   | GET/HEAD | `/v2/<name>/blobs/<digest>`                                  | 200     | 404         | X    |
-| end-3   | GET/HEAD | `/v2/<name>/manifests/<reference>`                           | 200     | 404         | X    |
-| end-4a  | POST     | `/v2/<name>/blobs/uploads/`                                  | 202     | 404         | X    |
-| end-4b  | POST     | `/v2/<name>/blobs/uploads/?digest=<digest>`                  | 201/202 | 404/400     | X    |
-| end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | 202     | 404/416     | X    |
-| end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | 201     | 404/400     | X    |
-| end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | 201     | 404         | X    |
-| end-8a  | GET      | `/v2/<name>/tags/list`                                       | 200     | 404         | X    |
-| end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<tagname>`            | 200     | 404         | X    |
-| end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | 202     | 404/400/405 | X    |
-| end-10  | DELETE   | `/v2/<name>/blobs/<digest>`                                  | 202     | 404/405     | X    |
-| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | 201     | 404         | X    |
-| end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | 200     | 404/400     |      |
-| end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | 200     | 404/400     |      |
-| end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | 204     | 404         | X    |
+| ID      | Method   | API Endpoint                                                 | Implemented |
+| ------- | -------- | ------------------------------------------------------------ | ----------- |
+| end-1   | GET      | `/v2/`                                                       | ✅          |
+| end-2   | GET/HEAD | `/v2/<name>/blobs/<digest>`                                  | ✅          |
+| end-3   | GET/HEAD | `/v2/<name>/manifests/<reference>`                           | ✅          |
+| end-4a  | POST     | `/v2/<name>/blobs/uploads/`                                  | ✅          |
+| end-4b  | POST     | `/v2/<name>/blobs/uploads/?digest=<digest>`                  | ✅          |
+| end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | ✅          |
+| end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | ✅          |
+| end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | ✅          |
+| end-8a  | GET      | `/v2/<name>/tags/list`                                       | ✅          |
+| end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<tagname>`            | ✅          |
+| end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | ✅          |
+| end-10  | DELETE   | `/v2/<name>/blobs/<digest>`                                  | ✅          |
+| end-11  | POST     | `/v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>` | ✅          |
+| end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | ❌          |
+| end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | ❌          |
+| end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | ✅          |
 
-https://specs.opencontainers.org/distribution-spec/#endpoints
+The referrers endpoints (end-12a and end-12b) are not implemented, mostly due to there not being an obvious way to support it without slowly reading all manifests per namespace on disk. See [this issue](https://github.com/rosvik/container-cubby/issues/23) for progress on this when/if a solution is being looked into.
+
+This means the registry is not fully compliant with v1.1 of the spec. Compliance with v1.0 should be quite good, but see my fork of the spec conformance test suite for some nitpicks: [rosvik/oci-distribution-spec](https://github.com/rosvik/oci-distribution-spec)
+
+That being said, there are plenty of details around pulling and pushing images that tools rely on that are not covered by the spec. So as a secondary goal, Container Cubby will try to support [Podman](https://podman.io/), [Skopeo](https://github.com/containers/skopeo), [Docker CLI](https://www.docker.com/products/cli/) and [Containerization](https://github.com/apple/containerization).
+
+If you find any issues with these tools or spec compliance, feel free to open an issue!
 
 ## Contributing
 
-Contributions are very welcome! If you notice any bugs, or have any suggestions, please feel free to open an issue or make a PR.
+Contributions are very welcome! If you notice any bugs or have suggestions, please feel free to open an issue or make a PR.
