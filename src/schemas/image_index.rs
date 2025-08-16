@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// For the media type that this document is compatible with, see the matrix.
-/// https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
+/// <https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix>
 ///
 /// Compatibility notes:
 /// - `.annotations`: only present in OCI
@@ -23,7 +23,7 @@ pub enum ImageIndexMediaType {
 ///
 /// This defines the `application/vnd.oci.image.index.v1+json` media type.
 ///
-/// https://github.com/opencontainers/image-spec/blob/v1.0.1/image-index.md
+/// <https://github.com/opencontainers/image-spec/blob/v1.0.1/image-index.md>
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]

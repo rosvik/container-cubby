@@ -2,7 +2,7 @@ use crate::utils;
 
 /// The data directory is structured as follows:
 ///
-/// ```
+/// ```txt
 /// <DATA_DIR>/
 /// ├── containers/
 /// │   └── foo/

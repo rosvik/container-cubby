@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// For the media type that this document is compatible with, see the matrix.
-/// https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix
+/// <https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix>
 ///
 /// Compatibility notes:
 /// - `.annotations`: only present in OCI
@@ -22,7 +22,7 @@ pub enum ImageManifestMediaType {
 ///
 /// This describes the `application/vnd.oci.descriptor.v1+json` media type.
 ///
-/// https://github.com/opencontainers/image-spec/blob/v1.0.1/manifest.md#image-manifest
+/// <https://github.com/opencontainers/image-spec/blob/v1.0.1/manifest.md#image-manifest>
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_with::skip_serializing_none]
@@ -47,8 +47,8 @@ pub struct ImageManifest {
 
   /// Each item in the array MUST be a descriptor. The array MUST have the base
   /// layer at index 0. Subsequent layers MUST then follow in stack order (i.e.
-  /// from layers[0] to layers[len(layers)-1]). The final filesystem layout MUST
-  /// match the result of applying the layers to an empty directory. The
+  /// from `layers[0]` to `layers[len(layers)-1]`). The final filesystem layout
+  /// MUST match the result of applying the layers to an empty directory. The
   /// ownership, mode, and other attributes of the initial empty directory are
   /// unspecified.
   pub layers: Vec<Descriptor>,
