@@ -1,15 +1,15 @@
 # Container Cubby
 
 > [!WARNING]
-> Container Cubby is currently in development, and may still be subject to frequent and unannounced breaking changes.
+> Container Cubby is still in development, and may be subject to frequent and unannounced breaking changes.
 
-Container Cubby is a minimal implementation of a container registry, based on the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md). It is single-tenant, and stores all container data in a local directory. Although it does work and implements most of the spec, there are no guarantees about the stability or security. There also might still be frequent breaking changes, so it's not recommended to use it in production just yet.
+Container Cubby is a container registry that aims to implement the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) while avoiding complex features and dependencies. It is single-tenant, and stores all container data as files in a local directory.
 
 ## Running
 
 ### As a container
 
-Pre-built images of Container Cubby are available from [cubby.no](https://cubby.no), which, of course, runs Container Cubby.
+Pre-built images are available from [cubby.no](https://cubby.no) (Which, of course, runs Container Cubby ✨).
 
 ```bash
 podman pull cubby.no/rosvik/container-cubby:main
@@ -42,7 +42,7 @@ cargo build --release && ./target/release/container-cubby
 | `USERNAME`   | The username to use for authentication.         |             |
 | `PASSWORD`   | The password to use for authentication.         |             |
 | `AUTH_MODE`  | The authentication mode to use. `none`, `write_only` or `read_write`.  | Required |
-| `PRUNE_CRON` | A [cron](https://en.wikipedia.org/wiki/Cron) expression that sets the schedule for pruning the database. | Disabled by default |
+| `PRUNE_CRON` | A cron expression that sets the schedule for pruning the database. | Disabled |
 
 See [`.env.example`](.env.example) for a starting point.
 
@@ -116,7 +116,7 @@ cp --archive data/ data-backup/
 
 You can read more about this on ArchWiki under [Extended Attributes > Preserving extended attributes](https://wiki.archlinux.org/title/Extended_attributes#Preserving_extended_attributes).
 
-## Spec Compliance
+## Spec conformance
 
 The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontainers.org/distribution-spec/#endpoints), and the project's current progress is as follows:
 
@@ -141,7 +141,7 @@ The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontai
 
 The referrers endpoints (end-12a and end-12b) are not implemented, mostly due to there not being an obvious way to support it without slowly reading all manifests per namespace on disk. See [this issue](https://github.com/rosvik/container-cubby/issues/23) for progress on this when/if a solution is being looked into.
 
-This means the registry is not fully compliant with v1.1 of the spec. Compliance with v1.0 should be quite good, but see my fork of the spec conformance test suite for some nitpicks: [rosvik/oci-distribution-spec](https://github.com/rosvik/oci-distribution-spec)
+This means the registry is not fully conformant with v1.1 of the spec. Conformance with v1.0 should be quite good, but see my fork of the spec conformance test suite for some nitpicks: [rosvik/oci-distribution-spec](https://github.com/rosvik/oci-distribution-spec)
 
 That being said, there are plenty of details around pulling and pushing images that tools rely on that are not covered by the spec. So as a secondary goal, Container Cubby will try to support [Podman](https://podman.io/), [Skopeo](https://github.com/containers/skopeo), [Docker CLI](https://www.docker.com/products/cli/) and [Containerization](https://github.com/apple/containerization).
 
