@@ -17,7 +17,7 @@ podman pull cubby.no/rosvik/container-cubby:main
 
 ```bash
 podman run -d --name container-cubby -p 8602:8602 \
-  -e HOST=0.0.0.0 \
+  -v ./data:/data \
   -e AUTH_MODE=write_only \
   -e USERNAME=admin \
   -e PASSWORD=hunter2 \
