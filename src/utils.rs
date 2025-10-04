@@ -1,6 +1,7 @@
 use crate::digestor;
 use actix_web::http::header::HeaderValue;
 use regex_lite::Regex;
+use uuid::Uuid;
 
 pub mod ansi {
   pub const RESET: &str = "\x1b[0m";
@@ -127,7 +128,7 @@ pub fn is_safe_digest(digest: &str) -> bool {
   re.is_match(digest)
 }
 pub fn is_safe_hunk(hunk: &str) -> bool {
-  is_safe_reference(hunk)
+  Uuid::try_parse(hunk).is_ok()
 }
 
 pub fn get_tag_range(tags: Vec<String>, count: usize, last: Option<&str>) -> Vec<String> {
@@ -263,5 +264,14 @@ mod tests {
     assert!(!is_safe_digest(
       "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9/"
     ));
+  }
+
+  #[test]
+  fn test_is_safe_hunk() {
+    assert!(is_safe_hunk("123e4567-e89b-12d3-a456-426614174000"));
+    assert!(is_safe_hunk("35003fde-9a27-4b01-a296-1337deadbeef"));
+    assert!(!is_safe_hunk("35003fde-9a27-4b01-a296-1337deadbeep"));
+    assert!(!is_safe_hunk("123e4567-e89b-12d3-a456-4266141740000"));
+    assert!(!is_safe_hunk("123e4567-e89b-12d3-a456-42661417400"));
   }
 }
