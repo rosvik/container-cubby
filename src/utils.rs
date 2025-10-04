@@ -101,32 +101,51 @@ pub enum Reference<'a> {
   Sha256(&'a str),
   Tag(&'a str),
 }
+/// <reference> MUST be either (a) the digest of the manifest or (b) a tag. The <reference> MUST NOT
+/// be in any other format.
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull>
 pub fn verify_reference(reference: &str) -> Result<Reference<'_>, ()> {
   match reference.starts_with("sha256:") {
     true => match is_safe_digest(reference) {
       true => Ok(Reference::Sha256(reference)),
       false => Err(()),
     },
-    false => match is_safe_reference(reference) {
+    false => match is_safe_tag(reference) {
       true => Ok(Reference::Tag(reference)),
       false => Err(()),
     },
   }
 }
 
+/// <name> MUST match the following regular expression:
+/// ```regex
+/// [a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*
+/// ```
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull>
 pub fn is_safe_name(path: &str) -> bool {
   let re = Regex::new(r"^[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*$")
     .unwrap();
   re.is_match(path)
 }
-pub fn is_safe_reference(reference: &str) -> bool {
+
+/// <reference> as a tag MUST be at most 128 characters in length and MUST match the following
+/// regular expression:
+/// ```regex
+/// [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
+/// ```
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull>
+pub fn is_safe_tag(reference: &str) -> bool {
   let re = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();
   re.is_match(reference)
 }
+
 pub fn is_safe_digest(digest: &str) -> bool {
   let re = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
   re.is_match(digest)
 }
+
+/// The <location> MUST contain a UUID representing a unique session ID for the upload to follow.
+/// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#post-then-put>
 pub fn is_safe_hunk(hunk: &str) -> bool {
   Uuid::try_parse(hunk).is_ok()
 }
@@ -226,18 +245,18 @@ mod tests {
 
   #[test]
   fn test_is_safe_reference() {
-    assert!(is_safe_reference("hello-world"));
-    assert!(is_safe_reference("hello_world"));
-    assert!(is_safe_reference("hello__world"));
-    assert!(is_safe_reference("hello.world"));
-    assert!(is_safe_reference("hello.world-1.3"));
-    assert!(is_safe_reference("hello.world-123_456"));
+    assert!(is_safe_tag("hello-world"));
+    assert!(is_safe_tag("hello_world"));
+    assert!(is_safe_tag("hello__world"));
+    assert!(is_safe_tag("hello.world"));
+    assert!(is_safe_tag("hello.world-1.3"));
+    assert!(is_safe_tag("hello.world-123_456"));
 
-    assert!(!is_safe_reference("hello.world/1.3"));
-    assert!(!is_safe_reference("hello.world/"));
-    assert!(!is_safe_reference("hello.world/123-"));
-    assert!(!is_safe_reference("hello.world/.."));
-    assert!(!is_safe_reference(".."));
+    assert!(!is_safe_tag("hello.world/1.3"));
+    assert!(!is_safe_tag("hello.world/"));
+    assert!(!is_safe_tag("hello.world/123-"));
+    assert!(!is_safe_tag("hello.world/.."));
+    assert!(!is_safe_tag(".."));
   }
 
   #[test]

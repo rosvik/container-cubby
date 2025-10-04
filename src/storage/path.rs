@@ -34,7 +34,7 @@ pub fn get(name: &str, reference: &str, file_type: FileType) -> Result<String, s
     FileType::BlobLink => utils::is_safe_digest(reference),
     FileType::Hunk => utils::is_safe_hunk(reference),
     FileType::Manifest => utils::is_safe_digest(reference),
-    FileType::Tag => utils::is_safe_reference(reference),
+    FileType::Tag => utils::is_safe_tag(reference),
   };
   if !is_safe {
     return Err(std::io::Error::new(
