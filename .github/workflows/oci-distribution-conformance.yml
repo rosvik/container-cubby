@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout container-cubby
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           path: container-cubby
       - name: Setup rust
@@ -21,13 +21,13 @@ jobs:
           cd -
 
       - name: Checkout oci-distribution-spec
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           repository: rosvik/oci-distribution-spec
           path: oci-distribution-spec
           ref: v1.0
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.21.x'
           cache: true
