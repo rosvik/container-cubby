@@ -65,7 +65,10 @@ fn get_short_relative_path(from: &str, to: &str) -> String {
 pub fn clean_broken_symlinks_in(dir: &str) -> Result<(), std::io::Error> {
   let absolute_dir = format!("{}/{}", env::data_dir(), dir);
   for entry in std::fs::read_dir(&absolute_dir)? {
-    let file_name = entry?.file_name().into_string().unwrap();
+    let file_name = entry?
+      .file_name()
+      .into_string()
+      .map_err(|_| std::io::Error::other("Failed to convert file name to string"))?;
     if file_name.ends_with(".json") && !file_name.starts_with("sha256:") {
       let link_path = format!("{absolute_dir}/{file_name}");
       if let Err(error) = std::fs::canonicalize(&link_path) {
