@@ -10,7 +10,10 @@ pub async fn start_scheduler() -> Result<JobScheduler, Box<dyn std::error::Error
   // Prune job
   if let Some(prune_cron) = prune_cron {
     let prune_job = Job::new(prune_cron.as_str(), |_, _| {
-      prune::prune_all(PRUNE_DRY_RUN);
+      let result = prune::prune_all(PRUNE_DRY_RUN);
+      if let Err(e) = result {
+        println!("Failed to prune: {e}");
+      }
     })?;
     scheduler.add(prune_job).await?;
   }

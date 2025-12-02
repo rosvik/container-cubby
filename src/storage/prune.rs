@@ -3,6 +3,7 @@ use crate::{
   storage::{file, path},
   utils::ansi::{GRAY, ORANGE, RESET},
 };
+use anyhow::Result;
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -19,7 +20,7 @@ use tokio::time;
 /// Files are kept if they are part of one of the following chains:
 /// - Tag -> Image Index -> Manifests -> Blob Links -> Blob
 /// - Tag -> Manifest -> Blob Links -> Blob
-pub fn prune_all(dry_run: bool) {
+pub fn prune_all(dry_run: bool) -> Result<()> {
   fn print_prune_stats(start: time::Instant, mode: PruneMode) {
     println!("{ORANGE}│{RESET} {mode:?} pruned in {:?}", start.elapsed());
   }
@@ -27,18 +28,19 @@ pub fn prune_all(dry_run: bool) {
   let start = time::Instant::now();
   println!("{ORANGE}┌── {GRAY}{}{RESET}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"));
   let start_manifests = time::Instant::now();
-  prune(PruneMode::Manifests, dry_run);
+  prune(PruneMode::Manifests, dry_run)?;
   print_prune_stats(start_manifests, PruneMode::Manifests);
 
   let start_blob_links = time::Instant::now();
-  prune(PruneMode::BlobLinks, dry_run);
+  prune(PruneMode::BlobLinks, dry_run)?;
   print_prune_stats(start_blob_links, PruneMode::BlobLinks);
 
   let start_blobs = time::Instant::now();
-  prune(PruneMode::Blobs, dry_run);
+  prune(PruneMode::Blobs, dry_run)?;
   print_prune_stats(start_blobs, PruneMode::Blobs);
 
   println!("{ORANGE}└── Total {:?}{RESET}", start.elapsed());
+  Ok(())
 }
 
 #[derive(Debug)]
@@ -52,7 +54,7 @@ pub enum PruneMode {
   Blobs,
 }
 
-pub fn prune(mode: PruneMode, dry_run: bool) {
+pub fn prune(mode: PruneMode, dry_run: bool) -> Result<()> {
   println!("{ORANGE}├── Pruning {mode:?}{RESET}");
 
   let data_dir = env::data_dir();
@@ -65,19 +67,21 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
   };
   if absolute_paths.is_empty() {
     println!("{ORANGE}│{RESET} No {mode:?} to delete");
-    return;
+    return Ok(());
   }
 
   // Don't delete files that are less than 24 hours old to avoid disrupting ongoing transactions.
   let min_age = time::Duration::from_secs(60 * 60 * 24);
-  let absolute_paths =
-    absolute_paths.iter().filter(|path| is_older_than(min_age, path)).collect::<Vec<_>>();
+  let absolute_paths = absolute_paths
+    .iter()
+    .filter(|path| is_older_than(min_age, path).unwrap_or(false))
+    .collect::<Vec<_>>();
 
   if !dry_run {
     println!("{ORANGE}│{RESET} Deleting {} files", absolute_paths.len());
     for absolute_path in absolute_paths {
       println!("{ORANGE}│{RESET} {absolute_path:?}");
-      fs::remove_file(absolute_path).unwrap();
+      fs::remove_file(absolute_path)?;
     }
   } else {
     println!("{ORANGE}│{RESET} Would delete {} files", absolute_paths.len());
@@ -85,6 +89,7 @@ pub fn prune(mode: PruneMode, dry_run: bool) {
       println!("{ORANGE}│{RESET} {item:?}");
     }
   }
+  Ok(())
 }
 
 /// Checks blobs against blob links in the configured data directory if there
@@ -250,10 +255,11 @@ fn check_in_parent_dir(
   predicate(parent_dir, file_name)
 }
 
-pub fn is_older_than(duration: time::Duration, path: &PathBuf) -> bool {
-  let file_metadata = fs::metadata(path).unwrap();
-  let file_age = file_metadata.modified().unwrap().elapsed().unwrap();
-  file_age > duration
+/// Checks if a file is older than a given duration.
+pub fn is_older_than(duration: time::Duration, path: &PathBuf) -> Result<bool> {
+  let file_metadata = fs::metadata(path)?;
+  let file_age = file_metadata.modified()?.elapsed()?;
+  Ok(file_age > duration)
 }
 
 #[cfg(test)]
@@ -274,7 +280,7 @@ mod tests {
     let _ = fs::create_dir_all(containers_dir);
     let _ = fs::create_dir_all(blobs_dir);
 
-    prune_all(true);
+    prune_all(true).unwrap();
   }
 
   #[test]
@@ -444,9 +450,9 @@ mod tests {
     println!("File: {file:?}");
     file.write_all(b"test").unwrap();
 
-    assert!(!is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()));
+    assert!(!is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()).unwrap());
 
     std::thread::sleep(time::Duration::from_millis(101));
-    assert!(is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()));
+    assert!(is_older_than(time::Duration::from_millis(100), &file.path().to_path_buf()).unwrap());
   }
 }
