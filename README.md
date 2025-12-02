@@ -5,9 +5,9 @@
 
 Container Cubby is a container registry that aims to implement the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) while avoiding complex features and dependencies. It is single-tenant, and stores all container data as files in a local directory.
 
-## Running
+## Getting started
 
-### As a container
+### Running as a container
 
 Pre-built images are available from [cubby.no](https://cubby.no) (Which, of course, runs Container Cubby ✨).
 
