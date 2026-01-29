@@ -269,7 +269,16 @@ async fn post_blob_upload(
     //
     // The registry MAY treat the from parameter as optional, and it MAY cross-
     // mount the blob if it can be found.
-    match storage::mount_blob(&name, mount) {
+
+    let blob = storage::blob::Blob::new(name.clone(), mount.clone());
+    let blob = match blob {
+      Ok(blob) => blob,
+      Err(e) => {
+        println!("Error: Invalid blob: {e:?}");
+        return HttpResponse::BadRequest().finish();
+      }
+    };
+    match blob.mount() {
       Ok(_) => (),
       Err(e) => {
         // TODO: Conformance test "Cross-mounting of a blob without the from
@@ -692,16 +701,27 @@ async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#deleting-blobs>
 async fn delete_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
-  match storage::delete_blob(&name, &digest) {
-    Ok(_) => (),
+
+  let blob = storage::blob::Blob::new(name.clone(), digest.clone());
+  if let Err(e) = blob {
+    println!("Error: Invalid blob reqest: {e:?}");
+    return HttpResponse::BadRequest().finish();
+  }
+  let blob = blob.unwrap();
+
+  // NOTE: This does not delete the blob file itself, only the symlink, in case
+  // it is in use by another container. Blob file deletion is handled by the
+  // prune job instead.
+  match blob.unmount() {
+    Ok(_) => {
+      // Upon success, the registry MUST respond with code 202 Accepted.
+      HttpResponse::Accepted().finish()
+    }
     Err(e) => {
       println!("Warning: Error '{e}' when deleting blob, name='{name}' digest='{digest}'");
-      return HttpResponse::NotFound().finish();
+      HttpResponse::NotFound().finish()
     }
   }
-
-  // Upon success, the registry MUST respond with code 202 Accepted.
-  HttpResponse::Accepted().finish()
 }
 
 /// end-13: `GET /v2/<name>/blobs/uploads/<reference>` => 200 / 404

@@ -2,6 +2,7 @@ mod file;
 mod path;
 mod symlink;
 
+pub mod blob;
 pub mod prune;
 pub mod xattr;
 
@@ -29,29 +30,6 @@ pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   let file = file::try_create(&blob_path)?;
   symlink::create_relative_symlink(&symlink_path, &blob_path)?;
   Ok(file)
-}
-
-/// Mounts a blob file.
-pub fn mount_blob(name: &str, digest: &str) -> Result<(), io::Error> {
-  ensure_blob_dir_exists(digest)?;
-  ensure_container_dir_exists(name)?;
-
-  let blob_path = path::get(name, digest, path::FileType::Blob)?;
-  let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-
-  // If the file does not exist, return an error.
-  let file = file::try_read(&blob_path)?;
-  drop(file);
-
-  symlink::create_relative_symlink(&symlink_path, &blob_path)?;
-  Ok(())
-}
-
-/// Deletes a blob file.
-pub fn delete_blob(name: &str, digest: &str) -> Result<(), io::Error> {
-  let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-  file::delete(&symlink_path)?;
-  Ok(())
 }
 
 /// Opens a blob file in read-only mode.

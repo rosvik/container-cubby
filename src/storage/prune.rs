@@ -436,8 +436,10 @@ mod tests {
     println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
     assert!(!dangling_blobs.contains(&blob_path));
 
-    // Deletes the blob link, making the blob dangling
-    storage::delete_blob(&namespace, blob_sha.as_str()).unwrap();
+    let blob = storage::blob::Blob::new(namespace.clone(), blob_sha.clone()).unwrap();
+
+    // Delete the blob link, making the blob dangling
+    blob.unmount().unwrap();
 
     let dangling_blobs = get_dangling_blobs();
     println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
