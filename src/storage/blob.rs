@@ -1,8 +1,9 @@
 use crate::{
+  digestor,
   storage::{self, file, path, symlink},
-  utils,
+  utils::{is_safe_digest, is_safe_name, DigestMismatch},
 };
-use std::io;
+use std::{fs::File, io};
 
 /// The binary form of content that is stored by a registry, addressable by a
 /// digest
@@ -13,13 +14,50 @@ pub struct Blob {
 
 impl Blob {
   pub fn new(name: String, digest: String) -> Result<Self, io::Error> {
-    if !utils::is_safe_digest(&digest) {
+    if !is_safe_digest(&digest) {
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid digest"));
     }
-    if !utils::is_safe_name(&name) {
+    if !is_safe_name(&name) {
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid name"));
     }
     Ok(Self { name, digest })
+  }
+
+  /// Creates an empty blob file and symlink in the data directory, and returns
+  /// it with write access. If the blob already exists, a symlink to the
+  /// existing blob is created and an `AlreadyExists` error is returned instead.
+  pub fn create(&self) -> Result<File, io::Error> {
+    storage::ensure_blob_dir_exists(&self.digest)?;
+    storage::ensure_container_dir_exists(&self.name)?;
+
+    let blob_path = path::get(&self.name, &self.digest, path::FileType::Blob)?;
+    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+
+    // If the file already exists, create a symlink to it and return an
+    // `AlreadyExists` error.
+    if file::try_read(&blob_path).is_ok() {
+      symlink::create_relative_symlink(&symlink_path, &blob_path)?;
+      return Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        format!("Blob already exists: {}", self.digest),
+      ));
+    }
+
+    let file = file::try_create(&blob_path)?;
+    symlink::create_relative_symlink(&symlink_path, &blob_path)?;
+    Ok(file)
+  }
+
+  /// Verifies that the blob data matches its digest.
+  pub fn verify(&self, data: &[u8]) -> Result<(), DigestMismatch> {
+    let computed_digest = digestor::get_sha256_digest(&data.to_vec());
+    if computed_digest != self.digest {
+      return Err(DigestMismatch {
+        expected: self.digest.clone(),
+        computed: computed_digest,
+      });
+    }
+    Ok(())
   }
 
   /// Creates a symlink from the container directory to the blob directory.

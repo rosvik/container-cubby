@@ -268,6 +268,7 @@ mod tests {
 
   use super::*;
   use crate::{digestor, storage, tests};
+  use storage::blob::Blob;
   use tempfile::NamedTempFile;
   use uuid::Uuid;
 
@@ -395,10 +396,12 @@ mod tests {
     .unwrap();
 
     // Create a blob and blob link (referenced by the manifest)
-    let _ = storage::create_blob(
-      &namespace,
-      "sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b",
-    );
+    if let Ok(blob) = Blob::new(
+      namespace.clone(),
+      "sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b".to_string(),
+    ) {
+      let _ = blob.create(); // Ignore error if it already exists
+    }
 
     let dangling_blob_links = get_dangling_blob_links_in(&directory);
     assert_eq!(dangling_blob_links.len(), 0);
@@ -427,16 +430,16 @@ mod tests {
       storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap()
     ));
 
-    // Create a blob (ignore error if it already exists)
-    if let Ok(mut file) = storage::create_blob(&namespace, blob_sha.as_str()) {
-      file.write_all(blob_data.as_bytes()).unwrap();
+    // Create a blob
+    if let Ok(blob) = Blob::new(namespace.clone(), blob_sha.clone()) {
+      let _ = blob.create(); // Ignore error if it already exists
     }
 
     let dangling_blobs = get_dangling_blobs();
     println!("Dangling blobs: {dangling_blobs:?} (Looking for {blob_path:?})");
     assert!(!dangling_blobs.contains(&blob_path));
 
-    let blob = storage::blob::Blob::new(namespace.clone(), blob_sha.clone()).unwrap();
+    let blob = Blob::new(namespace.clone(), blob_sha.clone()).unwrap();
 
     // Delete the blob link, making the blob dangling
     blob.unmount().unwrap();

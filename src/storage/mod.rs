@@ -10,28 +10,6 @@ use crate::utils;
 use std::fs::File;
 use std::io::{self, Read};
 
-/// Creates a blob file, and returns it in write-only mode.
-pub fn create_blob(name: &str, digest: &str) -> Result<File, io::Error> {
-  ensure_blob_dir_exists(digest)?;
-  ensure_container_dir_exists(name)?;
-
-  let blob_path = path::get(name, digest, path::FileType::Blob)?;
-  let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-
-  // If the file already exists, create a symlink to it, and return an error.
-  if file::try_read(&blob_path).is_ok() {
-    symlink::create_relative_symlink(&symlink_path, &blob_path)?;
-    return Err(io::Error::new(
-      io::ErrorKind::AlreadyExists,
-      format!("Blob already exists: {digest}"),
-    ));
-  }
-
-  let file = file::try_create(&blob_path)?;
-  symlink::create_relative_symlink(&symlink_path, &blob_path)?;
-  Ok(file)
-}
-
 /// Opens a blob file in read-only mode.
 pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
   let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
@@ -161,11 +139,14 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
   let mut buf = Vec::new();
   file.read_to_end(&mut buf)?;
 
-  if utils::verify_blob(&buf, digest).is_err() {
-    return Err(io::Error::new(
-      io::ErrorKind::InvalidData,
-      format!("Digest mismatch: {reference}"),
-    ));
+  let blob = match blob::Blob::new(name.to_string(), digest.to_string()) {
+    Ok(blob) => blob,
+    Err(e) => {
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid blob: {e:?}")))
+    }
+  };
+  if let Err(e) = blob.verify(&buf) {
+    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Digest mismatch: {e:?}")));
   }
 
   file::rename(&hunk_path, &blob_path)?;

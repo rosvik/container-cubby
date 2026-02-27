@@ -11,9 +11,10 @@ use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
+use storage::blob::Blob;
 use storage::xattr::set_xattr_media_type;
 use utils::ansi::{RESET, UNDERLINE};
-use utils::{verify_blob, verify_reference};
+use utils::verify_reference;
 use uuid::Uuid;
 
 #[actix_web::main]
@@ -324,10 +325,19 @@ async fn post_blob_upload(
     Some(digest) => {
       // end-4b
       // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
-      if verify_blob(&data, digest.as_str()).is_err() {
+      let blob = storage::blob::Blob::new(name.clone(), digest.clone());
+      let blob = match blob {
+        Ok(blob) => blob,
+        Err(e) => {
+          println!("Error: Invalid blob: {e:?}");
+          return HttpResponse::BadRequest().finish();
+        }
+      };
+      if let Err(e) = blob.verify(&data) {
+        println!("Error: {e:?}");
         return HttpResponse::BadRequest().finish();
       }
-      match storage::create_blob(&name, digest) {
+      match blob.create() {
         Ok(mut file) => file.write_all(&data).unwrap(),
         Err(e) => {
           if e.kind() == std::io::ErrorKind::AlreadyExists {

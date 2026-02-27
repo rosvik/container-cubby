@@ -1,4 +1,3 @@
-use crate::digestor;
 use actix_web::http::header::HeaderValue;
 use regex_lite::Regex;
 use uuid::Uuid;
@@ -73,27 +72,13 @@ pub fn encode_base64(input: String) -> String {
 }
 
 pub struct DigestMismatch {
-  digest: String,
-  computed_digest: String,
+  pub expected: String,
+  pub computed: String,
 }
 impl std::fmt::Debug for DigestMismatch {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "DigestMismatch {{ digest: {}, computed_digest: {} }}",
-      self.digest, self.computed_digest
-    )
+    write!(f, "DigestMismatch {{ digest: {}, computed_digest: {} }}", self.expected, self.computed)
   }
-}
-pub fn verify_blob(data: &[u8], digest: &str) -> Result<(), DigestMismatch> {
-  let computed_digest = digestor::get_sha256_digest(&data.to_vec());
-  if computed_digest != digest {
-    return Err(DigestMismatch {
-      digest: digest.to_string(),
-      computed_digest,
-    });
-  }
-  Ok(())
 }
 
 #[allow(dead_code)]
