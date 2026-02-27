@@ -271,8 +271,7 @@ async fn post_blob_upload(
     // The registry MAY treat the from parameter as optional, and it MAY cross-
     // mount the blob if it can be found.
 
-    let blob = storage::blob::Blob::new(name.clone(), mount.clone());
-    let blob = match blob {
+    let blob = match Blob::new(name.clone(), mount.clone()) {
       Ok(blob) => blob,
       Err(e) => {
         println!("Error: Invalid blob: {e:?}");
@@ -325,8 +324,7 @@ async fn post_blob_upload(
     Some(digest) => {
       // end-4b
       // <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post>
-      let blob = storage::blob::Blob::new(name.clone(), digest.clone());
-      let blob = match blob {
+      let blob = match Blob::new(name.clone(), digest.clone()) {
         Ok(blob) => blob,
         Err(e) => {
           println!("Error: Invalid blob: {e:?}");
@@ -712,12 +710,13 @@ async fn delete_manifest(path: web::Path<(String, String)>) -> impl Responder {
 async fn delete_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let blob = storage::blob::Blob::new(name.clone(), digest.clone());
-  if let Err(e) = blob {
-    println!("Error: Invalid blob reqest: {e:?}");
-    return HttpResponse::BadRequest().finish();
-  }
-  let blob = blob.unwrap();
+  let blob = match Blob::new(name.clone(), digest.clone()) {
+    Ok(blob) => blob,
+    Err(e) => {
+      println!("Error: Invalid blob reqest: {e:?}");
+      return HttpResponse::BadRequest().finish();
+    }
+  };
 
   // NOTE: This does not delete the blob file itself, only the symlink, in case
   // it is in use by another container. Blob file deletion is handled by the
