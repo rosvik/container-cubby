@@ -48,6 +48,13 @@ impl Blob {
     Ok(file)
   }
 
+  /// Opens the file in read-only mode.
+  pub fn read(&self) -> Result<File, io::Error> {
+    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+    let symlink = file::try_read(&symlink_path)?;
+    Ok(symlink)
+  }
+
   /// Verifies that the blob data matches its digest.
   pub fn verify(&self, data: &[u8]) -> Result<(), DigestMismatch> {
     let computed_digest = digestor::get_sha256_digest(&data.to_vec());

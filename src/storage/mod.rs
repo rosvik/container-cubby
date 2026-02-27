@@ -10,13 +10,6 @@ use crate::utils;
 use std::fs::File;
 use std::io::{self, Read};
 
-/// Opens a blob file in read-only mode.
-pub fn get_blob(name: &str, digest: &str) -> Result<File, io::Error> {
-  let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
-  let symlink = file::try_read(&symlink_path)?;
-  Ok(symlink)
-}
-
 /// Creates a manifest file and optionally a tag symlink, and returns the
 /// manifest file with write access. If the tag exists, it is overwritten.
 pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {

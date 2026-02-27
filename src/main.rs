@@ -66,8 +66,15 @@ async fn main() -> std::io::Result<()> {
 async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let file = storage::get_blob(&name, &digest);
-  let mut file = match file {
+  let blob = match Blob::new(name.clone(), digest.clone()) {
+    Ok(blob) => blob,
+    Err(e) => {
+      println!("Error: Invalid blob request: {e:?}");
+      return HttpResponse::BadRequest().finish();
+    }
+  };
+
+  let mut file = match blob.read() {
     Ok(file) => file,
     Err(e) => {
       println!("Error getting blob: {e:?}");
@@ -97,8 +104,14 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
 async fn head_blob(path: web::Path<(String, String)>) -> impl Responder {
   let (name, digest) = path.into_inner();
 
-  let file = storage::get_blob(&name, &digest);
-  let file = match file {
+  let blob = match Blob::new(name.clone(), digest.clone()) {
+    Ok(blob) => blob,
+    Err(e) => {
+      println!("Error: Invalid blob request: {e:?}");
+      return HttpResponse::BadRequest().finish();
+    }
+  };
+  let file = match blob.read() {
     Ok(file) => file,
     Err(e) => {
       println!("Error getting blob: {e:?}");
