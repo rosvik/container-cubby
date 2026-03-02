@@ -25,8 +25,8 @@ impl Manifest {
     })
   }
 
-  /// Creates a manifest file and optionally a tag symlink, and returns the
-  /// manifest file with write access. If the tag exists, it is overwritten.
+  /// Creates the manifest file in the container directory, verifies the digest,
+  /// and creates a tag symlink if the reference is a tag.
   pub fn create_manifest(
     &self,
     data: Vec<u8>,
@@ -34,19 +34,10 @@ impl Manifest {
   ) -> Result<(), io::Error> {
     ensure_container_dir_exists(&self.name)?;
 
-    let digest = match &self.reference {
-      Reference::Sha256(digest) => {
-        // Verify that the digest matches the data
-        if let Err(e) = self.verify(&data) {
-          return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("Digest mismatch: {e:?}"),
-          ));
-        }
-        digest.clone()
-      }
-      Reference::Tag(_) => digestor::get_sha256_digest(&data.to_vec()),
-    };
+    // Verify that the digest matches the data
+    let digest = self
+      .verified_digest(&data)
+      .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Digest mismatch: {e:?}")))?;
 
     let manifest_path = path::get(&self.name, &digest, path::FileType::Manifest)?;
     let tag_path = match &self.reference {
@@ -79,19 +70,19 @@ impl Manifest {
   }
 
   /// Verifies that the manifest data matches its digest.
-  fn verify(&self, data: &[u8]) -> Result<(), DigestMismatch> {
+  fn verified_digest(&self, data: &[u8]) -> Result<String, DigestMismatch> {
+    let computed_digest = digestor::get_sha256_digest(&data.to_vec());
     match &self.reference {
-      Reference::Sha256(digest) => {
-        let computed_digest = digestor::get_sha256_digest(&data.to_vec());
-        if computed_digest != *digest {
+      Reference::Sha256(expected_digest) => {
+        if computed_digest != *expected_digest {
           return Err(DigestMismatch {
-            expected: digest.to_string(),
+            expected: expected_digest.clone(),
             computed: computed_digest,
           });
         }
-        Ok(())
+        Ok(computed_digest)
       }
-      Reference::Tag(_) => Ok(()),
+      Reference::Tag(_) => Ok(computed_digest),
     }
   }
 }
