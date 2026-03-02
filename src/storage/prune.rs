@@ -264,13 +264,19 @@ pub fn is_older_than(duration: time::Duration, path: &PathBuf) -> Result<bool> {
 
 #[cfg(test)]
 mod tests {
-  use std::io::Write;
-
   use super::*;
   use crate::{digestor, storage, tests};
-  use storage::blob::Blob;
+  use std::io::Write;
+  use storage::{blob::Blob, manifest::Manifest};
   use tempfile::NamedTempFile;
   use uuid::Uuid;
+
+  const IMAGE_INDEX_DIGEST: &str =
+    "sha256:46bd3c5d9a57415e1bcd91d5488c5b62c412c6f0c0d77e589ac6fa0add76b0c9";
+  const MANIFEST_DIGEST: &str =
+    "sha256:edee272db7445c0aedfa7892df3f734fa6117221e37389063e65648ba47f7b00";
+  const BLOB_DIGEST: &str =
+    "sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b";
 
   #[test]
   fn test_prune_all() {
@@ -291,24 +297,16 @@ mod tests {
     let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create a tagged manifest
-    let mut manifest_file = storage::create_manifest(
-      &namespace,
-      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
-      Some("latest"),
-    )
-    .unwrap();
-    manifest_file
-      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+    let manifest = Manifest::new(&namespace, "latest").unwrap();
+    manifest
+      .create_manifest(
+        include_str!("../tests/fixtures/image_manifest.json").as_bytes().to_vec(),
+        Some("application/vnd.docker.distribution.manifest.v2+json".to_string()),
+      )
       .unwrap();
-    storage::xattr::set_xattr_media_type(
-      &manifest_file,
-      "application/vnd.docker.distribution.manifest.v2+json",
-    )
-    .unwrap();
 
+    // Ensure there are no dangling manifests
     let dangling_manifests = get_dangling_manifests_in(&directory);
-
-    println!("Dangling manifests: {dangling_manifests:?}");
     assert_eq!(dangling_manifests.len(), 0);
 
     // Delete the tag file to make the manifest dangling
@@ -317,8 +315,8 @@ mod tests {
     // Get dangling manifests again
     let dangling_manifests = get_dangling_manifests_in(&directory);
     assert_eq!(dangling_manifests.len(), 1);
-    assert!(dangling_manifests[0]
-      .ends_with("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"));
+    println!("Dangling manifests: {dangling_manifests:?}");
+    assert!(dangling_manifests[0].ends_with(format!("{MANIFEST_DIGEST}.json").as_str()));
   }
 
   #[test]
@@ -328,31 +326,22 @@ mod tests {
     let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create an image index
-    let mut index_file = storage::create_manifest(
-      &namespace,
-      "sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b",
-      Some("latest"),
-    )
-    .unwrap();
-    index_file.write_all(include_str!("../tests/fixtures/image_index.json").as_bytes()).unwrap();
-    storage::xattr::set_xattr_media_type(&index_file, "application/vnd.oci.image.index.v1+json")
+    let image_index = Manifest::new(&namespace, "latest").unwrap();
+    image_index
+      .create_manifest(
+        include_str!("../tests/fixtures/image_index.json").as_bytes().to_vec(),
+        Some("application/vnd.oci.image.index.v1+json".to_string()),
+      )
       .unwrap();
 
-    // Create a manifest (referenced by the image index)
-    let mut manifest_file = storage::create_manifest(
-      &namespace,
-      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
-      None,
-    )
-    .unwrap();
-    manifest_file
-      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+    // Create a untagged manifest (referenced by the image index)
+    let manifest = Manifest::new(&namespace, MANIFEST_DIGEST).unwrap();
+    manifest
+      .create_manifest(
+        include_str!("../tests/fixtures/image_manifest.json").as_bytes().to_vec(),
+        Some("application/vnd.docker.distribution.manifest.v2+json".to_string()),
+      )
       .unwrap();
-    storage::xattr::set_xattr_media_type(
-      &manifest_file,
-      "application/vnd.docker.distribution.manifest.v2+json",
-    )
-    .unwrap();
 
     let dangling_manifests = get_dangling_manifests_in(&directory);
 
@@ -360,17 +349,12 @@ mod tests {
     assert_eq!(dangling_manifests.len(), 0);
 
     // Delete the index file to make the manifest dangling
-    fs::remove_file(format!(
-      "{}/sha256:3c4006efc2e8c079b3244a070619746b36c1c5ab2eff30debc847acc489d763b.json",
-      directory.to_str().unwrap()
-    ))
-    .unwrap();
+    fs::remove_file(format!("{}/{IMAGE_INDEX_DIGEST}.json", directory.to_str().unwrap())).unwrap();
 
     // Get dangling manifests again
     let dangling_manifests = get_dangling_manifests_in(&directory);
     assert_eq!(dangling_manifests.len(), 1);
-    assert!(dangling_manifests[0]
-      .ends_with("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json"));
+    assert!(dangling_manifests[0].ends_with(format!("{MANIFEST_DIGEST}.json").as_str()));
   }
 
   #[test]
@@ -380,26 +364,16 @@ mod tests {
     let directory = PathBuf::from(format!("{data_dir}/containers/{namespace}"));
 
     // Create a manifest
-    let mut manifest_file = storage::create_manifest(
-      &namespace,
-      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
-      None,
-    )
-    .unwrap();
-    manifest_file
-      .write_all(include_str!("../tests/fixtures/image_manifest.json").as_bytes())
+    let manifest = Manifest::new(&namespace, MANIFEST_DIGEST).unwrap();
+    manifest
+      .create_manifest(
+        include_str!("../tests/fixtures/image_manifest.json").as_bytes().to_vec(),
+        Some("application/vnd.docker.distribution.manifest.v2+json".to_string()),
+      )
       .unwrap();
-    storage::xattr::set_xattr_media_type(
-      &manifest_file,
-      "application/vnd.docker.distribution.manifest.v2+json",
-    )
-    .unwrap();
 
     // Create a blob and blob link (referenced by the manifest)
-    if let Ok(blob) = Blob::new(
-      namespace.clone(),
-      "sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b".to_string(),
-    ) {
+    if let Ok(blob) = Blob::new(namespace.clone(), BLOB_DIGEST.to_string()) {
       let _ = blob.create(); // Ignore error if it already exists
     }
 
@@ -407,16 +381,11 @@ mod tests {
     assert_eq!(dangling_blob_links.len(), 0);
 
     // Delete the manifest to make the blob link dangling
-    fs::remove_file(format!(
-      "{}/sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f.json",
-      directory.to_str().unwrap()
-    ))
-    .unwrap();
+    fs::remove_file(format!("{}/{MANIFEST_DIGEST}.json", directory.to_str().unwrap())).unwrap();
 
     let dangling_blob_links = get_dangling_blob_links_in(&directory);
     assert_eq!(dangling_blob_links.len(), 1);
-    assert!(dangling_blob_links[0]
-      .ends_with("sha256:f9a3bdbb589d05a43b5fe12df2b42d885b94f0c56f46254c07b39b0526b4728b.blob"));
+    assert!(dangling_blob_links[0].ends_with(format!("{BLOB_DIGEST}.blob").as_str()));
   }
 
   #[test]
@@ -427,7 +396,7 @@ mod tests {
     let blob_path = PathBuf::from(format!(
       "{}/{}",
       env::data_dir(),
-      storage::path::get(&namespace, blob_sha.as_str(), storage::path::FileType::Blob).unwrap()
+      path::get(&namespace, blob_sha.as_str(), path::FileType::Blob).unwrap()
     ));
 
     // Create a blob

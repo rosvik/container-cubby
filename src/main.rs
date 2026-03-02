@@ -11,8 +11,7 @@ use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
 use std::io::{Read, Write};
-use storage::blob::Blob;
-use storage::xattr::set_xattr_media_type;
+use storage::{blob::Blob, manifest::Manifest};
 use utils::ansi::{RESET, UNDERLINE};
 use utils::verify_reference;
 use uuid::Uuid;
@@ -554,11 +553,15 @@ async fn put_manifest(
   data: web::Bytes,
 ) -> impl Responder {
   let (name, reference) = path.into_inner();
-  if verify_reference(reference.to_string()).is_err() {
-    // NOTE: The spec doesn't mention what to do if the reference is invalid.
-    println!("Error: Invalid reference: {reference:?}");
-    return HttpResponse::BadRequest().finish();
-  }
+
+  let manifest = match Manifest::new(&name, &reference) {
+    Ok(manifest) => manifest,
+    Err(e) => {
+      // NOTE: The spec doesn't mention what to do if the reference is invalid.
+      println!("Error: Invalid manifest: {e:?}");
+      return HttpResponse::BadRequest().finish();
+    }
+  };
 
   // Clients SHOULD set the Content-Type header to the type of the manifest
   // being pushed.
@@ -581,34 +584,16 @@ async fn put_manifest(
     }
   };
 
-  let digest = digestor::get_sha256_digest(&data.to_vec());
-  if reference.starts_with("sha256:") && reference != digest {
-    println!(
-      "Error: sha256 reference does not match digest: reference='{reference}' digest='{digest}'"
-    );
-    return HttpResponse::BadRequest().finish();
-  }
-
-  let tag = match reference.starts_with("sha256:") {
-    true => None,
-    false => Some(reference.as_str()),
-  };
-
-  match storage::create_manifest(&name, &digest, tag) {
+  match manifest.create_manifest(data.to_vec(), content_type) {
     // The registry MUST store the manifest in the exact byte representation
     // provided by the client.
-    Ok(mut file) => {
-      file.write_all(&data).unwrap();
-      if let Some(content_type) = content_type {
-        set_xattr_media_type(&file, &content_type).unwrap();
-      }
-    }
+    Ok(_) => (),
     Err(e) => {
-      // Continue if the manifest already exists, otherwise return 500.
-      if e.kind() != std::io::ErrorKind::AlreadyExists {
-        println!("Error: Could not create manifest: {e:?}");
-        return HttpResponse::InternalServerError().finish();
+      println!("Error: Could not create manifest: {e:?}");
+      if e.kind() == std::io::ErrorKind::InvalidData {
+        return HttpResponse::BadRequest().finish();
       }
+      return HttpResponse::InternalServerError().finish();
     }
   };
 

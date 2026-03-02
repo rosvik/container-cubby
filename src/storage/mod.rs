@@ -3,41 +3,13 @@ mod path;
 mod symlink;
 
 pub mod blob;
+pub mod manifest;
 pub mod prune;
 pub mod xattr;
 
 use crate::utils;
 use std::fs::File;
 use std::io::{self, Read};
-
-/// Creates a manifest file and optionally a tag symlink, and returns the
-/// manifest file with write access. If the tag exists, it is overwritten.
-pub fn create_manifest(name: &str, digest: &str, tag: Option<&str>) -> Result<File, io::Error> {
-  ensure_container_dir_exists(name)?;
-
-  let file_path = path::get(name, digest, path::FileType::Manifest)?;
-  let tag_file_path = match tag {
-    Some(tag) => Some(path::get(name, tag, path::FileType::Tag)?),
-    None => None,
-  };
-
-  let file = match file::try_create(&file_path) {
-    Ok(f) => Ok(f),
-    Err(e) => match e.kind() {
-      // If the file already exists, we should still create the tag before we
-      // forward the error.
-      io::ErrorKind::AlreadyExists => Err(e),
-      // Otherwise error out.
-      _ => return Err(e),
-    },
-  };
-
-  if let Some(tag_file_path) = tag_file_path {
-    symlink::create_relative_symlink(&tag_file_path, &file_path)?;
-  }
-
-  file
-}
 
 /// Deletes a manifest file and all tags that link to it.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
