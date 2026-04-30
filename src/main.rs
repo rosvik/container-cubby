@@ -584,10 +584,10 @@ async fn put_manifest(
     }
   };
 
-  match manifest.create_manifest(data.to_vec(), content_type) {
+  let digest = match manifest.create_manifest(data.to_vec(), content_type) {
     // The registry MUST store the manifest in the exact byte representation
     // provided by the client.
-    Ok(_) => (),
+    Ok(digest) => digest,
     Err(e) => {
       println!("Error: Could not create manifest: {e:?}");
       if e.kind() == std::io::ErrorKind::InvalidData {
@@ -598,7 +598,12 @@ async fn put_manifest(
   };
 
   let location = format!("/v2/{name}/manifests/{reference}");
-  HttpResponse::Created().insert_header(("Location", location)).finish()
+  HttpResponse::Created()
+    .insert_header(("Location", location))
+    // The Docker-Content-Digest header returns the digest of the uploaded blob,
+    // and MUST be equal to the client provided digest.
+    .insert_header(("Docker-Content-Digest", digest))
+    .finish()
 }
 
 #[derive(Deserialize)]

@@ -27,11 +27,13 @@ impl Manifest {
 
   /// Creates the manifest file in the container directory, verifies the digest,
   /// and creates a tag symlink if the reference is a tag.
+  ///
+  /// Returns the verified digest of the manifest.
   pub fn create_manifest(
     &self,
     data: Vec<u8>,
     content_type: Option<String>,
-  ) -> Result<(), io::Error> {
+  ) -> Result<String, io::Error> {
     ensure_container_dir_exists(&self.name)?;
 
     // Verify that the digest matches the data
@@ -66,7 +68,7 @@ impl Manifest {
       symlink::create_relative_symlink(&tag_file_path, &manifest_path)?;
     }
 
-    Ok(())
+    Ok(digest)
   }
 
   /// Verifies that the manifest data matches its digest.
