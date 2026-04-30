@@ -129,7 +129,8 @@ The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontai
 | end-4b  | POST     | `/v2/<name>/blobs/uploads/?digest=<digest>`                  | ✅          |
 | end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | ✅          |
 | end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | ✅          |
-| end-7   | PUT      | `/v2/<name>/manifests/<reference>`                           | ✅          |
+| end-7a  | PUT      | `/v2/<name>/manifests/<reference>`                           | ✅          |
+| end-7b  | PUT      | `/v2/<name>/manifests/<digest>?tag=1&tag=2&tag=3`            | ❌          |
 | end-8a  | GET      | `/v2/<name>/tags/list`                                       | ✅          |
 | end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<tagname>`            | ✅          |
 | end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | ✅          |
@@ -138,6 +139,7 @@ The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontai
 | end-12a | GET      | `/v2/<name>/referrers/<digest>`                              | ❌          |
 | end-12b | GET      | `/v2/<name>/referrers/<digest>?artifactType=<artifactType>`  | ❌          |
 | end-13  | GET      | `/v2/<name>/blobs/uploads/<reference>`                       | ✅          |
+| end-14  | DELETE   | `/v2/<name>/blobs/uploads/<reference>`                       | ❌          |
 
 The referrers endpoints (end-12a and end-12b) are not implemented, mostly due to there not being an obvious way to support it without slowly reading all manifests per namespace on disk. See [this issue](https://github.com/rosvik/container-cubby/issues/23) for progress on this when/if a solution is being looked into.
 
