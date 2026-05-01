@@ -5,6 +5,7 @@ mod symlink;
 pub mod blob;
 pub mod manifest;
 pub mod prune;
+pub mod tag;
 pub mod xattr;
 
 use crate::digest::Digest;

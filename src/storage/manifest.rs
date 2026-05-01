@@ -1,6 +1,6 @@
 use crate::{
   digest::{Algorithm::Sha256, Digest},
-  storage::{ensure_container_dir_exists, file, path, symlink, xattr::set_xattr_media_type},
+  storage::{ensure_container_dir_exists, file, path, tag::Tag, xattr::set_xattr_media_type},
   utils::{is_safe_name, verify_reference, DigestMismatch, Reference},
 };
 use std::io::{self, Write};
@@ -42,9 +42,13 @@ impl Manifest {
       .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Digest mismatch: {e:?}")))?;
 
     let manifest_path = path::get(&self.name, &digest.to_string(), path::FileType::Manifest)?;
-    let tag_path = match &self.reference {
-      Reference::Tag(tag) => Some(path::get(&self.name, tag, path::FileType::Tag)?),
-      Reference::Digest(_) => None,
+
+    // Initialize tag early in case of errors
+    let tag = match self.reference {
+      Reference::Tag(ref reference) => {
+        Some(Tag::new(&self.name, reference.clone(), digest.clone())?)
+      }
+      _ => None,
     };
 
     match file::try_create(&manifest_path) {
@@ -64,8 +68,8 @@ impl Manifest {
       },
     };
 
-    if let Some(tag_file_path) = tag_path {
-      symlink::create_relative_symlink(&tag_file_path, &manifest_path)?;
+    if let Some(tag) = tag {
+      tag.create()?;
     }
 
     Ok(digest)
