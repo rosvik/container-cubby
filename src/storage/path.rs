@@ -1,4 +1,4 @@
-use crate::utils;
+use crate::{digest::Digest, utils};
 
 /// The data directory is structured as follows:
 ///
@@ -45,8 +45,11 @@ pub fn get(name: &str, reference: &str, file_type: FileType) -> Result<String, s
 
   match file_type {
     FileType::Blob => {
-      let file_name = reference.replace("sha256:", "").chars().skip(2).collect::<String>();
-      Ok(format!("{}/{file_name}.blob", blob_dir(reference)?))
+      let digest = Digest::from_string(reference).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Invalid digest: {e}"))
+      })?;
+      let file_name = digest.hex.chars().skip(2).collect::<String>();
+      Ok(format!("{}/{file_name}.blob", blob_dir(&digest)))
     }
     FileType::BlobLink => Ok(format!("{}/{reference}.blob", container_dir(name)?)),
     FileType::Hunk => Ok(format!("{}/{reference}.hunk", container_dir(name)?)),
@@ -78,10 +81,8 @@ pub fn container_dir(name: &str) -> Result<String, std::io::Error> {
 /// let blob_dir = blob_dir("sha256:1234").unwrap();
 /// assert_eq!(blob_dir, "blobs/12");
 /// ```
-pub fn blob_dir(digest: &str) -> Result<String, std::io::Error> {
-  let prefix = digest.replace("sha256:", "").chars().take(2).collect::<String>();
-  let blob_dir = format!("blobs/{prefix}");
-  Ok(blob_dir)
+pub fn blob_dir(digest: &Digest) -> String {
+  format!("blobs/{}", digest.prefix())
 }
 
 #[cfg(test)]
@@ -91,7 +92,8 @@ mod tests {
   #[test]
   fn test_blob_dir() {
     let digest = "sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7";
-    let blob_dir = blob_dir(digest).unwrap();
+    let digest = Digest::from_string(digest).unwrap();
+    let blob_dir = blob_dir(&digest);
     assert_eq!(blob_dir, "blobs/f5");
   }
 

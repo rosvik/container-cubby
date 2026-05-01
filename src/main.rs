@@ -1,4 +1,4 @@
-mod digestor;
+mod digest;
 mod env;
 mod middleware;
 mod scheduler;
@@ -6,6 +6,7 @@ mod schemas;
 mod storage;
 mod utils;
 
+use crate::digest::{Algorithm::Sha256, Digest};
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use schemas::SchemaVariant;
@@ -169,7 +170,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let mut data = Vec::new();
   file.read_to_end(&mut data).unwrap();
 
-  let digest = digestor::get_sha256_digest(&data);
+  let digest = Digest::new(Sha256, &data);
 
   // In a successful response, the Content-Type header will indicate the type of
   // the returned manifest.
@@ -177,7 +178,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
     storage::xattr::get_xattr_media_type(&file).unwrap_or(String::from("application/json"));
 
   HttpResponse::Ok()
-    .insert_header(("Docker-Content-Digest", digest))
+    .insert_header(("Docker-Content-Digest", digest.to_string()))
     .content_type(content_type)
     .body(data)
 }
@@ -232,11 +233,11 @@ async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
   // header `Docker-Content-Digest`.
   let mut data = Vec::new();
   file.read_to_end(&mut data).unwrap();
-  let digest = digestor::get_sha256_digest(&data);
+  let digest = Digest::new(Sha256, &data);
 
   // A HEAD request to an existing blob or manifest URL MUST return `200 OK`.
   HttpResponse::Ok()
-    .insert_header(("Docker-Content-Digest", digest))
+    .insert_header(("Docker-Content-Digest", digest.to_string()))
     .insert_header(("Content-Length", content_length.to_string()))
     .content_type(content_type)
     .finish()
@@ -486,7 +487,7 @@ async fn patch_blob_upload(
 
 #[derive(Deserialize)]
 struct PutBlobParameters {
-  digest: String,
+  digest: Digest,
 }
 /// end-6: `PUT /v2/<name>/blobs/uploads/<reference>?digest=<digest>` => 201 / 404/400
 ///
@@ -524,8 +525,7 @@ async fn put_blob_upload(
     hunk.write_all(&data).unwrap();
   }
 
-  let digest = query.digest.as_str();
-  match storage::commit_hunk(&name, &reference, digest) {
+  match storage::commit_hunk(&name, &reference, &query.digest) {
     Ok(_) => (),
     Err(e) => {
       println!("Error: Could not commit hunk: {e:?}");
@@ -533,7 +533,7 @@ async fn put_blob_upload(
     }
   };
 
-  let blob_location = format!("/v2/{name}/blobs/{digest}");
+  let blob_location = format!("/v2/{name}/blobs/{}", query.digest);
   HttpResponse::Created().insert_header(("Location", blob_location)).finish()
 }
 
@@ -602,7 +602,7 @@ async fn put_manifest(
     .insert_header(("Location", location))
     // The Docker-Content-Digest header returns the digest of the uploaded blob,
     // and MUST be equal to the client provided digest.
-    .insert_header(("Docker-Content-Digest", digest))
+    .insert_header(("Docker-Content-Digest", digest.to_string()))
     .finish()
 }
 

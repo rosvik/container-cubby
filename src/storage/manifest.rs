@@ -1,5 +1,5 @@
 use crate::{
-  digestor,
+  digest::{Algorithm::Sha256, Digest},
   storage::{ensure_container_dir_exists, file, path, symlink, xattr::set_xattr_media_type},
   utils::{is_safe_name, verify_reference, DigestMismatch, Reference},
 };
@@ -33,7 +33,7 @@ impl Manifest {
     &self,
     data: Vec<u8>,
     content_type: Option<String>,
-  ) -> Result<String, io::Error> {
+  ) -> Result<Digest, io::Error> {
     ensure_container_dir_exists(&self.name)?;
 
     // Verify that the digest matches the data
@@ -41,7 +41,7 @@ impl Manifest {
       .verified_digest(&data)
       .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Digest mismatch: {e:?}")))?;
 
-    let manifest_path = path::get(&self.name, &digest, path::FileType::Manifest)?;
+    let manifest_path = path::get(&self.name, &digest.to_string(), path::FileType::Manifest)?;
     let tag_path = match &self.reference {
       Reference::Tag(tag) => Some(path::get(&self.name, tag, path::FileType::Tag)?),
       Reference::Sha256(_) => None,
@@ -71,20 +71,23 @@ impl Manifest {
     Ok(digest)
   }
 
-  /// Verifies that the manifest data matches its digest.
-  fn verified_digest(&self, data: &[u8]) -> Result<String, DigestMismatch> {
-    let computed_digest = digestor::get_sha256_digest(&data.to_vec());
+  /// If the reference is a digest, verifies that the digest matches the data,
+  /// otherwise returns the computed digest.
+  fn verified_digest(&self, data: &[u8]) -> Result<Digest, DigestMismatch> {
     match &self.reference {
       Reference::Sha256(expected_digest) => {
-        if computed_digest != *expected_digest {
+        let expected_digest = Digest::from_string(expected_digest).unwrap();
+        let computed_digest = Digest::new(expected_digest.algorithm, &data.to_vec());
+
+        if computed_digest != expected_digest {
           return Err(DigestMismatch {
-            expected: expected_digest.clone(),
-            computed: computed_digest,
+            expected: expected_digest.to_string(),
+            computed: computed_digest.to_string(),
           });
         }
         Ok(computed_digest)
       }
-      Reference::Tag(_) => Ok(computed_digest),
+      Reference::Tag(_) => Ok(Digest::new(Sha256, &data.to_vec())),
     }
   }
 }

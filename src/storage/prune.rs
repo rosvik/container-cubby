@@ -265,7 +265,7 @@ pub fn is_older_than(duration: time::Duration, path: &PathBuf) -> Result<bool> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{digestor, storage, tests};
+  use crate::{digest::Algorithm::Sha256, digest::Digest, storage, tests};
   use std::io::Write;
   use storage::{blob::Blob, manifest::Manifest};
   use tempfile::NamedTempFile;
@@ -392,7 +392,7 @@ mod tests {
   fn test_dangling_blobs() {
     let namespace = tests::utils::get_random_namespace();
     let blob_data = Uuid::new_v4().to_string();
-    let blob_sha = digestor::get_sha256_digest(&blob_data.as_bytes().to_vec());
+    let blob_sha = Digest::new(Sha256, &blob_data.as_bytes().to_vec()).to_string();
     let blob_path = PathBuf::from(format!(
       "{}/{}",
       env::data_dir(),

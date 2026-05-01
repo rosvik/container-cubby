@@ -1,7 +1,7 @@
 use crate::{
-  digestor,
+  digest::Digest,
   storage::{self, file, path, symlink},
-  utils::{is_safe_digest, is_safe_name, DigestMismatch},
+  utils::{is_safe_name, DigestMismatch},
 };
 use std::{fs::File, io};
 
@@ -9,14 +9,13 @@ use std::{fs::File, io};
 /// digest
 pub struct Blob {
   pub name: String,
-  pub digest: String,
+  pub digest: Digest,
 }
 
 impl Blob {
   pub fn new(name: String, digest: String) -> Result<Self, io::Error> {
-    if !is_safe_digest(&digest) {
-      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid digest"));
-    }
+    let digest = Digest::from_string(digest.as_str())
+      .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid digest: {e}")))?;
     if !is_safe_name(&name) {
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid name"));
     }
@@ -30,8 +29,8 @@ impl Blob {
     storage::ensure_blob_dir_exists(&self.digest)?;
     storage::ensure_container_dir_exists(&self.name)?;
 
-    let blob_path = path::get(&self.name, &self.digest, path::FileType::Blob)?;
-    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+    let blob_path = path::get(&self.name, &self.digest.to_string(), path::FileType::Blob)?;
+    let symlink_path = path::get(&self.name, &self.digest.to_string(), path::FileType::BlobLink)?;
 
     // If the file already exists, create a symlink to it and return an
     // `AlreadyExists` error.
@@ -50,18 +49,18 @@ impl Blob {
 
   /// Opens the file in read-only mode.
   pub fn read(&self) -> Result<File, io::Error> {
-    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+    let symlink_path = path::get(&self.name, &self.digest.to_string(), path::FileType::BlobLink)?;
     let symlink = file::try_read(&symlink_path)?;
     Ok(symlink)
   }
 
   /// Verifies that the blob data matches its digest.
   pub fn verify(&self, data: &[u8]) -> Result<(), DigestMismatch> {
-    let computed_digest = digestor::get_sha256_digest(&data.to_vec());
+    let computed_digest = Digest::new(self.digest.algorithm, &data.to_vec());
     if computed_digest != self.digest {
       return Err(DigestMismatch {
-        expected: self.digest.clone(),
-        computed: computed_digest,
+        expected: self.digest.to_string(),
+        computed: computed_digest.to_string(),
       });
     }
     Ok(())
@@ -73,10 +72,10 @@ impl Blob {
   /// It will error if the blob does not exist.
   pub fn mount(&self) -> Result<(), io::Error> {
     storage::ensure_blob_dir_exists(&self.digest)?;
-    storage::ensure_container_dir_exists(&self.name)?;
+    storage::ensure_container_dir_exists(&self.name.to_string())?;
 
-    let blob_path = path::get(&self.name, &self.digest, path::FileType::Blob)?;
-    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+    let blob_path = path::get(&self.name, &self.digest.to_string(), path::FileType::Blob)?;
+    let symlink_path = path::get(&self.name, &self.digest.to_string(), path::FileType::BlobLink)?;
 
     // If the file does not exist, return an error.
     let file = file::try_read(&blob_path)?;
@@ -90,7 +89,7 @@ impl Blob {
   ///
   /// It will error if the symlink does not exist.
   pub fn unmount(&self) -> Result<(), io::Error> {
-    let symlink_path = path::get(&self.name, &self.digest, path::FileType::BlobLink)?;
+    let symlink_path = path::get(&self.name, &self.digest.to_string(), path::FileType::BlobLink)?;
     file::delete(&symlink_path)?;
     Ok(())
   }

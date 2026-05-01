@@ -14,7 +14,7 @@ use utils::*;
 async fn test_create_blob() {
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
-  let digest = digestor::get_sha256_digest(&blob.to_vec());
+  let digest = Digest::new(Sha256, &blob.to_vec());
 
   let app =
     App::new().service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload));
@@ -40,7 +40,7 @@ async fn test_create_blob() {
 async fn test_post_then_put() {
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
-  let digest = digestor::get_sha256_digest(&blob.to_vec());
+  let digest = Digest::new(Sha256, &blob.to_vec());
 
   let app = App::new()
     .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))
@@ -79,7 +79,7 @@ async fn test_post_then_put() {
 async fn test_get_blob() {
   let name: String = get_random_namespace();
   let blob = "testblob".as_bytes();
-  let digest = digestor::get_sha256_digest(&blob.to_vec());
+  let digest = Digest::new(Sha256, &blob.to_vec());
 
   let app = App::new()
     .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))
@@ -110,7 +110,7 @@ async fn test_get_blob() {
   //       digest", but since we only support sha256 we can assume something is
   //       wrong if the digests don't match.
   let response_digest = res.headers().get("Docker-Content-Digest").unwrap();
-  assert_eq!(response_digest.to_str().unwrap(), digest);
+  assert_eq!(response_digest.to_str().unwrap(), digest.to_string());
 
   let bytes = test::read_body(res).await;
   assert_eq!(bytes, blob);
@@ -218,7 +218,7 @@ async fn test_get_manifest() {
 async fn test_delete_manifest() {
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/image_manifest.json");
-  let digest = digestor::get_sha256_digest(&manifest.as_bytes().to_vec());
+  let digest = Digest::new(Sha256, &manifest.as_bytes().to_vec());
 
   let app =
     App::new().service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}").put(put_manifest));
@@ -256,7 +256,7 @@ async fn test_delete_manifest() {
 #[test]
 async fn test_manifest_media_type() {
   let manifest = include_str!("./fixtures/image_manifest_no_media_type.json");
-  let manifest_digest = digestor::get_sha256_digest(&manifest.as_bytes().to_vec());
+  let manifest_digest = Digest::new(Sha256, &manifest.as_bytes().to_vec());
   let name: String = get_random_namespace();
 
   let app =
@@ -312,7 +312,7 @@ async fn test_manifest_media_type() {
 async fn test_push_as_hunks() {
   let name: String = get_random_namespace();
   let blob = "AAAABBBBCCCC".as_bytes();
-  let digest = digestor::get_sha256_digest(&blob.to_vec());
+  let digest = Digest::new(Sha256, &blob.to_vec());
 
   let app = App::new()
     .service(web::resource("/v2/{name:[^{}]+}/blobs/uploads/").post(post_blob_upload))

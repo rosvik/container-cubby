@@ -7,6 +7,7 @@ pub mod manifest;
 pub mod prune;
 pub mod xattr;
 
+use crate::digest::Digest;
 use crate::utils;
 use std::fs::File;
 use std::io::{self, Read};
@@ -92,13 +93,13 @@ pub fn read_hunk(name: &str, reference: &str) -> Result<File, io::Error> {
 }
 
 /// Verifies that a hunk is complete, and converts it into a blob.
-pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::Error> {
+pub fn commit_hunk(name: &str, reference: &str, digest: &Digest) -> Result<(), io::Error> {
   ensure_container_dir_exists(name)?;
   ensure_blob_dir_exists(digest)?;
 
   let hunk_path = path::get(name, reference, path::FileType::Hunk)?;
-  let blob_path = path::get(name, digest, path::FileType::Blob)?;
-  let symlink_path = path::get(name, digest, path::FileType::BlobLink)?;
+  let blob_path = path::get(name, digest.to_string().as_str(), path::FileType::Blob)?;
+  let symlink_path = path::get(name, digest.to_string().as_str(), path::FileType::BlobLink)?;
 
   let mut file = file::try_read(&hunk_path)?;
   let mut buf = Vec::new();
@@ -129,8 +130,8 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &str) -> Result<(), io::
 }
 
 /// Ensures that the directory where a blob should be stored exists.
-pub fn ensure_blob_dir_exists(digest: &str) -> Result<(), std::io::Error> {
-  let blob_dir = path::blob_dir(digest)?;
+pub fn ensure_blob_dir_exists(digest: &Digest) -> Result<(), std::io::Error> {
+  let blob_dir = path::blob_dir(digest);
   file::create_dir(&blob_dir)?;
   Ok(())
 }
