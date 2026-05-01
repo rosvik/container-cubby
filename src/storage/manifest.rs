@@ -16,7 +16,7 @@ impl Manifest {
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid name"));
     }
 
-    let reference = verify_reference(reference.to_string())
+    let reference = verify_reference(reference)
       .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference"))?;
 
     Ok(Self {

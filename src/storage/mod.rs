@@ -14,7 +14,7 @@ use std::io::{self, Read};
 
 /// Deletes a manifest file and all tags that link to it.
 pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
-  let reference_type = match utils::verify_reference(reference.to_string()) {
+  let reference_type = match utils::verify_reference(reference) {
     Ok(r) => r,
     Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
   };
@@ -35,7 +35,7 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
 
 /// Opens a manifest file in read-only mode.
 pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
-  let reference_type = match utils::verify_reference(reference.to_string()) {
+  let reference_type = match utils::verify_reference(reference) {
     Ok(r) => r,
     Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid reference")),
   };

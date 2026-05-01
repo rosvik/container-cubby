@@ -148,7 +148,7 @@ async fn head_blob(path: web::Path<(String, String)>) -> impl Responder {
 async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
 
-  if verify_reference(reference.to_string()).is_err() {
+  if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
     println!("Error: Invalid reference: {reference:?}");
     return HttpResponse::BadRequest().finish();
@@ -194,7 +194,7 @@ async fn get_manifest(path: web::Path<(String, String)>) -> impl Responder {
 async fn head_manifest(path: web::Path<(String, String)>) -> impl Responder {
   let (name, reference) = path.into_inner();
 
-  if verify_reference(reference.to_string()).is_err() {
+  if verify_reference(&reference).is_err() {
     // NOTE: The spec doesn't mention what to do if the reference is invalid.
     println!("Error: Invalid reference: {reference:?}");
     return HttpResponse::BadRequest().finish();

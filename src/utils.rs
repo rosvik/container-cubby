@@ -90,14 +90,14 @@ pub enum Reference {
 /// <reference> MUST be either (a) the digest of the manifest or (b) a tag. The <reference> MUST NOT
 /// be in any other format.
 /// <https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull>
-pub fn verify_reference(reference: String) -> Result<Reference, ()> {
+pub fn verify_reference(reference: &str) -> Result<Reference, ()> {
   match reference.starts_with("sha256:") {
-    true => match is_safe_digest(reference.as_str()) {
-      true => Ok(Reference::Sha256(reference.clone())),
+    true => match is_safe_digest(reference) {
+      true => Ok(Reference::Sha256(reference.to_string())),
       false => Err(()),
     },
-    false => match is_safe_tag(reference.as_str()) {
-      true => Ok(Reference::Tag(reference)),
+    false => match is_safe_tag(reference) {
+      true => Ok(Reference::Tag(reference.to_string())),
       false => Err(()),
     },
   }
@@ -160,19 +160,19 @@ mod tests {
   #[test]
   fn test_verify_reference() {
     let sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
-    assert!(matches!(verify_reference(sha256.to_string()), Ok(Reference::Sha256(_))));
+    assert!(matches!(verify_reference(sha256), Ok(Reference::Sha256(_))));
 
     let invalid_sha256 = "sha256:x94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
-    assert!(verify_reference(invalid_sha256.to_string()).is_err());
+    assert!(verify_reference(invalid_sha256).is_err());
 
     let too_short_sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde";
-    assert!(verify_reference(too_short_sha256.to_string()).is_err());
+    assert!(verify_reference(too_short_sha256).is_err());
 
     let tag = "latest";
-    assert!(matches!(verify_reference(tag.to_string()), Ok(Reference::Tag(_))));
+    assert!(matches!(verify_reference(tag), Ok(Reference::Tag(_))));
 
     let invalid_tag = "latest/";
-    assert!(verify_reference(invalid_tag.to_string()).is_err());
+    assert!(verify_reference(invalid_tag).is_err());
   }
 
   #[test]
