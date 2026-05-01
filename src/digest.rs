@@ -21,6 +21,8 @@ impl PartialEq for Algorithm {
     }
   }
 }
+
+#[derive(Clone)]
 pub struct Digest {
   pub algorithm: Algorithm,
   pub hex: String,

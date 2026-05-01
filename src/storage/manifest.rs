@@ -76,16 +76,12 @@ impl Manifest {
   fn verified_digest(&self, data: &[u8]) -> Result<Digest, DigestMismatch> {
     match &self.reference {
       Reference::Sha256(expected_digest) => {
-        let expected_digest = Digest::from_string(expected_digest).unwrap();
-        let computed_digest = Digest::new(expected_digest.algorithm, &data.to_vec());
-
-        if computed_digest != expected_digest {
-          return Err(DigestMismatch {
-            expected: expected_digest.to_string(),
-            computed: computed_digest.to_string(),
-          });
+        let expected = Digest::from_string(expected_digest).unwrap();
+        let computed = Digest::new(expected.algorithm, &data.to_vec());
+        match computed != expected {
+          true => Err(DigestMismatch { expected, computed }),
+          false => Ok(computed),
         }
-        Ok(computed_digest)
       }
       Reference::Tag(_) => Ok(Digest::new(Sha256, &data.to_vec())),
     }

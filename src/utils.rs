@@ -1,3 +1,4 @@
+use crate::digest::Digest;
 use actix_web::http::header::HeaderValue;
 use regex_lite::Regex;
 use uuid::Uuid;
@@ -72,8 +73,8 @@ pub fn encode_base64(input: String) -> String {
 }
 
 pub struct DigestMismatch {
-  pub expected: String,
-  pub computed: String,
+  pub expected: Digest,
+  pub computed: Digest,
 }
 impl std::fmt::Debug for DigestMismatch {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

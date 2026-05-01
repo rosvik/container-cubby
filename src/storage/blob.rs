@@ -59,8 +59,8 @@ impl Blob {
     let computed_digest = Digest::new(self.digest.algorithm, &data.to_vec());
     if computed_digest != self.digest {
       return Err(DigestMismatch {
-        expected: self.digest.to_string(),
-        computed: computed_digest.to_string(),
+        expected: self.digest.clone(),
+        computed: computed_digest,
       });
     }
     Ok(())
