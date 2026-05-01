@@ -1,4 +1,4 @@
-use sha2::{Digest, Sha256};
+use sha2::Digest as _;
 
 // https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md#digests
 //
@@ -12,7 +12,7 @@ pub fn get_sha256_digest(data: &Vec<u8>) -> String {
 }
 
 fn hash_data(data: &Vec<u8>) -> Vec<u8> {
-  let mut hasher: sha2::Sha256 = Sha256::new();
+  let mut hasher: sha2::Sha256 = sha2::Sha256::new();
   sha2::Digest::update(&mut hasher, data);
   hasher.finalize().to_vec()
 }
