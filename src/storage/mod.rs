@@ -21,11 +21,11 @@ pub fn delete_manifest(name: &str, reference: &str) -> Result<(), io::Error> {
 
   let file_path = match reference_type {
     utils::Reference::Tag(_) => path::get(name, reference, path::FileType::Tag)?,
-    utils::Reference::Sha256(_) => path::get(name, reference, path::FileType::Manifest)?,
+    utils::Reference::Digest(_) => path::get(name, reference, path::FileType::Manifest)?,
   };
   file::delete(&file_path)?;
 
-  if let utils::Reference::Sha256(_) = reference_type {
+  if let utils::Reference::Digest(_) = reference_type {
     // Delete tags that point to the deleted manifest
     let container_dir = path::container_dir(name)?;
     symlink::clean_broken_symlinks_in(&container_dir)?;
@@ -42,7 +42,7 @@ pub fn get_manifest(name: &str, reference: &str) -> Result<File, io::Error> {
 
   let file_path = match reference_type {
     utils::Reference::Tag(_) => path::get(name, reference, path::FileType::Tag)?,
-    utils::Reference::Sha256(_) => path::get(name, reference, path::FileType::Manifest)?,
+    utils::Reference::Digest(_) => path::get(name, reference, path::FileType::Manifest)?,
   };
 
   let file = file::try_read(&file_path)?;

@@ -44,7 +44,7 @@ impl Manifest {
     let manifest_path = path::get(&self.name, &digest.to_string(), path::FileType::Manifest)?;
     let tag_path = match &self.reference {
       Reference::Tag(tag) => Some(path::get(&self.name, tag, path::FileType::Tag)?),
-      Reference::Sha256(_) => None,
+      Reference::Digest(_) => None,
     };
 
     match file::try_create(&manifest_path) {
@@ -75,12 +75,14 @@ impl Manifest {
   /// otherwise returns the computed digest.
   fn verified_digest(&self, data: &[u8]) -> Result<Digest, DigestMismatch> {
     match &self.reference {
-      Reference::Sha256(expected_digest) => {
-        let expected = Digest::from_string(expected_digest).unwrap();
+      Reference::Digest(expected) => {
         let computed = Digest::new(expected.algorithm, &data.to_vec());
-        match computed != expected {
-          true => Err(DigestMismatch { expected, computed }),
-          false => Ok(computed),
+        match computed == *expected {
+          true => Ok(computed),
+          false => Err(DigestMismatch {
+            expected: expected.clone(),
+            computed,
+          }),
         }
       }
       Reference::Tag(_) => Ok(Digest::new(Sha256, &data.to_vec())),

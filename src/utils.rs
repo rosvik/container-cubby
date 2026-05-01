@@ -84,7 +84,7 @@ impl std::fmt::Debug for DigestMismatch {
 
 #[allow(dead_code)]
 pub enum Reference {
-  Sha256(String),
+  Digest(Digest),
   Tag(String),
 }
 /// <reference> MUST be either (a) the digest of the manifest or (b) a tag. The <reference> MUST NOT
@@ -93,7 +93,7 @@ pub enum Reference {
 pub fn verify_reference(reference: &str) -> Result<Reference, ()> {
   match reference.starts_with("sha256:") {
     true => match is_safe_digest(reference) {
-      true => Ok(Reference::Sha256(reference.to_string())),
+      true => Ok(Reference::Digest(Digest::from_string(reference).unwrap())),
       false => Err(()),
     },
     false => match is_safe_tag(reference) {
@@ -160,7 +160,7 @@ mod tests {
   #[test]
   fn test_verify_reference() {
     let sha256 = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
-    assert!(matches!(verify_reference(sha256), Ok(Reference::Sha256(_))));
+    assert!(matches!(verify_reference(sha256), Ok(Reference::Digest(_))));
 
     let invalid_sha256 = "sha256:x94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
     assert!(verify_reference(invalid_sha256).is_err());
