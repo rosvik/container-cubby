@@ -145,6 +145,7 @@ async fn test_put_manifest() {
 
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+  assert!(res.headers().get("OCI-Tag").is_none());
 }
 
 #[test]
@@ -168,6 +169,7 @@ async fn test_put_manifest_with_tags() {
 
   let res = service.call(req).await.unwrap();
   assert_eq!(res.status(), StatusCode::CREATED);
+  assert_eq!(res.headers().get("OCI-Tag").unwrap().to_str().unwrap(), "latest, v1.0.0");
 
   // GET tags list
   let uri = format!("/v2/{name}/tags/list");

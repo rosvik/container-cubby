@@ -652,6 +652,10 @@ async fn put_manifest(
     // The Docker-Content-Digest header returns the digest of the uploaded blob,
     // and MUST be equal to the client provided digest.
     .insert_header(("Docker-Content-Digest", digest.to_string()))
+    // 3. MUST include an `OCI-Tag` response header, in accordance with RFC 9110
+    //    (section 5) semantics, for each accepted tag.
+    //    <https://www.rfc-editor.org/rfc/rfc9110#name-fields>
+    .insert_header(("OCI-Tag", query.tags.join(", ")))
     .finish()
 }
 
