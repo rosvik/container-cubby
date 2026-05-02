@@ -130,7 +130,7 @@ The endpoints as defined by the [OCI Distribution Spec](https://specs.opencontai
 | end-5   | PATCH    | `/v2/<name>/blobs/uploads/<reference>`                       | ✅          |
 | end-6   | PUT      | `/v2/<name>/blobs/uploads/<reference>?digest=<digest>`       | ✅          |
 | end-7a  | PUT      | `/v2/<name>/manifests/<reference>`                           | ✅          |
-| end-7b  | PUT      | `/v2/<name>/manifests/<digest>?tag=1&tag=2&tag=3`            | ❌          |
+| end-7b  | PUT      | `/v2/<name>/manifests/<digest>?tag=1&tag=2&tag=3`            | ✅          |
 | end-8a  | GET      | `/v2/<name>/tags/list`                                       | ✅          |
 | end-8b  | GET      | `/v2/<name>/tags/list?n=<integer>&last=<tagname>`            | ✅          |
 | end-9   | DELETE   | `/v2/<name>/manifests/<reference>`                           | ✅          |
