@@ -7,10 +7,13 @@ mod storage;
 mod utils;
 
 use crate::digest::{Algorithm::Sha256, Digest};
+use crate::storage::tag::Tag;
+use crate::utils::Reference;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
+use serde_qs::{actix::QsQueryConfig, web::QsQuery, Config as QsConfig};
 use std::io::{Read, Write};
 use storage::{blob::Blob, manifest::Manifest};
 use utils::ansi::{RESET, UNDERLINE};
@@ -32,10 +35,14 @@ async fn main() -> std::io::Result<()> {
   println!("Listening on {UNDERLINE}{}://{host}:{port}/{RESET}", env::PROTOCOL);
 
   HttpServer::new(|| {
+    // Handle query arrays on the format `a=1&a=2` instead of `a[0]=1&a[1]=2`
+    let qs_config = QsConfig::new().array_format(serde_qs::ArrayFormat::Unindexed);
+
     App::new()
       .wrap(middleware::log_requests::LogRequests)
       .wrap(middleware::basic_auth::BasicAuth)
       .app_data(web::PayloadConfig::new(1024 * 1024 * 1024)) // 1GB
+      .app_data(QsQueryConfig::default().qs_config(qs_config))
       .route("/", web::get().to(|| async { env::crate_info() }))
       .route("/v2/", web::get().to(|| async { "Authenticated" }))
       .route("/v2/{name:[^{}]+}/blobs/{digest}", web::get().to(get_blob))
@@ -537,6 +544,11 @@ async fn put_blob_upload(
   HttpResponse::Created().insert_header(("Location", blob_location)).finish()
 }
 
+#[derive(Deserialize)]
+struct PutManifestParameters {
+  #[serde(default, rename = "tag")]
+  tags: Vec<String>,
+}
 /// end-7: `PUT /v2/<name>/manifests/<reference>` => 201 / 404
 ///
 /// REQUEST
@@ -551,6 +563,7 @@ async fn put_manifest(
   path: web::Path<(String, String)>,
   req: HttpRequest,
   data: web::Bytes,
+  query: QsQuery<PutManifestParameters>,
 ) -> impl Responder {
   let (name, reference) = path.into_inner();
 
@@ -562,6 +575,25 @@ async fn put_manifest(
       return HttpResponse::BadRequest().finish();
     }
   };
+
+  // When pushing a manifest by digest, the registry MAY support the pushing of
+  // tags specified by addition of `tag` query parameters.
+  if let Reference::Digest(_) = manifest.reference {
+    // If a registry supports this, it:
+    // 1. SHOULD support pushing at least 10 tags per request.
+    const MAX_TAGS: usize = 256;
+
+    // 2. MAY return a `414 Request-URI Too Long` status if too many tags are
+    //    included in the request.
+    if query.tags.len() > MAX_TAGS {
+      println!("Error: Too many tags: {:?}", query.tags);
+      return HttpResponse::UriTooLong().finish();
+    }
+    if query.tags.iter().any(|f| !utils::is_safe_tag(f)) {
+      println!("Error: Invalid tag: {:?}", query.tags);
+      return HttpResponse::BadRequest().finish();
+    }
+  }
 
   // Clients SHOULD set the Content-Type header to the type of the manifest
   // being pushed.
@@ -596,6 +628,23 @@ async fn put_manifest(
       return HttpResponse::InternalServerError().finish();
     }
   };
+
+  for tag in query.tags.iter() {
+    let tag = match Tag::new(&name, tag.to_string(), digest.clone()) {
+      Ok(tag) => tag,
+      Err(e) => {
+        println!("Error: Invalid tag: {e:?}");
+        return HttpResponse::BadRequest().finish();
+      }
+    };
+    match tag.create() {
+      Ok(_) => (),
+      Err(e) => {
+        println!("Error: Could not create tag: {e:?}");
+        return HttpResponse::InternalServerError().finish();
+      }
+    };
+  }
 
   let location = format!("/v2/{name}/manifests/{reference}");
   HttpResponse::Created()

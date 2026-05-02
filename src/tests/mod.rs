@@ -148,6 +148,39 @@ async fn test_put_manifest() {
 }
 
 #[test]
+async fn test_put_manifest_with_tags() {
+  let name: String = get_random_namespace();
+  let manifest = include_str!("./fixtures/image_manifest.json");
+  let tags = ["latest", "v1.0.0"];
+  let digest = Digest::new(Sha256, &manifest.as_bytes().to_vec());
+
+  let app = App::new()
+    .service(web::resource("/v2/{name:[^{}]+}/manifests/{reference}/").put(put_manifest))
+    .service(web::resource("/v2/{name:[^{}]+}/tags/list").get(get_tags_list));
+  let service = test::init_service(app).await;
+
+  let uri = format!("/v2/{name}/manifests/{digest}/?tag={}&tag={}", tags[0], tags[1]);
+  let req = test::TestRequest::with_uri(uri.as_str())
+    .set_payload(manifest)
+    .insert_header(("Content-Type", "application/vnd.docker.distribution.manifest.v2+json"))
+    .method(Method::PUT)
+    .to_request();
+
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::CREATED);
+
+  // GET tags list
+  let uri = format!("/v2/{name}/tags/list");
+  let req = test::TestRequest::with_uri(uri.as_str()).method(Method::GET).to_request();
+  let res = service.call(req).await.unwrap();
+  assert_eq!(res.status(), StatusCode::OK);
+  let body = test::read_body(res).await;
+  let tags = serde_json::from_slice::<schemas::TagsList>(&body).unwrap();
+  assert_eq!(tags.tags, vec!["latest", "v1.0.0"]);
+  assert_eq!(tags.name, name);
+}
+
+#[test]
 async fn test_get_manifest() {
   let name: String = get_random_namespace();
   let manifest = include_str!("./fixtures/image_manifest.json");

@@ -15,6 +15,7 @@ regex-lite = "0.1.6"
 serde = {version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.140"
 serde_with = "3.14.0"
+serde_qs = {version = "1.1.1", features = ["actix4"]}
 sha2 = "0.10.2"
 tokio = {version = "1.46.1", features = ["rt-multi-thread"]}
 tower = "0.5.2"
