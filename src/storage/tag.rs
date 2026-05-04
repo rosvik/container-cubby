@@ -4,6 +4,8 @@ use crate::{
   utils::is_safe_tag,
 };
 
+/// A custom, human-readable pointer to a manifest. A manifest digest may have
+/// zero, one, or many tags referencing it.
 pub struct Tag {
   pub name: String,
   pub reference: String,
