@@ -578,7 +578,8 @@ async fn put_manifest(
 
   // When pushing a manifest by digest, the registry MAY support the pushing of
   // tags specified by addition of `tag` query parameters.
-  if let Reference::Digest(_) = manifest.reference {
+  let mut tags: Vec<Tag> = Vec::new();
+  if let Reference::Digest(ref digest) = manifest.reference {
     // If a registry supports this, it:
     // 1. SHOULD support pushing at least 10 tags per request.
     const MAX_TAGS: usize = 256;
@@ -589,9 +590,15 @@ async fn put_manifest(
       println!("Error: Too many tags: {:?}", query.tags);
       return HttpResponse::UriTooLong().finish();
     }
-    if query.tags.iter().any(|f| !utils::is_safe_tag(f)) {
-      println!("Error: Invalid tag: {:?}", query.tags);
-      return HttpResponse::BadRequest().finish();
+    for tag in query.tags.iter() {
+      let tag = match Tag::new(&name, tag.to_string(), digest.clone()) {
+        Ok(tag) => tag,
+        Err(e) => {
+          println!("Error: Invalid tag: {e:?}");
+          return HttpResponse::BadRequest().finish();
+        }
+      };
+      tags.push(tag);
     }
   }
 
@@ -629,21 +636,11 @@ async fn put_manifest(
     }
   };
 
-  for tag in query.tags.iter() {
-    let tag = match Tag::new(&name, tag.to_string(), digest.clone()) {
-      Ok(tag) => tag,
-      Err(e) => {
-        println!("Error: Invalid tag: {e:?}");
-        return HttpResponse::BadRequest().finish();
-      }
-    };
-    match tag.create() {
-      Ok(_) => (),
-      Err(e) => {
-        println!("Error: Could not create tag: {e:?}");
-        return HttpResponse::InternalServerError().finish();
-      }
-    };
+  for tag in tags.iter() {
+    if let Err(e) = tag.create() {
+      println!("Error: Could not create tag: {e:?}");
+      return HttpResponse::InternalServerError().finish();
+    }
   }
 
   let location = format!("/v2/{name}/manifests/{reference}");
