@@ -32,7 +32,7 @@ pub struct ImageManifest {
   /// compatibility with older versions of Docker. The value of this field will
   /// not change. This field MAY be removed in a future version of the
   /// specification.
-  pub schema_version: u32,
+  pub schema_version: u8,
 
   /// This property is reserved for use, to maintain compatibility. When used,
   /// this field contains the media type of this document, which differs from
