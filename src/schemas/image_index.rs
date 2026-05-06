@@ -1,4 +1,4 @@
-use crate::schemas::annotations::Annotations;
+use crate::schemas::{annotations::Annotations, descriptor::Descriptor};
 use serde::{Deserialize, Serialize};
 
 /// For the media type that this document is compatible with, see the matrix.
@@ -40,10 +40,30 @@ pub struct ImageIndex {
   /// the descriptor use of mediaType.
   pub media_type: Option<ImageIndexMediaType>,
 
+  /// This OPTIONAL property contains the type of an artifact when the manifest
+  /// is used for an artifact. If defined, the value MUST comply with RFC 6838,
+  /// including the naming requirements in its section 4.2, and MAY be
+  /// registered with IANA.
+  ///
+  /// <https://tools.ietf.org/html/rfc6838>
+  /// <https://www.iana.org/assignments/media-types/media-types.xhtml>
+  pub artifact_type: Option<String>,
+
   /// This REQUIRED property contains a list of manifests for specific
   /// platforms. While this property MUST be present, the size of the array
   /// MAY be zero.
   pub manifests: Vec<Manifest>,
+
+  /// This OPTIONAL property specifies a descriptor of another manifest. This
+  /// value defines a weak association to a separate Merkle Directed Acyclic
+  /// Graph (DAG) structure, and is used by the referrers API to include this
+  /// manifest in the list of responses for the subject digest.
+  ///
+  /// <https://en.wikipedia.org/wiki/Merkle_tree>
+  pub subject: Option<Descriptor>,
+
+  /// This OPTIONAL property contains arbitrary metadata for the image index.
+  pub annotations: Option<Annotations>,
 }
 
 /// Each object in manifests includes a set of descriptor properties
