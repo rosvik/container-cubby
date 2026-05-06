@@ -53,6 +53,14 @@ pub struct ImageManifest {
   /// unspecified.
   pub layers: Vec<Descriptor>,
 
+  /// This OPTIONAL property specifies a descriptor of another manifest. This
+  /// value defines a weak association to a separate Merkle Directed Acyclic
+  /// Graph (DAG) structure, and is used by the referrers API to include this
+  /// manifest in the list of responses for the subject digest.
+  ///
+  /// <https://en.wikipedia.org/wiki/Merkle_tree>
+  pub subject: Option<Descriptor>,
+
   /// This OPTIONAL property contains arbitrary metadata for the image manifest.
   pub annotations: Option<Annotations>,
 }
