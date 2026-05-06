@@ -1,5 +1,5 @@
+use crate::schemas::annotations::Annotations;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// For the media type that this document is compatible with, see the matrix.
 /// <https://github.com/opencontainers/image-spec/blob/main/media-types.md#compatibility-matrix>
@@ -142,9 +142,3 @@ pub struct Platform {
   /// This property is RESERVED for future versions of the specification.
   pub features: Option<Vec<String>>,
 }
-
-/// Annotations MUST be a key-value map where both the key and value MUST be
-/// strings.
-///
-/// <https://github.com/opencontainers/image-spec/blob/v1.0.1/annotations.md#rules>
-pub type Annotations = HashMap<String, String>;

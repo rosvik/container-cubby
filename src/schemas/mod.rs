@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+mod annotations;
+mod descriptor;
 mod image_index;
 mod image_manifest;
 mod tags_list;
