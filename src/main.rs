@@ -90,7 +90,10 @@ async fn get_blob(path: web::Path<(String, String)>) -> impl Responder {
   };
 
   let mut buf = Vec::new();
-  file.read_to_end(&mut buf).unwrap();
+  if let Err(e) = file.read_to_end(&mut buf) {
+    println!("Error reading blob: {e:?}");
+    return HttpResponse::InternalServerError().finish();
+  }
 
   // A successful response SHOULD contain the digest of the uploaded blob in the
   // header Docker-Content-Digest. If present, the value of this header MUST be
