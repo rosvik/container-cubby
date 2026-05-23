@@ -59,7 +59,11 @@ where
 fn log_request(req: &ServiceRequest) {
   println!("\n{MAGENTA}Request: {BLUE}{} {:?}{RESET}", &req.method(), &req.uri());
   req.headers().iter().for_each(|(name, value)| {
-    println!("  {CYAN}{name}: {value:?}{RESET}");
+    let value = match name.as_str().to_lowercase().as_str() {
+      "authorization" => "*******",
+      _ => value.to_str().unwrap_or_default(),
+    };
+    println!("  {CYAN}{name}: {value}{RESET}");
   });
 }
 
