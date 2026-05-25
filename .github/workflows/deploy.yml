@@ -6,7 +6,7 @@ on:
 jobs:
   push-container:
     name: Push Container
-    uses: rosvik/workflows/.github/workflows/push-container-qemu.yml@main
+    uses: rosvik/workflows/.github/workflows/push-container.yml@main
     with:
       image: rosvik/container-cubby
       registry_url: cubby.no
