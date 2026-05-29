@@ -663,9 +663,12 @@ async fn put_manifest(
     }
   }
 
-  let location = format!("/v2/{name}/manifests/{reference}");
+  // Upon a successful upload, the registry MUST return response code 201
+  // Created
   HttpResponse::Created()
-    .insert_header(("Location", location))
+    // and MUST have the following header: `Location: <location>`. The
+    // <location> is a pullable manifest URL.
+    .insert_header(("Location", format!("/v2/{name}/manifests/{reference}")))
     // The Docker-Content-Digest header returns the digest of the uploaded blob,
     // and MUST be equal to the client provided digest.
     .insert_header(("Docker-Content-Digest", digest.to_string()))
