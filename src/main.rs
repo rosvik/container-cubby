@@ -576,6 +576,17 @@ async fn put_manifest(
 ) -> impl Responder {
   let (name, reference) = path.into_inner();
 
+  // A registry SHOULD enforce some limit on the maximum manifest size that it
+  // can accept. A registry that enforces this limit SHOULD respond to a request
+  // to push a manifest over this limit with a response code `413 Payload Too
+  // Large`. Client and registry implementations SHOULD expect to be able to
+  // support manifest pushes of at least 4 megabytes.
+  const MAX_MANIFEST_SIZE: usize = 20 * 1024 * 1024; // 20MB
+  if data.len() > MAX_MANIFEST_SIZE {
+    println!("Error: Manifest too large: {}", data.len());
+    return HttpResponse::PayloadTooLarge().finish();
+  }
+
   let manifest = match Manifest::new(&name, &reference) {
     Ok(manifest) => manifest,
     Err(e) => {
