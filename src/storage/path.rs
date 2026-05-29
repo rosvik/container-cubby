@@ -120,7 +120,10 @@ mod tests {
 
     // BlobLink
     let blob_link_path = get(name, digest, FileType::BlobLink).unwrap();
-    assert_eq!(blob_link_path, "containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.blob");
+    assert_eq!(
+      blob_link_path,
+      "containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.blob"
+    );
 
     // Hunk
     let hunk_path = get(name, hunk, FileType::Hunk).unwrap();
@@ -128,7 +131,10 @@ mod tests {
 
     // Manifest
     let manifest_path = get(name, digest, FileType::Manifest).unwrap();
-    assert_eq!(manifest_path, "containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.json");
+    assert_eq!(
+      manifest_path,
+      "containers/foo/bar/sha256:f52fbd32b2b3b86ff88ef6c490628285f482af15ddcb29541f94bcf526a3f6c7.json"
+    );
 
     // Tag
     let tag_path = get(name, tag, FileType::Tag).unwrap();

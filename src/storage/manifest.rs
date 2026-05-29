@@ -1,7 +1,7 @@
 use crate::{
   digest::{Algorithm::Sha256, Digest},
   storage::{ensure_container_dir_exists, file, path, tag::Tag, xattr::set_xattr_media_type},
-  utils::{is_safe_name, verify_reference, DigestMismatch, Reference},
+  utils::{DigestMismatch, Reference, is_safe_name, verify_reference},
 };
 use std::io::{self, Write};
 

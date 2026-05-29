@@ -24,10 +24,10 @@ pub fn create_relative_symlink(from: &str, to: &str) -> Result<(), std::io::Erro
   let full_path_to_link_file = format!("{}/{from}", env::data_dir());
 
   // If there already exists a symlink, remove it first.
-  if let Ok(metadata) = std::fs::symlink_metadata(&full_path_to_link_file) {
-    if metadata.file_type().is_symlink() {
-      std::fs::remove_file(&full_path_to_link_file)?;
-    }
+  if let Ok(metadata) = std::fs::symlink_metadata(&full_path_to_link_file)
+    && metadata.file_type().is_symlink()
+  {
+    std::fs::remove_file(&full_path_to_link_file)?;
   }
 
   std::os::unix::fs::symlink(relative_path_to_target, full_path_to_link_file)

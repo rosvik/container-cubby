@@ -146,15 +146,14 @@ fn get_dangling_manifests_in(directory: &PathBuf) -> Vec<PathBuf> {
           }
 
           // Is the file referenced by an image index?
-          if dir_entry.path().is_file() {
-            if let Ok(image_index) = serde_json::from_reader::<_, schemas::ImageIndex>(
+          if dir_entry.path().is_file()
+            && let Ok(image_index) = serde_json::from_reader::<_, schemas::ImageIndex>(
               &fs::File::open(dir_entry.path()).unwrap(),
-            ) {
-              if image_index.manifests.iter().any(|manifest| manifest.digest == manifest_digest) {
-                // The manifest is referenced by an image index, so it is not dangling
-                return false;
-              }
-            }
+            )
+            && image_index.manifests.iter().any(|manifest| manifest.digest == manifest_digest)
+          {
+            // The manifest is referenced by an image index, so it is not dangling
+            return false;
           }
         }
         // The manifest is not linked to by a tag or image index, so it is

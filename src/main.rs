@@ -9,11 +9,11 @@ mod utils;
 use crate::digest::{Algorithm::Sha256, Digest};
 use crate::storage::tag::Tag;
 use crate::utils::Reference;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use dotenv::dotenv;
 use schemas::SchemaVariant;
 use serde::Deserialize;
-use serde_qs::{actix::QsQueryConfig, web::QsQuery, Config as QsConfig};
+use serde_qs::{Config as QsConfig, actix::QsQueryConfig, web::QsQuery};
 use std::io::{Read, Write};
 use storage::{blob::Blob, manifest::Manifest};
 use utils::ansi::{RESET, UNDERLINE};
@@ -474,7 +474,9 @@ async fn patch_blob_upload(
     // the last chunk's <end-of-range> plus one. If a chunk is uploaded out of
     // order, the registry MUST respond with a 416 Requested Range Not
     // Satisfiable code.
-    println!("Error: Uploaded hunk range did not match stored hunk: Stored: {size_in_bytes}, req_first_byte: {range_start}");
+    println!(
+      "Error: Uploaded hunk range did not match stored hunk: Stored: {size_in_bytes}, req_first_byte: {range_start}"
+    );
     return HttpResponse::RangeNotSatisfiable().finish();
   }
 

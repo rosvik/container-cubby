@@ -1,7 +1,7 @@
 use crate::{
   digest::Digest,
   storage::{self, file, path, symlink},
-  utils::{is_safe_name, DigestMismatch},
+  utils::{DigestMismatch, is_safe_name},
 };
 use std::{fs::File, io};
 

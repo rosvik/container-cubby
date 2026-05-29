@@ -3,9 +3,10 @@ pub mod utils;
 use super::*;
 use crate::utils::encode_base64;
 use actix_web::{
+  App,
   dev::Service,
   http::{Method, StatusCode},
-  test, App,
+  test,
 };
 use middleware::basic_auth::BasicAuth;
 use utils::*;
@@ -420,9 +421,11 @@ async fn test_push_as_hunks() {
 
 #[test]
 async fn test_auth_read_write() {
-  std::env::set_var("USERNAME", "admin");
-  std::env::set_var("PASSWORD", "hunter2");
-  std::env::set_var("AUTH_MODE", "read_write");
+  unsafe {
+    std::env::set_var("USERNAME", "admin");
+    std::env::set_var("PASSWORD", "hunter2");
+    std::env::set_var("AUTH_MODE", "read_write");
+  }
   let user = env::username().unwrap();
   let pass = env::password().unwrap();
 

@@ -109,7 +109,7 @@ pub fn commit_hunk(name: &str, reference: &str, digest: &Digest) -> Result<(), i
   let blob = match blob::Blob::new(name.to_string(), digest.to_string()) {
     Ok(blob) => blob,
     Err(e) => {
-      return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid blob: {e:?}")))
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid blob: {e:?}")));
     }
   };
   if let Err(e) = blob.verify(&buf) {

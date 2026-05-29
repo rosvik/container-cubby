@@ -57,7 +57,9 @@ pub fn print_env_info() {
   let auth_enabled = std::env::var("AUTH_ENABLED");
 
   if auth_enabled.is_ok_and(|x| x == "false") {
-    println!("{YELLOW}WARNING: With AUTH_ENABLED=false, adding and deleting data from this registry can be done without authentication.{RESET}");
+    println!(
+      "{YELLOW}WARNING: With AUTH_ENABLED=false, adding and deleting data from this registry can be done without authentication.{RESET}"
+    );
     println!("{YELLOW}         Not recommended for production.{RESET}");
   } else if username.is_err() || password.is_err() {
     println!(

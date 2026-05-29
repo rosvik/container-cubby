@@ -3,15 +3,15 @@ use crate::{
   utils::decode_base64,
 };
 use actix_web::{
-  body::EitherBody,
-  dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-  http::header::HeaderValue,
-  http::Method,
   Error, HttpResponse,
+  body::EitherBody,
+  dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready},
+  http::Method,
+  http::header::HeaderValue,
 };
-use futures_util::{future::LocalBoxFuture, FutureExt};
+use futures_util::{FutureExt, future::LocalBoxFuture};
 use std::{
-  future::{ready, Ready},
+  future::{Ready, ready},
   rc::Rc,
 };
 

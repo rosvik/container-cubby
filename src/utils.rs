@@ -59,7 +59,7 @@ pub fn get_content_type(content_type: Option<&HeaderValue>) -> Option<String> {
   Some(content_type.to_string())
 }
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 pub fn decode_base64(input: String) -> Result<String, Box<dyn std::error::Error>> {
   let bytes = general_purpose::STANDARD.decode(input)?;
   let utf8 = std::str::from_utf8(&bytes)?;
