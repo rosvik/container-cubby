@@ -57,7 +57,7 @@ where
 }
 
 fn log_request(req: &ServiceRequest) {
-  println!("\n{MAGENTA}Request: {BLUE}{} {:?}{RESET}", &req.method(), &req.uri());
+  println!("\n{MAGENTA}Request: {BLUE}{} {:?}{RESET}", req.method(), req.uri());
   req.headers().iter().for_each(|(name, value)| {
     let value = match name.as_str().to_lowercase().as_str() {
       "authorization" => "*******",

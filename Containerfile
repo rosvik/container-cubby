@@ -1,6 +1,6 @@
 # Build stage
 
-FROM rust:1.88-alpine3.20 as builder
+FROM rust:1.96-alpine3.23 as builder
 # see https://github.com/rust-lang/docker-rust/issues/85
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN apk add --no-cache musl-dev
@@ -12,7 +12,7 @@ RUN strip target/release/container-cubby
 # Prod stage
 
 # alpine version must match build stage
-FROM alpine:3.20
+FROM alpine:3.23
 RUN apk add --no-cache libgcc
 COPY --from=builder /app/target/release/container-cubby /
 
