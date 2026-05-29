@@ -130,7 +130,13 @@ async fn head_blob(path: web::Path<(String, String)>) -> impl Responder {
       return HttpResponse::NotFound().finish();
     }
   };
-  let metadata = file.metadata().unwrap();
+  let metadata = match file.metadata() {
+    Ok(metadata) => metadata,
+    Err(e) => {
+      println!("Error getting blob metadata: {e:?}");
+      return HttpResponse::InternalServerError().finish();
+    }
+  };
   let content_length = metadata.len();
 
   // - A HEAD request to an existing blob or manifest URL MUST return `200 OK`.
