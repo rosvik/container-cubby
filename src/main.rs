@@ -636,7 +636,7 @@ async fn put_manifest(
     }
   };
 
-  match manifest_variant {
+  let manifest_variant = match manifest_variant {
     SchemaVariant::ImageManifest(manifest) => SchemaVariant::ImageManifest(manifest),
     SchemaVariant::ImageIndex(index) => SchemaVariant::ImageIndex(index),
     SchemaVariant::Unknown(base) => {
@@ -667,7 +667,8 @@ async fn put_manifest(
 
   // Upon a successful upload, the registry MUST return response code 201
   // Created
-  HttpResponse::Created()
+  let mut response = HttpResponse::Created();
+  response
     // and MUST have the following header: `Location: <location>`. The
     // <location> is a pullable manifest URL.
     .insert_header(("Location", format!("/v2/{name}/manifests/{reference}")))
@@ -677,8 +678,19 @@ async fn put_manifest(
     // 3. MUST include an `OCI-Tag` response header, in accordance with RFC 9110
     //    (section 5) semantics, for each accepted tag.
     //    <https://www.rfc-editor.org/rfc/rfc9110#name-fields>
-    .insert_header(("OCI-Tag", query.tags.join(", ")))
-    .finish()
+    .insert_header(("OCI-Tag", query.tags.join(", ")));
+
+  if let SchemaVariant::ImageIndex(manifest) = manifest_variant
+    && let Some(subject) = manifest.subject
+  {
+    // When processing a request for an image manifest with the subject field, a
+    // registry implementation that supports the referrers API MUST respond with
+    // the response header `OCI-Subject: <subject digest>` to indicate to the
+    // client that the registry processed the request's `subject`.
+    response.insert_header(("OCI-Subject", subject.digest.clone()));
+  }
+
+  response.finish()
 }
 
 #[derive(Deserialize)]
